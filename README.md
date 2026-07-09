@@ -10,3 +10,7 @@ A full-stack habit tracking application with RPG-style progression, streaks, XP,
 - PostgreSQL
 - Entity Framework Core
 - Tailwind CSS
+
+## Documentation
+
+- [Project Overview](docs/PROJECT_OVERVIEW.md)
