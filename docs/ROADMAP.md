@@ -20,6 +20,8 @@ Set up the frontend, backend, and PostgreSQL database so the project has a worki
 - Set up PostgreSQL.
 - Connect the backend to PostgreSQL.
 - Add Entity Framework Core.
+- Create the xUnit backend test project.
+- Confirm the test project runs successfully.
 - Add a simple backend health check endpoint.
 - Confirm the frontend can call the backend.
 
@@ -29,6 +31,7 @@ Set up the frontend, backend, and PostgreSQL database so the project has a worki
 - Frontend runs locally.
 - PostgreSQL runs locally.
 - Backend can connect to PostgreSQL.
+- The xUnit test project runs successfully.
 - Frontend can call a backend test endpoint.
 
 ### Not Included Yet
@@ -51,6 +54,9 @@ Allow users to register, log in, log out, and access private user-specific data.
 ### Scope
 
 - Create the User entity.
+- Create the UserSettings entity.
+- Create default user settings during registration.
+- Store the user's display name and time zone.
 - Add password hashing.
 - Add registration endpoint.
 - Add login endpoint.
@@ -62,6 +68,8 @@ Allow users to register, log in, log out, and access private user-specific data.
 ### Definition of Done
 
 - A new user can register.
+- Registration creates default settings for the new user.
+- The user's display name and time zone are stored.
 - An existing user can log in.
 - A user can log out.
 - Protected backend endpoints require authentication.
@@ -124,6 +132,7 @@ Allow users to complete habits for the current day.
 - Add endpoint for completing a habit.
 - Add endpoint for undoing today's completion.
 - Prevent duplicate completions for the same habit and date.
+- Add backend tests for duplicate completion and undo behavior.
 - Display completed and incomplete habit states in the frontend.
 
 ### Definition of Done
@@ -133,6 +142,7 @@ Allow users to complete habits for the current day.
 - A user can undo today's completion.
 - Completion records are stored in PostgreSQL.
 - Completion logic is handled by the backend.
+- Duplicate completion and undo behavior are covered by backend tests.
 
 ### Not Included Yet
 
@@ -156,8 +166,10 @@ Reward users with XP and attribute progress when habits are completed.
 - Add XpService.
 - Add AttributeService.
 - Define the initial character attributes.
+- Extend habit request and response DTOs to support attribute rewards.
 - Apply XP rewards when a habit is completed.
 - Store XP transactions.
+- Add backend tests for XP and attribute calculations.
 - Display attribute progress in the frontend.
 
 ### Initial Attributes
@@ -176,8 +188,10 @@ Reward users with XP and attribute progress when habits are completed.
 - Completing a habit creates XP transactions.
 - Completing a habit updates the correct user attributes.
 - Attribute XP is stored in PostgreSQL.
+- Habit DTOs support attribute reward configuration.
 - The frontend displays attribute progress.
 - XP and attribute logic is handled by the backend.
+- Core XP and attribute calculations are covered by backend tests.
 
 ### Not Included Yet
 
@@ -200,6 +214,7 @@ Create the main dashboard where users can see daily progress, XP, attributes, an
 - Add dashboard API endpoint.
 - Calculate current streaks.
 - Calculate basic weekly progress.
+- Add backend tests for streak calculations.
 - Display today's habits.
 - Display completed and remaining habits.
 - Display user level.
@@ -214,6 +229,7 @@ Create the main dashboard where users can see daily progress, XP, attributes, an
 - The dashboard shows character attributes.
 - The dashboard shows streak information.
 - Streak logic is handled by the backend.
+- Core streak scenarios are covered by backend tests.
 
 ### Not Included Yet
 
@@ -239,7 +255,6 @@ Make the app feel visually rewarding and game-like while preserving the existing
 - Add attribute progress bars.
 - Add simple completion animations.
 - Add level-up feedback.
-- Add milestone badge UI when milestones are implemented.
 
 ### Definition of Done
 
@@ -269,7 +284,7 @@ Prepare the application for real usage and public demonstration.
 - Improve the README.
 - Add screenshots.
 - Add setup instructions.
-- Add backend tests.
+- Review and strengthen backend test coverage.
 - Add seed/demo data if useful.
 - Deploy the frontend.
 - Deploy the backend.
@@ -296,7 +311,7 @@ These features are intentionally outside the MVP and should only be added after 
 - Bad habit tracking
 - Journal entries
 - Daily quests
-- Advanced milestones
+- Milestones and achievements
 - Reminders
 - Notifications
 - Social/accountability features
