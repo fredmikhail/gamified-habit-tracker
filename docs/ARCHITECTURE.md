@@ -71,7 +71,7 @@ PostgreSQL is responsible for storing persistent data, including:
 - habit completions
 - attribute progress
 - XP transactions
-- milestones
+- milestone data when the post-MVP milestone feature is introduced
 
 The database is the source of truth.
 
@@ -85,16 +85,19 @@ Planned structure:
 
 ```text
 server/
-└── HabitTracker.Api/
-    ├── Controllers/
-    ├── Data/
-    ├── Domain/
-    │   ├── Entities/
-    │   └── Enums/
-    ├── DTOs/
-    ├── Services/
-    ├── Program.cs
-    └── appsettings.json
+├── HabitTracker.Api/
+│   ├── Controllers/
+│   ├── Data/
+│   ├── Domain/
+│   │   ├── Entities/
+│   │   └── Enums/
+│   ├── DTOs/
+│   ├── Services/
+│   ├── Program.cs
+│   └── appsettings.json
+│
+└── HabitTracker.Tests/
+    └── HabitTracker.Tests.csproj
 ```
 
 ### Controllers
@@ -164,8 +167,10 @@ It includes:
 Entities represent important business objects such as:
 
 - `User`
+- `UserSettings`
 - `Habit`
 - `HabitCompletion`
+- `HabitAttributeReward`
 - `UserAttribute`
 - `XpTransaction`
 
@@ -194,6 +199,27 @@ Examples:
 - `HabitResponse`
 - `DashboardResponse`
 - `AuthResponse`
+
+---
+
+### Tests
+
+The `HabitTracker.Tests` project contains backend tests written with xUnit.
+
+The test project should focus on important application and business rules, including:
+
+- duplicate habit completion prevention
+- undo completion behavior
+- XP calculations
+- attribute updates
+- streak calculations
+- user data ownership rules where appropriate
+
+The test project is created during Phase 1.
+
+Tests for specific business rules are added alongside the phases that implement those rules.
+
+Tests should verify observable behavior rather than depend heavily on private implementation details.
 
 ---
 
@@ -301,7 +327,7 @@ User clicks "Complete"
 React calls backend API
         |
         v
-CompletionController receives request
+CompletionsController receives request
         |
         v
 CompletionService validates and completes habit
@@ -330,9 +356,26 @@ React updates the UI
 - Do not expose database entities directly.
 - Use PostgreSQL as the source of truth.
 - Use EF Core for database access.
+- Write backend tests alongside the business rules they protect.
 - Preserve stable domain names.
 - Build in phases.
 - Avoid adding out-of-scope features during MVP development.
+
+---
+
+## Architecture Change Rules
+
+Changes to the architecture should be deliberate rather than introduced as unrelated parts of feature work or debugging.
+
+Before changing an established architectural decision:
+
+1. Explain what problem the change solves.
+2. Identify the affected frontend, backend, database, API, test, and documentation areas.
+3. Consider whether the current architecture can support the requirement without a major change.
+4. Document the decision before or alongside the implementation.
+5. Make the change in a focused commit.
+
+The architecture may evolve, but it should not drift silently.
 
 ---
 
