@@ -34,6 +34,17 @@ Requests and responses use JSON unless otherwise documented.
 
 JSON property names use camelCase.
 
+Enum values are serialized as camelCase strings.
+
+Examples:
+
+- `daily`
+- `weekly`
+- `medium`
+- `strength`
+
+Numeric enum values are not part of the public API contract.
+
 Example:
 
 ```json
@@ -191,6 +202,10 @@ Internal exception details and stack traces must not be exposed to users in prod
 
 Authentication endpoints are implemented during Phase 2.
 
+During the MVP, logout may be handled by clearing the client-held authentication state according to the finalized Phase 2 authentication strategy.
+
+A backend logout endpoint is only required if the authentication design introduces server-managed sessions or refresh tokens.
+
 ---
 
 ## Register User
@@ -213,9 +228,16 @@ No.
 {
   "email": "fred@example.com",
   "username": "fred",
-  "password": "example-password"
+  "password": "example-password",
+  "timeZone": "America/Toronto"
 }
 ```
+
+`timeZone` is required and must contain a valid application-supported time-zone identifier.
+
+Registration creates both the User and their default UserSettings.
+
+DisplayName initially defaults to Username.
 
 ### Response
 
@@ -228,7 +250,9 @@ No.
   "user": {
     "id": "user-id",
     "email": "fred@example.com",
-    "username": "fred"
+    "username": "fred",
+    "displayName": "fred",
+    "timeZone": "America/Toronto"
   }
 }
 ```
@@ -277,7 +301,9 @@ No.
   "user": {
     "id": "user-id",
     "email": "fred@example.com",
-    "username": "fred"
+    "username": "fred",
+    "displayName": "fred",
+    "timeZone": "America/Toronto"
   }
 }
 ```
@@ -304,12 +330,15 @@ Yes.
 
 ### Response
 
+`CurrentUserResponse`
+
 ```json
 {
   "id": "user-id",
   "email": "fred@example.com",
   "username": "fred",
-  "displayName": "Fred"
+  "displayName": "fred",
+  "timeZone": "America/Toronto"
 }
 ```
 
@@ -325,6 +354,39 @@ Yes.
 Habit endpoints are implemented during Phase 3.
 
 ---
+
+## Habit DTO Evolution by Phase
+
+Habit DTOs expand as later phases introduce new behavior.
+
+### Phase 3
+
+`HabitResponse` contains the basic habit fields:
+
+- id
+- name
+- description
+- category
+- frequencyType
+- targetCount
+- difficulty
+- isActive
+- createdAtUtc
+- updatedAtUtc
+
+### Phase 4
+
+`HabitResponse` adds:
+
+- isCompletedToday
+
+### Phase 5
+
+Habit request and response DTOs add:
+
+- attributeRewards
+
+Examples in this document that contain all of these properties represent the final MVP contract shape.
 
 ## Get User Habits
 
@@ -440,7 +502,18 @@ Yes.
   "category": "Fitness",
   "frequencyType": "weekly",
   "targetCount": 3,
-  "difficulty": "medium",
+  "difficulty": "medium"
+}
+```
+
+The backend assigns the authenticated user's identity.
+
+The request does not include `userId`.
+
+During Phase 5, `CreateHabitRequest` adds:
+
+```json
+{
   "attributeRewards": [
     {
       "attributeType": "strength",
@@ -454,10 +527,6 @@ Yes.
 }
 ```
 
-The backend assigns the authenticated user's identity.
-
-The request does not include `userId`.
-
 ### Response
 
 `HabitResponse`
@@ -470,17 +539,21 @@ The request does not include `userId`.
 
 ### Validation Notes
 
-The backend should validate:
+During Phase 3, the backend should validate:
 
 - habit name
 - supported frequency type
-- positive target count
+- Daily habits use TargetCount of 1
+- Weekly TargetCount is between 1 and 7
 - supported difficulty
+
+During Phase 5, the backend should additionally validate:
+
 - supported attribute types
-- valid XP amounts
+- XP amounts greater than zero
 - duplicate attribute rewards within the same habit
 
-The exact XP limits will be decided when XP rules are implemented.
+The exact maximum XP limits will be decided when XP rules are implemented.
 
 ---
 
@@ -507,15 +580,24 @@ Yes.
   "category": "Fitness",
   "frequencyType": "weekly",
   "targetCount": 4,
-  "difficulty": "hard",
+  "difficulty": "hard"
+}
+```
+
+The request does not include `userId`.
+
+During Phase 5, `UpdateHabitRequest` adds:
+
+```json
+{
   "attributeRewards": [
     {
       "attributeType": "strength",
-      "xpAmount": 25
+      "xpAmount": 20
     },
     {
       "attributeType": "discipline",
-      "xpAmount": 15
+      "xpAmount": 10
     }
   ]
 }
@@ -594,7 +676,7 @@ Yes.
 
 The MVP does not accept a client-selected completion date.
 
-The backend determines the correct habit date using the authenticated user's date and time settings.
+The backend determines CompletedDate by converting the current UTC timestamp into the authenticated user's local date using their stored time zone.
 
 ### Response
 
@@ -638,7 +720,13 @@ The backend determines the correct habit date using the authenticated user's dat
 
 `409 Conflict` is returned when the habit is already completed for the same date.
 
-XP rewards are introduced during Phase 5. During Phase 4, the response may initially contain only completion data.
+The example above represents the Phase 5 response shape.
+
+During Phase 4, `CompleteHabitResponse` contains only the `completion` property.
+
+During Phase 5, the `rewards` property is added.
+
+The backend calculates `currentXp`, `level`, and `didLevelUp`. The frontend does not calculate authoritative progression values.
 
 ---
 
@@ -668,16 +756,22 @@ No response body.
 - `401 Unauthorized`
 - `404 Not Found`
 
-When XP is implemented, undoing a completion must also reverse its XP effects consistently.
+The backend determines today's date from the authenticated user's stored time zone.
 
-The exact XP reversal strategy will be decided during Phase 5.
+During Phase 4, undo removes today's HabitCompletion.
 
-Possible strategies include:
+Once XP is introduced in Phase 5, undo performs the following changes:
 
-- removing the related XP transactions
-- creating negative reversal transactions
+1. Find the XpTransactions linked to the HabitCompletion.
+2. Subtract their amounts from the corresponding UserAttributes.
+3. Remove the related XpTransactions.
+4. Remove the HabitCompletion.
 
-The chosen approach must preserve a trustworthy XP history.
+All changes must succeed or fail together in one database transaction.
+
+`204 No Content` is returned only after the transaction succeeds.
+
+Negative reversal transactions and immutable undo history are deferred until after the MVP.
 
 ---
 
@@ -720,6 +814,12 @@ An array of `UserAttributeResponse`.
 ]
 ```
 
+`currentXp` is the persisted current net XP balance for the attribute.
+
+`level` and `xpRequiredForNextLevel` are calculated by the backend from `currentXp`.
+
+They are returned through the response DTO but are not stored as separate UserAttribute database fields during the MVP.
+
 ### Possible Status Codes
 
 - `200 OK`
@@ -753,7 +853,7 @@ Yes.
 {
   "date": "2026-07-10",
   "user": {
-    "displayName": "Fred",
+    "displayName": "fred",
     "level": 4,
     "totalXp": 380,
     "xpRequiredForNextLevel": 500
@@ -767,6 +867,12 @@ Yes.
   "streaks": []
 }
 ```
+
+`totalXp` is derived from the sum of the user's currently applied XpTransaction amounts.
+
+Overall `level` and `xpRequiredForNextLevel` are calculated by the backend from `totalXp`.
+
+These progression values are not authoritative frontend calculations.
 
 The exact nested shapes will reuse documented response types where practical.
 
@@ -794,13 +900,13 @@ Returns a basic weekly progress summary.
 
 Yes.
 
-### Optional Query Parameter
+The MVP endpoint returns the authenticated user's current week.
 
-```text
-weekStart=2026-07-06
-```
+The backend determines the current local date from the user's stored time zone.
 
-If no week is supplied, the backend uses the authenticated user's current week.
+The MVP week begins on Monday and ends on Sunday.
+
+Selecting historical weeks is deferred until the data model can accurately preserve historical habit configuration and scheduling changes.
 
 ### Response
 
@@ -816,10 +922,19 @@ If no week is supplied, the backend uses the authenticated user's current week.
 }
 ```
 
+Response field meanings:
+
+- `weekStart` is the Monday of the user's current local week.
+- `weekEnd` is the following Sunday.
+- `completedCount` is the number of applicable HabitCompletions in that week.
+- `scheduledCount` is the total weekly completion target calculated by DashboardService.
+- `completionRate` is calculated by the backend from completedCount and scheduledCount.
+- `xpEarned` is the sum of currently applied XpTransactions linked to completions in the week.
+- `topAttribute` is the attribute that received the most XP in the week and may be `null` when no XP was earned.
+
 ### Possible Status Codes
 
 - `200 OK`
-- `400 Bad Request`
 - `401 Unauthorized`
 
 ---
@@ -839,6 +954,8 @@ The following API areas are intentionally not part of the initial MVP contract:
 - leaderboards
 - public profiles
 - AI recommendations
+- milestones and achievements
+- historical weekly summaries
 
 Possible future settings may include:
 
