@@ -19,6 +19,21 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 var app = builder.Build();
 
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var dbContext =
+        scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    if (!await dbContext.Database.CanConnectAsync())
+    {
+        throw new InvalidOperationException(
+            "The application could not connect to the PostgreSQL database.");
+    }
+
+    app.Logger.LogInformation(
+        "Successfully connected to PostgreSQL.");
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
