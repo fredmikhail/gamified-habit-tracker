@@ -109,7 +109,7 @@ Default UserSettings are created during registration.
 
 The backend uses the stored time zone to convert the current UTC timestamp into the user's local date for completion and dashboard logic.
 
-DisplayName may initially default to Username.
+DisplayName initially defaults to Username.
 
 Changing a user's time zone should not rewrite historical CompletedDate values.
 
@@ -146,13 +146,12 @@ Examples:
 - One Habit belongs to one User.
 - One Habit has many HabitCompletions.
 - One Habit has many HabitAttributeRewards.
-- One Habit may have many XpTransactions.
 
 ### Notes
 
 Habits should be deactivated instead of hard deleted.
 
-This preserves completion history and XP history.
+This preserves completion history and related XP data.
 
 IsActive allows old habits to stop appearing in the active habit list without destroying past data.
 
@@ -184,7 +183,7 @@ Represents a record that a habit was completed on a specific date.
 
 - One HabitCompletion belongs to one User.
 - One HabitCompletion belongs to one Habit.
-- One HabitCompletion may create many XpTransactions during Phase 5.
+- Once XP is introduced in Phase 5, one HabitCompletion may create many XpTransactions.
 
 ### Important Date Distinction
 
@@ -290,7 +289,7 @@ Level is not stored as a separate database field during the MVP.
 
 ## Entity: XpTransaction
 
-Represents a historical record of XP gained.
+Represents an XP award currently applied to a user's attribute.
 
 Examples:
 

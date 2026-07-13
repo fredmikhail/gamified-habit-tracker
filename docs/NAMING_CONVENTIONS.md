@@ -402,7 +402,7 @@ HTTP methods should communicate the operation:
 - `PATCH` partially updates data
 - `DELETE` removes or reverses data
 
-Exact endpoint contracts will be documented in `API_CONTRACT.md`.
+Exact endpoint contracts are documented in `API_CONTRACT.md`.
 
 ---
 

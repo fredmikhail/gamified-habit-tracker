@@ -49,8 +49,8 @@ Example:
 
 ```json
 {
-  "habitId": "example-id",
-  "completedDate": "2026-07-10"
+  "frequencyType": "weekly",
+  "targetCount": 3
 }
 ```
 
@@ -718,7 +718,7 @@ The backend determines CompletedDate by converting the current UTC timestamp int
 - `404 Not Found`
 - `409 Conflict`
 
-`409 Conflict` is returned when the habit is already completed for the same date.
+`409 Conflict` is returned when the habit is inactive or already completed for the same date.
 
 The example above represents the Phase 5 response shape.
 
