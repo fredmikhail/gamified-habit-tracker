@@ -2,7 +2,9 @@
 
 ## Vision
 
-Gamified Habit Tracker is a full-stack habit tracking application that helps users build consistency through habit completion, streaks, XP, milestones, and character attributes.
+Gamified Habit Tracker is a full-stack habit tracking application that helps users build consistency through habit completion, streaks, XP, and character attributes.
+
+Milestones and achievements are planned as post-MVP progression features.
 
 The app combines personal productivity with RPG-style progression to make daily habit tracking more rewarding and visually engaging.
 
@@ -13,7 +15,8 @@ The app combines personal productivity with RPG-style progression to make daily 
 - Provide a clean habit tracking experience.
 - Support multiple users with private habit history and progress.
 - Use gamification to make consistency more rewarding.
-- Track habits, completions, XP, attributes, streaks, and milestones.
+- Track habits, completions, XP, attributes, and streaks.
+- Support milestones and achievements after the MVP.
 - Maintain a modular architecture that can support future features.
 
 ---
@@ -54,6 +57,7 @@ The app combines personal productivity with RPG-style progression to make daily 
 - DTOs are used between frontend and backend.
 - Database entities are not exposed directly as API responses.
 - Core business rules should be implemented in backend services.
+- Backend tests should be added alongside the business rules they protect.
 
 ---
 
@@ -63,6 +67,8 @@ The MVP includes:
 
 - User registration
 - User login
+- User logout
+- Default user settings with display name and time zone
 - User-specific habit data
 - Habit creation
 - Habit editing
@@ -72,14 +78,16 @@ The MVP includes:
 - Duplicate completion prevention
 - XP rewards
 - Character attributes
-- User level
+- Calculated user level
 - Streak calculation
 - Today dashboard
 - Basic weekly progress summary
 
 ---
 
-## Core Entities
+## Planned Entities
+
+### MVP Entities
 
 - User
 - UserSettings
@@ -88,8 +96,13 @@ The MVP includes:
 - HabitAttributeReward
 - UserAttribute
 - XpTransaction
+
+### Post-MVP Planned Entities
+
 - Milestone
 - UserMilestone
+
+The post-MVP entity names are reserved, but milestone and achievement functionality is not part of the initial MVP.
 
 ---
 
@@ -123,9 +136,15 @@ The following features are outside the MVP and should be added only after the co
 - Mobile app
 - Payments
 - Admin panel
+- Complex analytics
+- Public profiles
+- Avatar systems
+- Theme marketplace
+- Calendar integration
+- Milestones and achievements
 
 ---
 
-## First Milestone
+## First End-to-End Product Milestone
 
-A logged-in user can create a habit, complete it for today, gain XP, and see attribute progress increase on the dashboard.
+A registered and logged-in user can create a habit, complete it for today, receive XP, and see updated attribute progress on the dashboard.
