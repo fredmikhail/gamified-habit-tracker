@@ -34,6 +34,12 @@ The following entity names are stable:
 - `Milestone`
 - `UserMilestone`
 
+`User` through `XpTransaction` are MVP entities.
+
+`Milestone` and `UserMilestone` are reserved post-MVP entity names.
+
+Post-MVP status does not make those names less stable. They should not be replaced with alternate names when the milestone feature is implemented.
+
 Avoid alternate names for the same concepts.
 
 Examples of names that should not replace the established domain names:
@@ -227,7 +233,12 @@ Examples:
 
 - `UserId`
 - `HabitId`
+- `HabitCompletionId`
 - `MilestoneId`
+
+A foreign key name should identify the entity it directly references.
+
+For example, `XpTransaction` uses `HabitCompletionId` because it belongs to the exact completion that created the XP award. It should not use `HabitId` as a substitute for that direct relationship.
 
 UTC timestamp properties should end with `Utc`.
 
@@ -274,12 +285,27 @@ Response DTOs should describe the returned resource and end with `Response`.
 Examples:
 
 - `AuthResponse`
+- `CurrentUserResponse`
 - `HabitResponse`
+- `CompleteHabitResponse`
 - `DashboardResponse`
 - `UserAttributeResponse`
 - `XpTransactionResponse`
 
 Do not expose database entities directly through API endpoints.
+
+Response DTOs may contain calculated properties that are not stored as database entity fields.
+
+Examples:
+
+- `Level`
+- `TotalXp`
+- `XpRequiredForNextLevel`
+- `DidLevelUp`
+
+Calculated progression values should use clear domain names and should be produced by the backend.
+
+The presence of a property in a response DTO does not require a matching property on an entity.
 
 Do not add both `Dto` and `Request` or `Response` unnecessarily.
 
@@ -290,6 +316,22 @@ Preferred:
 Avoid:
 
 - `CreateHabitRequestDto`
+
+---
+
+### DTO Evolution
+
+A DTO may gain properties when a later phase expands the same API concept.
+
+Examples:
+
+- `HabitResponse` adds `IsCompletedToday` during Phase 4.
+- Habit request and response DTOs add `AttributeRewards` during Phase 5.
+- `CompleteHabitResponse` adds reward information during Phase 5.
+
+Do not rename a DTO only because later phases add fields to the same conceptual request or response.
+
+Contract changes should remain deliberate and should be updated in `API_CONTRACT.md`.
 
 ---
 
@@ -329,6 +371,28 @@ Examples:
 - `/api/dashboard/today`
 - `/api/auth/register`
 - `/api/auth/login`
+
+### API Enum Value Naming
+
+C# enum members use PascalCase.
+
+Examples:
+
+- `Daily`
+- `Weekly`
+- `Medium`
+- `Strength`
+
+Their public JSON values use camelCase strings.
+
+Examples:
+
+- `daily`
+- `weekly`
+- `medium`
+- `strength`
+
+Numeric enum values are not part of the public API contract.
 
 HTTP methods should communicate the operation:
 
@@ -447,6 +511,8 @@ Examples:
 - `HabitService.cs`
 - `HabitsController.cs`
 - `CreateHabitRequest.cs`
+- `CurrentUserResponse.cs`
+- `CompleteHabitResponse.cs`
 - `HabitDifficulty.cs`
 - `AppDbContext.cs`
 
@@ -467,6 +533,15 @@ Database names should not be changed casually after migrations and deployed data
 ---
 
 ## Test Naming Conventions
+
+The backend test project is named:
+
+- `HabitTracker.Tests`
+
+The test project remains separate from the production API project:
+
+- `HabitTracker.Api`
+- `HabitTracker.Tests`
 
 Backend test classes should identify the class or behavior under test.
 
