@@ -60,7 +60,9 @@ Allow users to register, log in, log out, and access private user-specific data.
 - Add password hashing.
 - Add registration endpoint.
 - Add login endpoint.
-- Add authentication token handling.
+- Add secure cookie-based authentication session handling.
+- Add antiforgery protection for state-changing requests.
+- Add backend logout endpoint.
 - Add protected backend endpoints.
 - Add frontend login and register pages.
 - Add basic frontend auth state.

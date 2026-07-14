@@ -223,6 +223,109 @@ Tests should verify observable behavior rather than depend heavily on private im
 
 ---
 
+## Authentication Architecture
+
+The browser application uses secure cookie-based authentication.
+
+The frontend does not receive, store, decode, or manually attach authentication credentials.
+
+After successful registration or login, ASP.NET Core creates an encrypted authentication cookie. The browser sends the cookie automatically with later requests.
+
+The authentication flow is:
+
+```text
+React frontend
+        |
+        | HTTP request with browser-managed cookie
+        v
+ASP.NET Core authentication middleware
+        |
+        | authenticated user identity
+        v
+AuthController
+        |
+        v
+AuthService
+        |
+        | Entity Framework Core
+        v
+PostgreSQL
+```
+
+### AuthController Responsibilities
+
+`AuthController` handles authentication-related HTTP concerns.
+
+It should:
+
+- receive registration and login requests
+- call `AuthService`
+- create the authentication session after successful registration or login
+- end the authentication session during logout
+- receive request DTOs and return response DTOs
+- return appropriate HTTP status codes
+
+It should not:
+
+- query users directly
+- normalize email or username
+- hash or verify passwords
+- decide whether registration data is available
+- create User or UserSettings directly
+- contain account business rules
+
+### AuthService Responsibilities
+
+`AuthService` owns authentication application logic.
+
+It should:
+
+- validate account-related rules not handled by basic DTO validation
+- normalize email and username
+- check email and username availability
+- hash passwords during registration
+- verify passwords during login
+- create User and UserSettings together
+- update LastLoginAtUtc after successful login
+- return user data through response DTOs
+
+### Authentication Middleware
+
+ASP.NET Core authentication middleware validates the encrypted authentication cookie and creates the authenticated request identity.
+
+Authorization middleware runs after authentication.
+
+Controllers derive the current User identifier from the authenticated request context and pass it to services that perform user-owned operations.
+
+Services must not trust a UserId supplied by the frontend.
+
+User-owned requests must not accept a client-provided UserId.
+
+### Antiforgery Protection
+
+Because browsers send authentication cookies automatically, state-changing browser requests use antiforgery protection.
+
+The frontend obtains an antiforgery request token from the backend and sends it through a request header for:
+
+- POST
+- PUT
+- PATCH
+- DELETE
+
+Antiforgery handling is centralized in the frontend API layer rather than repeated inside pages or components.
+
+### Browser-Facing Origin
+
+The frontend and backend remain separate applications.
+
+Where practical, they are presented through the same browser-facing origin.
+
+During local development, the Vite development server proxies `/api` requests to the ASP.NET Core backend.
+
+In deployment, a reverse proxy or hosting configuration may expose the React frontend and `/api` backend through one public origin.
+
+---
+
 ## Frontend Structure
 
 The frontend will use React, TypeScript, Vite, and Tailwind CSS.

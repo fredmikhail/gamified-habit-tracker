@@ -103,9 +103,35 @@ Examples:
 
 Protected endpoints require an authenticated user.
 
-The authentication mechanism will be finalized during Phase 2.
+The browser application uses secure cookie-based authentication.
 
-The initial contract assumes token-based authentication, but the exact token storage and transport strategy may be refined before implementation.
+After successful registration or login, the backend creates an encrypted authentication cookie. The browser sends this cookie automatically with later authenticated requests.
+
+The authentication cookie is:
+
+- `HttpOnly` so frontend JavaScript cannot read it
+- `Secure` in production so it is sent only over HTTPS
+- configured with `SameSite=Lax`
+- temporary by default, with a maximum authentication lifetime of 12 hours
+- persistent for a fixed maximum of 30 days only when the user explicitly selects `rememberMe`
+- configured without sliding expiration during the MVP
+
+Frontend API requests include credentials so the browser can send and receive authentication cookies.
+
+The web frontend and backend should be presented through the same public origin where practical.
+
+During local development, the Vite development server proxies `/api` requests to the ASP.NET Core backend so browser authentication remains same-origin.
+
+State-changing browser requests use antiforgery protection.
+
+This applies to browser requests using:
+
+- `POST`
+- `PUT`
+- `PATCH`
+- `DELETE`
+
+The frontend obtains an antiforgery request token from the backend and sends it through the documented antiforgery header.
 
 The backend determines the authenticated user's identity from the authentication context.
 
@@ -202,9 +228,55 @@ Internal exception details and stack traces must not be exposed to users in prod
 
 Authentication endpoints are implemented during Phase 2.
 
-During the MVP, logout may be handled by clearing the client-held authentication state according to the finalized Phase 2 authentication strategy.
+Successful registration or login creates an encrypted authentication cookie.
 
-A backend logout endpoint is only required if the authentication design introduces server-managed sessions or refresh tokens.
+The frontend does not receive, store, or manually attach the authentication credential.
+
+The `user` property of `AuthResponse` uses the `CurrentUserResponse` shape.
+
+Registration, login, and logout use antiforgery protection because they change authentication state.
+
+After registration or login changes the authenticated identity, the frontend obtains a new antiforgery request token for later state-changing requests.
+
+---
+
+## Get Antiforgery Token
+
+```text
+GET /api/auth/csrf-token
+```
+
+Returns an antiforgery request token for browser requests.
+
+### Authentication Required
+
+No.
+
+The endpoint may be called before registration or login and again after the authenticated user changes.
+
+The backend also creates the corresponding antiforgery cookie when required.
+
+### Response
+
+`AntiforgeryTokenResponse`
+
+```json
+{
+  "requestToken": "antiforgery-token-value"
+}
+```
+
+The frontend sends `requestToken` through:
+
+```text
+X-CSRF-TOKEN
+```
+
+for state-changing browser requests.
+
+### Possible Status Codes
+
+- `200 OK`
 
 ---
 
@@ -241,12 +313,10 @@ DisplayName initially defaults to Username.
 
 ### Response
 
-`AuthResponse`
+Successful registration creates the authentication cookie and returns `AuthResponse`.
 
 ```json
 {
-  "accessToken": "token-value",
-  "expiresAtUtc": "2026-07-10T23:00:00Z",
   "user": {
     "id": "user-id",
     "email": "fred@example.com",
@@ -257,6 +327,10 @@ DisplayName initially defaults to Username.
 }
 ```
 
+The authentication credential is not included in the JSON response body.
+
+The registration session is temporary by default.
+
 ### Possible Status Codes
 
 - `201 Created`
@@ -264,6 +338,26 @@ DisplayName initially defaults to Username.
 - `409 Conflict`
 
 `409 Conflict` may be returned when the email or username is already registered.
+
+### Validation Rules
+
+The backend validates:
+
+- `email` is required, has a valid email shape, and is at most 254 characters
+- `username` is required and contains between 3 and 30 characters
+- `username` contains only letters, numbers, and underscores
+- `password` is required and contains between 15 and 128 characters
+- `timeZone` is required, is at most 100 characters, and contains a valid IANA time-zone identifier
+
+Email and username comparisons are case-insensitive.
+
+Leading and trailing whitespace is removed from email and username before normalization.
+
+Password whitespace is preserved.
+
+Registration returns `409 Conflict` when the normalized email or normalized username is already registered.
+
+The conflict response should not reveal more account information than necessary.
 
 ---
 
@@ -286,18 +380,23 @@ No.
 ```json
 {
   "email": "fred@example.com",
-  "password": "example-password"
+  "password": "example-password",
+  "rememberMe": true
 }
 ```
 
+`rememberMe` is optional and defaults to `false`. It controls whether the authentication cookie persists after the browser session ends.
+
+When `rememberMe` is `false`, the authentication cookie is temporary.
+
+When `rememberMe` is `true`, the authentication cookie may persist for up to 30 days.
+
 ### Response
 
-`AuthResponse`
+Successful login creates the authentication cookie and returns `AuthResponse`.
 
 ```json
 {
-  "accessToken": "token-value",
-  "expiresAtUtc": "2026-07-10T23:00:00Z",
   "user": {
     "id": "user-id",
     "email": "fred@example.com",
@@ -308,11 +407,59 @@ No.
 }
 ```
 
+The authentication credential is not included in the JSON response body.
+
 ### Possible Status Codes
 
 - `200 OK`
 - `400 Bad Request`
 - `401 Unauthorized`
+
+### Validation Rules
+
+The backend validates:
+
+- `email` is required and is at most 254 characters
+- `password` is required and is at most 128 characters
+- `rememberMe` is optional and defaults to `false`
+
+The backend normalizes the submitted email before looking up the user.
+
+Incorrect credentials return `401 Unauthorized` with a generic error message.
+
+The response must not reveal whether the email address or password was incorrect.
+
+---
+
+## Logout User
+
+```text
+POST /api/auth/logout
+```
+
+Signs out the authenticated user by removing the authentication cookie.
+
+### Authentication Required
+
+No.
+
+Logout is idempotent. The endpoint returns success even when no active authenticated session exists.
+
+The request must include a valid antiforgery token.
+
+### Request
+
+No request body.
+
+### Response
+
+No response body.
+
+After logout succeeds, the frontend clears its current user state and obtains a new antiforgery request token for unauthenticated requests.
+
+### Possible Status Codes
+
+- `204 No Content`
 
 ---
 
@@ -990,8 +1137,10 @@ A contract change is not complete until both sides are updated and verified.
 
 ## Phase 2
 
+- `GET /api/auth/csrf-token`
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `POST /api/auth/logout`
 - `GET /api/auth/me`
 
 ## Phase 3
