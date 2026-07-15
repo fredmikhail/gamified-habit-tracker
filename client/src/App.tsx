@@ -3,10 +3,10 @@ import { getHealth } from './api/healthApi'
 import type { HealthResponse } from './types/HealthResponse'
 
 function App() {
-  const [healthResponse, setHealthResponse] =
-    useState<HealthResponse | null>(null)
-  const [errorMessage, setErrorMessage] =
-    useState<string | null>(null)
+  const [healthResponse, setHealthResponse] = useState<HealthResponse | null>(
+    null,
+  )
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   async function handleCheckBackend() {
@@ -20,9 +20,7 @@ function App() {
       setHealthResponse(null)
 
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : 'An unknown error occurred.',
+        error instanceof Error ? error.message : 'An unknown error occurred.',
       )
     } finally {
       setIsLoading(false)
@@ -55,9 +53,7 @@ function App() {
         )}
 
         {errorMessage && (
-          <p className="mt-6 text-red-700">
-            Request failed: {errorMessage}
-          </p>
+          <p className="mt-6 text-red-700">Request failed: {errorMessage}</p>
         )}
       </div>
     </main>
