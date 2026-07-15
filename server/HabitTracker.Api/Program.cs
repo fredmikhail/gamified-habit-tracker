@@ -29,7 +29,13 @@ var connectionString =
         "Connection string 'DefaultConnection' was not found.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options
+        .UseNpgsql(
+            connectionString,
+            npgsqlOptions =>
+                npgsqlOptions.MigrationsHistoryTable(
+                    "__ef_migrations_history"))
+        .UseSnakeCaseNamingConvention());
 
 var app = builder.Build();
 

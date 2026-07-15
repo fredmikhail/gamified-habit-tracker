@@ -524,9 +524,16 @@ Avoid placing several unrelated public classes in the same file.
 
 C# entity and property names follow C# naming conventions.
 
-The final physical PostgreSQL table and column naming strategy will be confirmed when Entity Framework Core database configuration is added.
+Physical PostgreSQL identifiers use `snake_case`.
 
-Whatever database naming strategy is selected should be applied consistently.
+Examples:
+
+- `UserSettings` maps to `user_settings`
+- `NormalizedEmail` maps to `normalized_email`
+- `CreatedAtUtc` maps to `created_at_utc`
+- primary-key, foreign-key, and index names also use `snake_case`
+
+The EF Core database configuration applies the naming strategy consistently across the model.
 
 Database names should not be changed casually after migrations and deployed data exist.
 
