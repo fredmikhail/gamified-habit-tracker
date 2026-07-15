@@ -5,6 +5,7 @@ namespace HabitTracker.Api.DTOs;
 public sealed class LoginRequest
 {
     [Required]
+    [MaxLength(254)]
     public string Email { get; set; } = string.Empty;
 
     [Required]
