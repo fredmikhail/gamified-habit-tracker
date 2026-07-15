@@ -1,4 +1,7 @@
 using HabitTracker.Api.Data;
+using HabitTracker.Api.Domain.Entities;
+using HabitTracker.Api.Services;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +11,12 @@ const string frontendCorsPolicy = "FrontendCorsPolicy";
 // Add services to the container.
 
 builder.Services.AddControllers();
+
+builder.Services.AddScoped<AuthService>();
+
+builder.Services.AddScoped<
+    IPasswordHasher<User>,
+    PasswordHasher<User>>();
 
 builder.Services.AddCors(options =>
 {
