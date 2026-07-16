@@ -17,7 +17,8 @@ public sealed class AuthControllerTests
         _client = factory.CreateClient(
             new WebApplicationFactoryClientOptions
             {
-                AllowAutoRedirect = false
+                AllowAutoRedirect = false,
+                HandleCookies = true
             });
     }
 
@@ -62,6 +63,117 @@ public sealed class AuthControllerTests
         Assert.Contains(
             "SameSite=Lax",
             antiforgeryCookie,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Register_WithValidRequest_ReturnsCreatedAndSetsSessionCookie()
+    {
+        var csrfResponse =
+            await _client.GetAsync("/api/auth/csrf-token");
+
+        csrfResponse.EnsureSuccessStatusCode();
+
+        var csrfResponseBody =
+            await csrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(csrfResponseBody);
+
+        var uniqueSuffix =
+            Guid.NewGuid()
+                .ToString("N");
+
+        var registerRequest =
+            new RegisterRequest
+            {
+                Email =
+                    $"user_{uniqueSuffix}@example.com",
+                Username =
+                    $"user_{uniqueSuffix[..8]}",
+                Password =
+                    "StrongPassword123!",
+                TimeZone =
+                    "America/Toronto"
+            };
+
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/register")
+            {
+                Content =
+                    JsonContent.Create(registerRequest)
+            };
+
+        request.Headers.Add(
+            "X-CSRF-TOKEN",
+            csrfResponseBody.RequestToken);
+
+        var response =
+            await _client.SendAsync(request);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            response.StatusCode);
+
+        var responseBody =
+            await response.Content
+                .ReadFromJsonAsync<AuthResponse>();
+
+        Assert.NotNull(responseBody);
+
+        Assert.NotEqual(
+            Guid.Empty,
+            responseBody.User.Id);
+
+        Assert.Equal(
+            registerRequest.Email,
+            responseBody.User.Email);
+
+        Assert.Equal(
+            registerRequest.Username,
+            responseBody.User.Username);
+
+        Assert.Equal(
+            registerRequest.Username,
+            responseBody.User.DisplayName);
+
+        Assert.Equal(
+            registerRequest.TimeZone,
+            responseBody.User.TimeZone);
+
+        Assert.True(
+            response.Headers.TryGetValues(
+                "Set-Cookie",
+                out var setCookieHeaders));
+
+        var authenticationCookie =
+            Assert.Single(
+                setCookieHeaders,
+                header =>
+                    header.StartsWith(
+                        "HabitTracker.Auth=",
+                        StringComparison.Ordinal));
+
+        Assert.Contains(
+            "HttpOnly",
+            authenticationCookie,
+            StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains(
+            "SameSite=Lax",
+            authenticationCookie,
+            StringComparison.OrdinalIgnoreCase);
+
+        Assert.DoesNotContain(
+            "Expires=",
+            authenticationCookie,
+            StringComparison.OrdinalIgnoreCase);
+
+        Assert.DoesNotContain(
+            "Max-Age=",
+            authenticationCookie,
             StringComparison.OrdinalIgnoreCase);
     }
 }
