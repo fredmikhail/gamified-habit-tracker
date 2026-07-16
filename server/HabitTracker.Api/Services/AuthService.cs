@@ -155,6 +155,24 @@ public sealed class AuthService
         };
     }
 
+    public async Task<CurrentUserResponse?> GetCurrentUserAsync(
+    Guid userId,
+    CancellationToken cancellationToken = default)
+    {
+        var user = await _dbContext.Users
+            .Include(user => user.UserSettings)
+            .SingleOrDefaultAsync(
+                user => user.Id == userId,
+                cancellationToken);
+
+        if (user is null)
+        {
+            return null;
+        }
+
+        return CreateCurrentUserResponse(user);
+    }
+
     private static string NormalizeAccountIdentifier(string value)
     {
         return value.Trim().ToUpperInvariant();

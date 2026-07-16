@@ -374,4 +374,76 @@ public sealed class AuthServiceTests
         Assert.Single(dbContext.Users);
         Assert.Single(dbContext.UserSettings);
     }
+
+    [Fact]
+    public async Task GetCurrentUserAsync_WhenUserExists_ReturnsCurrentUserResponse()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var dbContext = new AppDbContext(options);
+
+        var createdAtUtc = DateTime.UtcNow;
+
+        var existingUser = new User
+        {
+            Email = "fred@example.com",
+            NormalizedEmail = "FRED@EXAMPLE.COM",
+            Username = "Fred_95",
+            NormalizedUsername = "FRED_95",
+            PasswordHash = "existing-password-hash",
+            CreatedAtUtc = createdAtUtc
+        };
+
+        var existingSettings = new UserSettings
+        {
+            UserId = existingUser.Id,
+            DisplayName = "Fred",
+            TimeZone = "America/Toronto",
+            CreatedAtUtc = createdAtUtc,
+            UpdatedAtUtc = createdAtUtc,
+            User = existingUser
+        };
+
+        existingUser.UserSettings = existingSettings;
+
+        dbContext.Users.Add(existingUser);
+        await dbContext.SaveChangesAsync();
+
+        var authService = new AuthService(
+            dbContext,
+            new PasswordHasher<User>());
+
+        var response =
+            await authService.GetCurrentUserAsync(
+                existingUser.Id);
+
+        Assert.NotNull(response);
+        Assert.Equal(existingUser.Id, response.Id);
+        Assert.Equal(existingUser.Email, response.Email);
+        Assert.Equal(existingUser.Username, response.Username);
+        Assert.Equal(existingSettings.DisplayName, response.DisplayName);
+        Assert.Equal(existingSettings.TimeZone, response.TimeZone);
+    }
+
+    [Fact]
+    public async Task GetCurrentUserAsync_WhenUserDoesNotExist_ReturnsNull()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var dbContext = new AppDbContext(options);
+
+        var authService = new AuthService(
+            dbContext,
+            new PasswordHasher<User>());
+
+        var response =
+            await authService.GetCurrentUserAsync(
+                Guid.CreateVersion7());
+
+        Assert.Null(response);
+    }
 }
