@@ -81,6 +81,16 @@ public sealed class AuthController : ControllerBase
         return Ok(authResponse);
     }
 
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    public async Task<IActionResult> LogoutAsync()
+    {
+        await HttpContext.SignOutAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme);
+
+        return NoContent();
+    }
+
     private async Task SignInUserAsync(
         Guid userId,
         bool rememberMe)

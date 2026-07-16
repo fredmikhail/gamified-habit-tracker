@@ -818,6 +818,152 @@ public sealed class AuthControllerTests
             wrongPasswordProblemDetails.Instance);
     }
 
+    [Fact]
+    public async Task Logout_WhenAuthenticated_ReturnsNoContentAndExpiresAuthenticationCookie()
+    {
+        var uniqueSuffix =
+            Guid.NewGuid()
+                .ToString("N");
+
+        var registerRequest =
+            new RegisterRequest
+            {
+                Email =
+                    $"user_{uniqueSuffix}@example.com",
+                Username =
+                    $"user_{uniqueSuffix[..8]}",
+                Password =
+                    "StrongPassword123!",
+                TimeZone =
+                    "America/Toronto"
+            };
+
+        var registrationCsrfResponse =
+            await _client.GetAsync("/api/auth/csrf-token");
+
+        registrationCsrfResponse.EnsureSuccessStatusCode();
+
+        var registrationCsrfBody =
+            await registrationCsrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(registrationCsrfBody);
+
+        using var registrationRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/register")
+            {
+                Content =
+                    JsonContent.Create(registerRequest)
+            };
+
+        registrationRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            registrationCsrfBody.RequestToken);
+
+        var registrationResponse =
+            await _client.SendAsync(registrationRequest);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            registrationResponse.StatusCode);
+
+        var logoutCsrfResponse =
+            await _client.GetAsync("/api/auth/csrf-token");
+
+        logoutCsrfResponse.EnsureSuccessStatusCode();
+
+        var logoutCsrfBody =
+            await logoutCsrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(logoutCsrfBody);
+
+        using var logoutRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/logout");
+
+        logoutRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            logoutCsrfBody.RequestToken);
+
+        var response =
+            await _client.SendAsync(logoutRequest);
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            response.StatusCode);
+
+        Assert.True(
+            response.Headers.TryGetValues(
+                "Set-Cookie",
+                out var setCookieHeaders));
+
+        var authenticationCookie =
+            Assert.Single(
+                setCookieHeaders,
+                header =>
+                    header.StartsWith(
+                        "HabitTracker.Auth=",
+                        StringComparison.Ordinal));
+
+        var parsedAuthenticationCookie =
+            SetCookieHeaderValue.Parse(
+                authenticationCookie);
+
+        var cookieWasExpired =
+            parsedAuthenticationCookie.MaxAge
+                == TimeSpan.Zero
+            || (
+                parsedAuthenticationCookie.Expires.HasValue
+                && parsedAuthenticationCookie.Expires.Value
+                    <= DateTimeOffset.UtcNow);
+
+        Assert.True(cookieWasExpired);
+    }
+
+    [Fact]
+    public async Task Logout_WhenAlreadySignedOut_ReturnsNoContent()
+    {
+        using var anonymousClient =
+            _factory.CreateClient(
+                new WebApplicationFactoryClientOptions
+                {
+                    AllowAutoRedirect = false,
+                    HandleCookies = true
+                });
+
+        var csrfResponse =
+            await anonymousClient.GetAsync(
+                "/api/auth/csrf-token");
+
+        csrfResponse.EnsureSuccessStatusCode();
+
+        var csrfResponseBody =
+            await csrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(csrfResponseBody);
+
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/logout");
+
+        request.Headers.Add(
+            "X-CSRF-TOKEN",
+            csrfResponseBody.RequestToken);
+
+        var response =
+            await anonymousClient.SendAsync(request);
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            response.StatusCode);
+    }
+
     private static async Task<HttpResponseMessage> SendLoginRequestAsync(
         HttpClient client,
         LoginRequest loginRequest)
