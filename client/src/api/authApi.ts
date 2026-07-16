@@ -3,6 +3,7 @@ import type { CurrentUserResponse } from '../types/CurrentUserResponse'
 import type { LoginRequest } from '../types/LoginRequest'
 import type { RegisterRequest } from '../types/RegisterRequest'
 import { apiRequest, clearCsrfToken } from './apiClient'
+import { readApiError } from './readApiError'
 
 export async function register(
   request: RegisterRequest,
@@ -16,7 +17,12 @@ export async function register(
   })
 
   if (!response.ok) {
-    throw new Error(`Registration failed with status ${response.status}.`)
+    const errorMessage = await readApiError(
+      response,
+      `Registration failed with status ${response.status}.`,
+    )
+
+    throw new Error(errorMessage)
   }
 
   const authResponse: AuthResponse = await response.json()
@@ -36,7 +42,12 @@ export async function login(request: LoginRequest): Promise<AuthResponse> {
   })
 
   if (!response.ok) {
-    throw new Error(`Login failed with status ${response.status}.`)
+    const errorMessage = await readApiError(
+      response,
+      `Login failed with status ${response.status}.`,
+    )
+
+    throw new Error(errorMessage)
   }
 
   const authResponse: AuthResponse = await response.json()
@@ -52,7 +63,12 @@ export async function logout(): Promise<void> {
   })
 
   if (!response.ok) {
-    throw new Error(`Logout failed with status ${response.status}.`)
+    const errorMessage = await readApiError(
+      response,
+      `Logout failed with status ${response.status}.`,
+    )
+
+    throw new Error(errorMessage)
   }
 
   clearCsrfToken()
@@ -66,9 +82,12 @@ export async function getCurrentUser(): Promise<CurrentUserResponse | null> {
   }
 
   if (!response.ok) {
-    throw new Error(
+    const errorMessage = await readApiError(
+      response,
       `Current-user request failed with status ${response.status}.`,
     )
+
+    throw new Error(errorMessage)
   }
 
   const currentUser: CurrentUserResponse = await response.json()
