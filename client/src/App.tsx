@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { getHealth } from './api/healthApi'
+import { useAuth } from './auth/useAuth'
 import type { HealthResponse } from './types/HealthResponse'
 
 function App() {
+  const { currentUser, isAuthLoading, authErrorMessage } = useAuth()
+
   const [healthResponse, setHealthResponse] = useState<HealthResponse | null>(
     null,
   )
@@ -35,6 +38,27 @@ function App() {
         <p className="mt-4 text-lg text-slate-600">
           Frontend and Tailwind CSS setup are working.
         </p>
+
+        <div className="mt-6 rounded-lg bg-white p-4 shadow-sm">
+          {isAuthLoading && <p>Checking authentication...</p>}
+
+          {!isAuthLoading && currentUser && (
+            <p>
+              Signed in as{' '}
+              <span className="font-semibold">{currentUser.displayName}</span>
+            </p>
+          )}
+
+          {!isAuthLoading && !currentUser && !authErrorMessage && (
+            <p>Not signed in.</p>
+          )}
+
+          {authErrorMessage && (
+            <p className="text-red-700">
+              Authentication check failed: {authErrorMessage}
+            </p>
+          )}
+        </div>
 
         <button
           type="button"
