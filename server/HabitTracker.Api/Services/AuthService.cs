@@ -156,8 +156,8 @@ public sealed class AuthService
     }
 
     public async Task<CurrentUserResponse?> GetCurrentUserAsync(
-    Guid userId,
-    CancellationToken cancellationToken = default)
+        Guid userId,
+        CancellationToken cancellationToken = default)
     {
         var user = await _dbContext.Users
             .Include(user => user.UserSettings)
