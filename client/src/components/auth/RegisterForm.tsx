@@ -65,7 +65,7 @@ export function RegisterForm() {
         />
 
         <p className="mt-1 text-sm text-slate-500">
-          3–30 characters. Letters, numbers, and underscores only.
+          3-30 characters. Letters, numbers, and underscores only.
         </p>
       </div>
 
