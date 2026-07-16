@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using HabitTracker.Api.DTOs;
 using HabitTracker.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Mvc;
 
 namespace HabitTracker.IntegrationTests.Controllers;
 
@@ -175,5 +176,184 @@ public sealed class AuthControllerTests
             "Max-Age=",
             authenticationCookie,
             StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Register_WithInvalidTimeZone_ReturnsBadRequestProblemDetails()
+    {
+        var csrfResponse =
+            await _client.GetAsync("/api/auth/csrf-token");
+
+        csrfResponse.EnsureSuccessStatusCode();
+
+        var csrfResponseBody =
+            await csrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(csrfResponseBody);
+
+        var uniqueSuffix =
+            Guid.NewGuid()
+                .ToString("N");
+
+        var registerRequest =
+            new RegisterRequest
+            {
+                Email =
+                    $"user_{uniqueSuffix}@example.com",
+                Username =
+                    $"user_{uniqueSuffix[..8]}",
+                Password =
+                    "StrongPassword123!",
+                TimeZone =
+                    "Not/ARealTimeZone"
+            };
+
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/register")
+            {
+                Content =
+                    JsonContent.Create(registerRequest)
+            };
+
+        request.Headers.Add(
+            "X-CSRF-TOKEN",
+            csrfResponseBody.RequestToken);
+
+        var response =
+            await _client.SendAsync(request);
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        var problemDetails =
+            await response.Content
+                .ReadFromJsonAsync<ProblemDetails>();
+
+        Assert.NotNull(problemDetails);
+
+        Assert.Equal(
+            StatusCodes.Status400BadRequest,
+            problemDetails.Status);
+
+        Assert.Equal(
+            "Invalid time zone",
+            problemDetails.Title);
+
+        Assert.Equal(
+            "The supplied time zone is not a valid IANA identifier.",
+            problemDetails.Detail);
+
+        Assert.Equal(
+            "/api/auth/register",
+            problemDetails.Instance);
+    }
+
+    [Fact]
+    public async Task Register_WithDuplicateAccount_ReturnsConflictProblemDetails()
+    {
+        var uniqueSuffix =
+            Guid.NewGuid()
+                .ToString("N");
+
+        var registerRequest =
+            new RegisterRequest
+            {
+                Email =
+                    $"user_{uniqueSuffix}@example.com",
+                Username =
+                    $"user_{uniqueSuffix[..8]}",
+                Password =
+                    "StrongPassword123!",
+                TimeZone =
+                    "America/Toronto"
+            };
+
+        var firstCsrfResponse =
+            await _client.GetAsync("/api/auth/csrf-token");
+
+        firstCsrfResponse.EnsureSuccessStatusCode();
+
+        var firstCsrfResponseBody =
+            await firstCsrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(firstCsrfResponseBody);
+
+        using var firstRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/register")
+            {
+                Content =
+                    JsonContent.Create(registerRequest)
+            };
+
+        firstRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            firstCsrfResponseBody.RequestToken);
+
+        var firstResponse =
+            await _client.SendAsync(firstRequest);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            firstResponse.StatusCode);
+
+        var secondCsrfResponse =
+            await _client.GetAsync("/api/auth/csrf-token");
+
+        secondCsrfResponse.EnsureSuccessStatusCode();
+
+        var secondCsrfResponseBody =
+            await secondCsrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(secondCsrfResponseBody);
+
+        using var secondRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/register")
+            {
+                Content =
+                    JsonContent.Create(registerRequest)
+            };
+
+        secondRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            secondCsrfResponseBody.RequestToken);
+
+        var secondResponse =
+            await _client.SendAsync(secondRequest);
+
+        Assert.Equal(
+            HttpStatusCode.Conflict,
+            secondResponse.StatusCode);
+
+        var problemDetails =
+            await secondResponse.Content
+                .ReadFromJsonAsync<ProblemDetails>();
+
+        Assert.NotNull(problemDetails);
+
+        Assert.Equal(
+            StatusCodes.Status409Conflict,
+            problemDetails.Status);
+
+        Assert.Equal(
+            "Account conflict",
+            problemDetails.Title);
+
+        Assert.Equal(
+            "An account with the supplied email or username already exists.",
+            problemDetails.Detail);
+
+        Assert.Equal(
+            "/api/auth/register",
+            problemDetails.Instance);
     }
 }

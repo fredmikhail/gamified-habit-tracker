@@ -1,10 +1,12 @@
 using HabitTracker.Api.Data;
 using HabitTracker.Api.Domain.Entities;
 using HabitTracker.Api.Services;
+using HabitTracker.Api.ExceptionHandling;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +19,10 @@ builder.Services.AddControllersWithViews(options =>
     options.Filters.Add(
         new AutoValidateAntiforgeryTokenAttribute());
 });
+
+builder.Services.AddProblemDetails();
+
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 builder.Services.AddAntiforgery(options =>
 {
@@ -124,6 +130,8 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
 
