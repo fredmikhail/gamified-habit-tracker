@@ -1081,6 +1081,114 @@ public sealed class AuthControllerTests
             responseBody.TimeZone);
     }
 
+    [Fact]
+    public async Task Register_WithoutCsrfToken_ReturnsBadRequest()
+    {
+        using var anonymousClient =
+            _factory.CreateClient(
+                new WebApplicationFactoryClientOptions
+                {
+                    AllowAutoRedirect = false,
+                    HandleCookies = true
+                });
+
+        var uniqueSuffix =
+            Guid.NewGuid()
+                .ToString("N");
+
+        var registerRequest =
+            new RegisterRequest
+            {
+                Email =
+                    $"user_{uniqueSuffix}@example.com",
+                Username =
+                    $"user_{uniqueSuffix[..8]}",
+                Password =
+                    "StrongPassword123!",
+                TimeZone =
+                    "America/Toronto"
+            };
+
+        var response =
+            await anonymousClient.PostAsJsonAsync(
+                "/api/auth/register",
+                registerRequest);
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        Assert.False(
+            response.Headers.TryGetValues(
+                "Set-Cookie",
+                out var setCookieHeaders)
+            && setCookieHeaders.Any(
+                header =>
+                    header.StartsWith(
+                        "HabitTracker.Auth=",
+                        StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task Login_WithoutCsrfToken_ReturnsBadRequest()
+    {
+        using var anonymousClient =
+            _factory.CreateClient(
+                new WebApplicationFactoryClientOptions
+                {
+                    AllowAutoRedirect = false,
+                    HandleCookies = true
+                });
+
+        var loginRequest =
+            new LoginRequest
+            {
+                Email = "missing@example.com",
+                Password = "StrongPassword123!",
+                RememberMe = false
+            };
+
+        var response =
+            await anonymousClient.PostAsJsonAsync(
+                "/api/auth/login",
+                loginRequest);
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        Assert.False(
+            response.Headers.TryGetValues(
+                "Set-Cookie",
+                out var setCookieHeaders)
+            && setCookieHeaders.Any(
+                header =>
+                    header.StartsWith(
+                        "HabitTracker.Auth=",
+                        StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task Logout_WithoutCsrfToken_ReturnsBadRequest()
+    {
+        using var anonymousClient =
+            _factory.CreateClient(
+                new WebApplicationFactoryClientOptions
+                {
+                    AllowAutoRedirect = false,
+                    HandleCookies = true
+                });
+
+        var response =
+            await anonymousClient.PostAsync(
+                "/api/auth/logout",
+                content: null);
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+    }
+
     private static async Task<HttpResponseMessage> SendLoginRequestAsync(
         HttpClient client,
         LoginRequest loginRequest)
