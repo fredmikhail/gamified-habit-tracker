@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using HabitTracker.Api.DTOs;
 using HabitTracker.IntegrationTests.Infrastructure;
+using Microsoft.Net.Http.Headers;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,10 +12,13 @@ public sealed class AuthControllerTests
     : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client;
+    private readonly CustomWebApplicationFactory _factory;
 
     public AuthControllerTests(
         CustomWebApplicationFactory factory)
     {
+        _factory = factory;
+
         _client = factory.CreateClient(
             new WebApplicationFactoryClientOptions
             {
@@ -355,5 +359,493 @@ public sealed class AuthControllerTests
         Assert.Equal(
             "/api/auth/register",
             problemDetails.Instance);
+    }
+
+    [Fact]
+    public async Task Login_WithoutRememberMe_ReturnsOkAndSetsSessionCookie()
+    {
+        var uniqueSuffix =
+            Guid.NewGuid()
+                .ToString("N");
+
+        var registerRequest =
+            new RegisterRequest
+            {
+                Email =
+                    $"user_{uniqueSuffix}@example.com",
+                Username =
+                    $"user_{uniqueSuffix[..8]}",
+                Password =
+                    "StrongPassword123!",
+                TimeZone =
+                    "America/Toronto"
+            };
+
+        var registrationCsrfResponse =
+            await _client.GetAsync("/api/auth/csrf-token");
+
+        registrationCsrfResponse.EnsureSuccessStatusCode();
+
+        var registrationCsrfBody =
+            await registrationCsrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(registrationCsrfBody);
+
+        using var registrationRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/register")
+            {
+                Content =
+                    JsonContent.Create(registerRequest)
+            };
+
+        registrationRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            registrationCsrfBody.RequestToken);
+
+        var registrationResponse =
+            await _client.SendAsync(registrationRequest);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            registrationResponse.StatusCode);
+
+        var registrationResponseBody =
+            await registrationResponse.Content
+                .ReadFromJsonAsync<AuthResponse>();
+
+        Assert.NotNull(registrationResponseBody);
+
+        using var loginClient =
+            _factory.CreateClient(
+                new WebApplicationFactoryClientOptions
+                {
+                    AllowAutoRedirect = false,
+                    HandleCookies = true
+                });
+
+        var loginCsrfResponse =
+            await loginClient.GetAsync("/api/auth/csrf-token");
+
+        loginCsrfResponse.EnsureSuccessStatusCode();
+
+        var loginCsrfBody =
+            await loginCsrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(loginCsrfBody);
+
+        var loginRequest =
+            new LoginRequest
+            {
+                Email = registerRequest.Email,
+                Password = registerRequest.Password,
+                RememberMe = false
+            };
+
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/login")
+            {
+                Content =
+                    JsonContent.Create(loginRequest)
+            };
+
+        request.Headers.Add(
+            "X-CSRF-TOKEN",
+            loginCsrfBody.RequestToken);
+
+        var response =
+            await loginClient.SendAsync(request);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            response.StatusCode);
+
+        var responseBody =
+            await response.Content
+                .ReadFromJsonAsync<AuthResponse>();
+
+        Assert.NotNull(responseBody);
+
+        Assert.Equal(
+            registrationResponseBody.User.Id,
+            responseBody.User.Id);
+
+        Assert.Equal(
+            registerRequest.Email,
+            responseBody.User.Email);
+
+        Assert.True(
+            response.Headers.TryGetValues(
+                "Set-Cookie",
+                out var setCookieHeaders));
+
+        var authenticationCookie =
+            Assert.Single(
+                setCookieHeaders,
+                header =>
+                    header.StartsWith(
+                        "HabitTracker.Auth=",
+                        StringComparison.Ordinal));
+
+        Assert.Contains(
+            "HttpOnly",
+            authenticationCookie,
+            StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains(
+            "SameSite=Lax",
+            authenticationCookie,
+            StringComparison.OrdinalIgnoreCase);
+
+        Assert.DoesNotContain(
+            "Expires=",
+            authenticationCookie,
+            StringComparison.OrdinalIgnoreCase);
+
+        Assert.DoesNotContain(
+            "Max-Age=",
+            authenticationCookie,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Login_WithRememberMe_ReturnsOkAndSetsPersistentCookie()
+    {
+        var uniqueSuffix =
+            Guid.NewGuid()
+                .ToString("N");
+
+        var registerRequest =
+            new RegisterRequest
+            {
+                Email =
+                    $"user_{uniqueSuffix}@example.com",
+                Username =
+                    $"user_{uniqueSuffix[..8]}",
+                Password =
+                    "StrongPassword123!",
+                TimeZone =
+                    "America/Toronto"
+            };
+
+        var registrationCsrfResponse =
+            await _client.GetAsync("/api/auth/csrf-token");
+
+        registrationCsrfResponse.EnsureSuccessStatusCode();
+
+        var registrationCsrfBody =
+            await registrationCsrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(registrationCsrfBody);
+
+        using var registrationRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/register")
+            {
+                Content =
+                    JsonContent.Create(registerRequest)
+            };
+
+        registrationRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            registrationCsrfBody.RequestToken);
+
+        var registrationResponse =
+            await _client.SendAsync(registrationRequest);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            registrationResponse.StatusCode);
+
+        var registrationResponseBody =
+            await registrationResponse.Content
+                .ReadFromJsonAsync<AuthResponse>();
+
+        Assert.NotNull(registrationResponseBody);
+
+        using var loginClient =
+            _factory.CreateClient(
+                new WebApplicationFactoryClientOptions
+                {
+                    AllowAutoRedirect = false,
+                    HandleCookies = true
+                });
+
+        var loginCsrfResponse =
+            await loginClient.GetAsync("/api/auth/csrf-token");
+
+        loginCsrfResponse.EnsureSuccessStatusCode();
+
+        var loginCsrfBody =
+            await loginCsrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(loginCsrfBody);
+
+        var loginRequest =
+            new LoginRequest
+            {
+                Email = registerRequest.Email,
+                Password = registerRequest.Password,
+                RememberMe = true
+            };
+
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/login")
+            {
+                Content =
+                    JsonContent.Create(loginRequest)
+            };
+
+        request.Headers.Add(
+            "X-CSRF-TOKEN",
+            loginCsrfBody.RequestToken);
+
+        var beforeLoginUtc =
+            DateTimeOffset.UtcNow;
+
+        var response =
+            await loginClient.SendAsync(request);
+
+        var afterLoginUtc =
+            DateTimeOffset.UtcNow;
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            response.StatusCode);
+
+        var responseBody =
+            await response.Content
+                .ReadFromJsonAsync<AuthResponse>();
+
+        Assert.NotNull(responseBody);
+
+        Assert.Equal(
+            registrationResponseBody.User.Id,
+            responseBody.User.Id);
+
+        Assert.Equal(
+            registerRequest.Email,
+            responseBody.User.Email);
+
+        Assert.True(
+            response.Headers.TryGetValues(
+                "Set-Cookie",
+                out var setCookieHeaders));
+
+        var authenticationCookie =
+            Assert.Single(
+                setCookieHeaders,
+                header =>
+                    header.StartsWith(
+                        "HabitTracker.Auth=",
+                        StringComparison.Ordinal));
+
+        Assert.Contains(
+            "HttpOnly",
+            authenticationCookie,
+            StringComparison.OrdinalIgnoreCase);
+
+        Assert.Contains(
+            "SameSite=Lax",
+            authenticationCookie,
+            StringComparison.OrdinalIgnoreCase);
+
+        var parsedAuthenticationCookie =
+            SetCookieHeaderValue.Parse(
+                authenticationCookie);
+
+        Assert.NotNull(
+            parsedAuthenticationCookie.Expires);
+
+        Assert.InRange(
+            parsedAuthenticationCookie.Expires.Value,
+            beforeLoginUtc
+                .AddDays(30)
+                .AddMinutes(-1),
+            afterLoginUtc
+                .AddDays(30)
+                .AddMinutes(1));
+    }
+
+    [Fact]
+    public async Task Login_WithInvalidCredentials_ReturnsGenericUnauthorizedProblemDetails()
+    {
+        var uniqueSuffix =
+            Guid.NewGuid()
+                .ToString("N");
+
+        var registerRequest =
+            new RegisterRequest
+            {
+                Email =
+                    $"user_{uniqueSuffix}@example.com",
+                Username =
+                    $"user_{uniqueSuffix[..8]}",
+                Password =
+                    "StrongPassword123!",
+                TimeZone =
+                    "America/Toronto"
+            };
+
+        var registrationCsrfResponse =
+            await _client.GetAsync("/api/auth/csrf-token");
+
+        registrationCsrfResponse.EnsureSuccessStatusCode();
+
+        var registrationCsrfBody =
+            await registrationCsrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(registrationCsrfBody);
+
+        using var registrationRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/register")
+            {
+                Content =
+                    JsonContent.Create(registerRequest)
+            };
+
+        registrationRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            registrationCsrfBody.RequestToken);
+
+        var registrationResponse =
+            await _client.SendAsync(registrationRequest);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            registrationResponse.StatusCode);
+
+        using var loginClient =
+            _factory.CreateClient(
+                new WebApplicationFactoryClientOptions
+                {
+                    AllowAutoRedirect = false,
+                    HandleCookies = true
+                });
+
+        var wrongEmailRequest =
+            new LoginRequest
+            {
+                Email =
+                    $"missing_{uniqueSuffix}@example.com",
+                Password =
+                    registerRequest.Password,
+                RememberMe = false
+            };
+
+        var wrongEmailResponse =
+            await SendLoginRequestAsync(
+                loginClient,
+                wrongEmailRequest);
+
+        var wrongPasswordRequest =
+            new LoginRequest
+            {
+                Email =
+                    registerRequest.Email,
+                Password =
+                    "WrongPassword123!",
+                RememberMe = false
+            };
+
+        var wrongPasswordResponse =
+            await SendLoginRequestAsync(
+                loginClient,
+                wrongPasswordRequest);
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            wrongEmailResponse.StatusCode);
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            wrongPasswordResponse.StatusCode);
+
+        var wrongEmailProblemDetails =
+            await wrongEmailResponse.Content
+                .ReadFromJsonAsync<ProblemDetails>();
+
+        var wrongPasswordProblemDetails =
+            await wrongPasswordResponse.Content
+                .ReadFromJsonAsync<ProblemDetails>();
+
+        Assert.NotNull(wrongEmailProblemDetails);
+        Assert.NotNull(wrongPasswordProblemDetails);
+
+        Assert.Equal(
+            "Invalid credentials",
+            wrongEmailProblemDetails.Title);
+
+        Assert.Equal(
+            "Invalid credentials",
+            wrongPasswordProblemDetails.Title);
+
+        Assert.Equal(
+            "The supplied email or password is incorrect.",
+            wrongEmailProblemDetails.Detail);
+
+        Assert.Equal(
+            wrongEmailProblemDetails.Detail,
+            wrongPasswordProblemDetails.Detail);
+
+        Assert.Equal(
+            StatusCodes.Status401Unauthorized,
+            wrongEmailProblemDetails.Status);
+
+        Assert.Equal(
+            StatusCodes.Status401Unauthorized,
+            wrongPasswordProblemDetails.Status);
+
+        Assert.Equal(
+            "/api/auth/login",
+            wrongEmailProblemDetails.Instance);
+
+        Assert.Equal(
+            "/api/auth/login",
+            wrongPasswordProblemDetails.Instance);
+    }
+
+    private static async Task<HttpResponseMessage> SendLoginRequestAsync(
+        HttpClient client,
+        LoginRequest loginRequest)
+    {
+        var csrfResponse =
+            await client.GetAsync("/api/auth/csrf-token");
+
+        csrfResponse.EnsureSuccessStatusCode();
+
+        var csrfResponseBody =
+            await csrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(csrfResponseBody);
+
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/login")
+            {
+                Content =
+                    JsonContent.Create(loginRequest)
+            };
+
+        request.Headers.Add(
+            "X-CSRF-TOKEN",
+            csrfResponseBody.RequestToken);
+
+        return await client.SendAsync(request);
     }
 }

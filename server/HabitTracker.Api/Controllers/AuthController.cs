@@ -54,11 +54,42 @@ public sealed class AuthController : ControllerBase
                 request,
                 cancellationToken);
 
+        await SignInUserAsync(
+            authResponse.User.Id,
+            rememberMe: false);
+
+        return StatusCode(
+            StatusCodes.Status201Created,
+            authResponse);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("login")]
+    public async Task<ActionResult<AuthResponse>> LoginAsync(
+        LoginRequest request,
+        CancellationToken cancellationToken)
+    {
+        var authResponse =
+            await _authService.LoginAsync(
+                request,
+                cancellationToken);
+
+        await SignInUserAsync(
+            authResponse.User.Id,
+            request.RememberMe);
+
+        return Ok(authResponse);
+    }
+
+    private async Task SignInUserAsync(
+        Guid userId,
+        bool rememberMe)
+    {
         var claims = new List<Claim>
         {
             new(
                 ClaimTypes.NameIdentifier,
-                authResponse.User.Id.ToString())
+                userId.ToString())
         };
 
         var identity = new ClaimsIdentity(
@@ -67,21 +98,21 @@ public sealed class AuthController : ControllerBase
 
         var principal = new ClaimsPrincipal(identity);
 
+        var expiresUtc =
+            rememberMe
+                ? DateTimeOffset.UtcNow.AddDays(30)
+                : DateTimeOffset.UtcNow.AddHours(12);
+
         var authenticationProperties =
             new AuthenticationProperties
             {
-                IsPersistent = false,
-                ExpiresUtc =
-                    DateTimeOffset.UtcNow.AddHours(12)
+                IsPersistent = rememberMe,
+                ExpiresUtc = expiresUtc
             };
 
         await HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
             principal,
             authenticationProperties);
-
-        return StatusCode(
-            StatusCodes.Status201Created,
-            authResponse);
     }
 }

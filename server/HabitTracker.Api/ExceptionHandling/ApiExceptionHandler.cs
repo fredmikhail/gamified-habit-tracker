@@ -45,6 +45,17 @@ public sealed class ApiExceptionHandler
                             exception.Message
                     },
 
+                InvalidCredentialsException =>
+                    new ProblemDetails
+                    {
+                        Status =
+                            StatusCodes.Status401Unauthorized,
+                        Title =
+                            "Invalid credentials",
+                        Detail =
+                            exception.Message
+                    },
+
                 _ => null
             };
 
