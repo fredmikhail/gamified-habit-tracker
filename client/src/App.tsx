@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { getHealth } from './api/healthApi'
 import { useAuth } from './auth/useAuth'
 import { LoginForm } from './components/auth/LoginForm'
+import { RegisterForm } from './components/auth/RegisterForm'
 import type { HealthResponse } from './types/HealthResponse'
+
+type AuthMode = 'login' | 'register'
 
 function App() {
   const {
@@ -10,14 +13,22 @@ function App() {
     isAuthLoading,
     isAuthActionLoading,
     authErrorMessage,
+    clearAuthError,
     logoutUser,
   } = useAuth()
+
+  const [authMode, setAuthMode] = useState<AuthMode>('login')
 
   const [healthResponse, setHealthResponse] = useState<HealthResponse | null>(
     null,
   )
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+
+  function changeAuthMode(mode: AuthMode) {
+    clearAuthError()
+    setAuthMode(mode)
+  }
 
   async function handleCheckBackend() {
     setIsLoading(true)
@@ -59,8 +70,31 @@ function App() {
 
           {!isAuthLoading && !currentUser && (
             <>
-              <h2 className="mb-4 text-2xl font-semibold">Sign in</h2>
-              <LoginForm />
+              <div className="mb-6 flex rounded bg-slate-100 p-1">
+                <button
+                  className={`flex-1 rounded px-3 py-2 font-semibold ${
+                    authMode === 'login' ? 'bg-white shadow-sm' : ''
+                  }`}
+                  type="button"
+                  onClick={() => changeAuthMode('login')}
+                >
+                  Sign in
+                </button>
+
+                <button
+                  className={`flex-1 rounded px-3 py-2 font-semibold ${
+                    authMode === 'register' ? 'bg-white shadow-sm' : ''
+                  }`}
+                  type="button"
+                  onClick={() => changeAuthMode('register')}
+                >
+                  Register
+                </button>
+              </div>
+
+              {authMode === 'login' && <LoginForm />}
+
+              {authMode === 'register' && <RegisterForm />}
             </>
           )}
 

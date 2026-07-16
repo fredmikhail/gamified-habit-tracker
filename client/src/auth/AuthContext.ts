@@ -8,6 +8,7 @@ export type AuthContextValue = {
   isAuthLoading: boolean
   isAuthActionLoading: boolean
   authErrorMessage: string | null
+  clearAuthError: () => void
   registerUser: (request: RegisterRequest) => Promise<void>
   loginUser: (request: LoginRequest) => Promise<void>
   logoutUser: () => Promise<void>

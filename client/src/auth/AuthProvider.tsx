@@ -55,6 +55,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }, [])
 
+  function clearAuthError(): void {
+    setAuthErrorMessage(null)
+  }
+
   async function registerUser(request: RegisterRequest): Promise<void> {
     setIsAuthActionLoading(true)
     setAuthErrorMessage(null)
@@ -113,6 +117,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         isAuthLoading,
         isAuthActionLoading,
         authErrorMessage,
+        clearAuthError,
         registerUser,
         loginUser,
         logoutUser,
