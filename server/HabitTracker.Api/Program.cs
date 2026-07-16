@@ -4,6 +4,7 @@ using HabitTracker.Api.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,7 +12,24 @@ const string frontendCorsPolicy = "FrontendCorsPolicy";
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add(
+        new AutoValidateAntiforgeryTokenAttribute());
+});
+
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.Name = "HabitTracker.Antiforgery";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+
+    options.Cookie.SecurePolicy =
+        builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.None
+            : CookieSecurePolicy.Always;
+});
 
 builder.Services
     .AddAuthentication(
@@ -97,7 +115,8 @@ await using (var scope = app.Services.CreateAsyncScope())
     }
 
     app.Logger.LogInformation(
-        "Successfully connected to PostgreSQL.");
+    "Successfully connected using database provider {DatabaseProvider}.",
+    dbContext.Database.ProviderName);
 }
 
 // Configure the HTTP request pipeline.
@@ -117,3 +136,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program
+{
+}
