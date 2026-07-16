@@ -27,7 +27,7 @@ public sealed class AuthService
     {
         if (!IsValidIanaTimeZone(request.TimeZone))
         {
-            throw new InvalidIanaTimeZoneException(); ;
+            throw new InvalidIanaTimeZoneException();
         }
 
         var email = request.Email.Trim();
