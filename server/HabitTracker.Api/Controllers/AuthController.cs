@@ -91,6 +91,38 @@ public sealed class AuthController : ControllerBase
         return NoContent();
     }
 
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<ActionResult<CurrentUserResponse>> GetCurrentUserAsync(
+    CancellationToken cancellationToken)
+    {
+        var userIdValue =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(
+            userIdValue,
+            out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var currentUser =
+            await _authService.GetCurrentUserAsync(
+                userId,
+                cancellationToken);
+
+        if (currentUser is null)
+        {
+            await HttpContext.SignOutAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme);
+
+            return Unauthorized();
+        }
+
+        return Ok(currentUser);
+    }
+
     private async Task SignInUserAsync(
         Guid userId,
         bool rememberMe)

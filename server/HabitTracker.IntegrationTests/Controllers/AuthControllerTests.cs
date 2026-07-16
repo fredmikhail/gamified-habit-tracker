@@ -964,6 +964,123 @@ public sealed class AuthControllerTests
             response.StatusCode);
     }
 
+    [Fact]
+    public async Task GetCurrentUser_WhenAnonymous_ReturnsUnauthorized()
+    {
+        using var anonymousClient =
+            _factory.CreateClient(
+                new WebApplicationFactoryClientOptions
+                {
+                    AllowAutoRedirect = false,
+                    HandleCookies = true
+                });
+
+        var response =
+            await anonymousClient.GetAsync("/api/auth/me");
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            response.StatusCode);
+
+        Assert.NotEqual(
+            HttpStatusCode.Redirect,
+            response.StatusCode);
+
+        Assert.False(
+            response.Headers.Contains("Location"));
+    }
+
+    [Fact]
+    public async Task GetCurrentUser_WhenAuthenticated_ReturnsCurrentUser()
+    {
+        var uniqueSuffix =
+            Guid.NewGuid()
+                .ToString("N");
+
+        var registerRequest =
+            new RegisterRequest
+            {
+                Email =
+                    $"user_{uniqueSuffix}@example.com",
+                Username =
+                    $"user_{uniqueSuffix[..8]}",
+                Password =
+                    "StrongPassword123!",
+                TimeZone =
+                    "America/Toronto"
+            };
+
+        var csrfResponse =
+            await _client.GetAsync("/api/auth/csrf-token");
+
+        csrfResponse.EnsureSuccessStatusCode();
+
+        var csrfResponseBody =
+            await csrfResponse.Content
+                .ReadFromJsonAsync<AntiforgeryTokenResponse>();
+
+        Assert.NotNull(csrfResponseBody);
+
+        using var registrationRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/auth/register")
+            {
+                Content =
+                    JsonContent.Create(registerRequest)
+            };
+
+        registrationRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            csrfResponseBody.RequestToken);
+
+        var registrationResponse =
+            await _client.SendAsync(registrationRequest);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            registrationResponse.StatusCode);
+
+        var registrationResponseBody =
+            await registrationResponse.Content
+                .ReadFromJsonAsync<AuthResponse>();
+
+        Assert.NotNull(registrationResponseBody);
+
+        var response =
+            await _client.GetAsync("/api/auth/me");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            response.StatusCode);
+
+        var responseBody =
+            await response.Content
+                .ReadFromJsonAsync<CurrentUserResponse>();
+
+        Assert.NotNull(responseBody);
+
+        Assert.Equal(
+            registrationResponseBody.User.Id,
+            responseBody.Id);
+
+        Assert.Equal(
+            registerRequest.Email,
+            responseBody.Email);
+
+        Assert.Equal(
+            registerRequest.Username,
+            responseBody.Username);
+
+        Assert.Equal(
+            registerRequest.Username,
+            responseBody.DisplayName);
+
+        Assert.Equal(
+            registerRequest.TimeZone,
+            responseBody.TimeZone);
+    }
+
     private static async Task<HttpResponseMessage> SendLoginRequestAsync(
         HttpClient client,
         LoginRequest loginRequest)
