@@ -210,4 +210,168 @@ public sealed class AuthServiceTests
         Assert.Single(dbContext.Users);
         Assert.Single(dbContext.UserSettings);
     }
+
+    [Fact]
+    public async Task LoginAsync_WhenEmailDoesNotExist_ThrowsInvalidCredentialsException()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var dbContext = new AppDbContext(options);
+
+        var passwordHasher = new PasswordHasher<User>();
+
+        var authService = new AuthService(
+            dbContext,
+            passwordHasher);
+
+        var request = new LoginRequest
+        {
+            Email = "missing@example.com",
+            Password = "a-secure-password",
+            RememberMe = false
+        };
+
+        await Assert.ThrowsAsync<InvalidCredentialsException>(
+            () => authService.LoginAsync(request));
+
+        Assert.Empty(dbContext.Users);
+        Assert.Empty(dbContext.UserSettings);
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenPasswordIsIncorrect_ThrowsInvalidCredentialsException()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var dbContext = new AppDbContext(options);
+
+        var passwordHasher = new PasswordHasher<User>();
+        var createdAtUtc = DateTime.UtcNow;
+
+        var existingUser = new User
+        {
+            Email = "fred@example.com",
+            NormalizedEmail = "FRED@EXAMPLE.COM",
+            Username = "Fred_95",
+            NormalizedUsername = "FRED_95",
+            CreatedAtUtc = createdAtUtc
+        };
+
+        existingUser.PasswordHash =
+            passwordHasher.HashPassword(
+                existingUser,
+                "the-correct-password");
+
+        var existingSettings = new UserSettings
+        {
+            UserId = existingUser.Id,
+            DisplayName = "Fred",
+            TimeZone = "America/Toronto",
+            CreatedAtUtc = createdAtUtc,
+            UpdatedAtUtc = createdAtUtc,
+            User = existingUser
+        };
+
+        existingUser.UserSettings = existingSettings;
+
+        dbContext.Users.Add(existingUser);
+        await dbContext.SaveChangesAsync();
+
+        var authService = new AuthService(
+            dbContext,
+            passwordHasher);
+
+        var request = new LoginRequest
+        {
+            Email = "fred@example.com",
+            Password = "the-wrong-password",
+            RememberMe = false
+        };
+
+        await Assert.ThrowsAsync<InvalidCredentialsException>(
+            () => authService.LoginAsync(request));
+
+        Assert.Null(existingUser.LastLoginAtUtc);
+        Assert.Single(dbContext.Users);
+        Assert.Single(dbContext.UserSettings);
+    }
+
+    [Fact]
+    public async Task LoginAsync_WhenCredentialsAreValid_UpdatesLastLoginAndReturnsAuthResponse()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var dbContext = new AppDbContext(options);
+
+        var passwordHasher = new PasswordHasher<User>();
+        var createdAtUtc = DateTime.UtcNow;
+
+        var existingUser = new User
+        {
+            Email = "Fred@Example.com",
+            NormalizedEmail = "FRED@EXAMPLE.COM",
+            Username = "Fred_95",
+            NormalizedUsername = "FRED_95",
+            CreatedAtUtc = createdAtUtc
+        };
+
+        const string password = "the-correct-secure-password";
+
+        existingUser.PasswordHash =
+            passwordHasher.HashPassword(
+                existingUser,
+                password);
+
+        var existingSettings = new UserSettings
+        {
+            UserId = existingUser.Id,
+            DisplayName = "Fred",
+            TimeZone = "America/Toronto",
+            CreatedAtUtc = createdAtUtc,
+            UpdatedAtUtc = createdAtUtc,
+            User = existingUser
+        };
+
+        existingUser.UserSettings = existingSettings;
+
+        dbContext.Users.Add(existingUser);
+        await dbContext.SaveChangesAsync();
+
+        var authService = new AuthService(
+            dbContext,
+            passwordHasher);
+
+        var beforeLoginUtc = DateTime.UtcNow;
+
+        var request = new LoginRequest
+        {
+            Email = "  fred@EXAMPLE.com  ",
+            Password = password,
+            RememberMe = true
+        };
+
+        var response = await authService.LoginAsync(request);
+
+        Assert.NotNull(existingUser.LastLoginAtUtc);
+
+        Assert.InRange(
+            existingUser.LastLoginAtUtc.Value,
+            beforeLoginUtc,
+            DateTime.UtcNow);
+
+        Assert.Equal(existingUser.Id, response.User.Id);
+        Assert.Equal(existingUser.Email, response.User.Email);
+        Assert.Equal(existingUser.Username, response.User.Username);
+        Assert.Equal(existingSettings.DisplayName, response.User.DisplayName);
+        Assert.Equal(existingSettings.TimeZone, response.User.TimeZone);
+
+        Assert.Single(dbContext.Users);
+        Assert.Single(dbContext.UserSettings);
+    }
 }
