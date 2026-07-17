@@ -1,10 +1,12 @@
 # API Contract
 
-This document defines the planned HTTP API contract between the React frontend and the ASP.NET Core backend.
+This document defines the current and planned HTTP API contract between the React frontend and the ASP.NET Core backend.
 
-It establishes consistent routes, request shapes, response shapes, status codes, and error behavior.
+Phase 2 authentication endpoints are implemented. Endpoints for later phases remain planned until their phase is completed.
 
-The contract may evolve as features are implemented, but changes should be deliberate and documented.
+The contract establishes consistent routes, request shapes, response shapes, status codes, authentication behavior, and error behavior.
+
+The contract may evolve as features are implemented, but changes should be deliberate, tested, and documented.
 
 ---
 
@@ -58,11 +60,19 @@ Example:
 
 ### Identifiers
 
-Entity identifiers are treated as opaque values by API clients.
+Entity identifiers are represented as JSON strings containing `Guid` values.
 
-The frontend should not make assumptions about how identifiers are generated.
+The backend generates identifiers using UUID version 7 for the implemented authentication entities.
 
-The exact identifier type will be confirmed when the backend entities are implemented.
+API clients must still treat identifiers as opaque values. The frontend should not parse ordering information from them or generate business behavior from their format.
+
+Example:
+
+```json
+{
+  "id": "019ba123-4567-789a-bcde-f0123456789a"
+}
+```
 
 ---
 
@@ -103,20 +113,24 @@ Examples:
 
 Protected endpoints require an authenticated user.
 
-The browser application uses secure cookie-based authentication.
+The browser application uses encrypted cookie-based authentication.
 
-After successful registration or login, the backend creates an encrypted authentication cookie. The browser sends this cookie automatically with later authenticated requests.
+After successful registration or login, ASP.NET Core creates the authentication cookie. The browser sends this cookie automatically with later authenticated requests.
 
-The authentication cookie is:
+The authentication cookie:
 
-- `HttpOnly` so frontend JavaScript cannot read it
-- `Secure` in production so it is sent only over HTTPS
-- configured with `SameSite=Lax`
-- temporary by default, with a maximum authentication lifetime of 12 hours
-- persistent for a fixed maximum of 30 days only when the user explicitly selects `rememberMe`
-- configured without sliding expiration during the MVP
+- is named `HabitTracker.Auth`
+- is `HttpOnly` so frontend JavaScript cannot read it
+- is `Secure` outside the Development environment
+- uses `SameSite=Lax`
+- uses a fixed maximum ticket lifetime of 12 hours by default
+- is non-persistent by default
+- becomes persistent for a fixed maximum of 30 days only when the user explicitly selects `rememberMe` during login
+- does not use sliding expiration during the MVP
 
-Frontend API requests include credentials so the browser can send and receive authentication cookies.
+Registration always creates the default non-persistent 12-hour session.
+
+Frontend API requests use `credentials: "include"` so the browser can send and receive authentication and antiforgery cookies.
 
 The web frontend and backend should be presented through the same public origin where practical.
 
@@ -124,16 +138,28 @@ During local development, the Vite development server proxies `/api` requests to
 
 State-changing browser requests use antiforgery protection.
 
-This applies to browser requests using:
+This applies to controller requests using:
 
 - `POST`
 - `PUT`
 - `PATCH`
 - `DELETE`
 
-The frontend obtains an antiforgery request token from the backend and sends it through the documented antiforgery header.
+The antiforgery cookie is named:
 
-The backend determines the authenticated user's identity from the authentication context.
+```text
+HabitTracker.Antiforgery
+```
+
+The frontend obtains an antiforgery request token from the backend, caches it in memory, and sends it through:
+
+```text
+X-CSRF-TOKEN
+```
+
+After registration, login, or logout changes the authentication identity, the frontend clears its cached request token. A replacement is obtained lazily before the next state-changing request.
+
+The backend determines the authenticated user's identity from the validated authentication context.
 
 Request bodies must not accept a user-provided `userId` for user-owned operations.
 
@@ -185,9 +211,9 @@ The request may be valid in shape, but it conflicts with an existing completion 
 
 ## Error Responses
 
-The API should use a consistent error format.
+The API uses a consistent error format.
 
-ASP.NET Core `ProblemDetails` is the planned error response format.
+ASP.NET Core Problem Details is the implemented error response format for validation failures and expected application errors.
 
 Example:
 
@@ -222,21 +248,29 @@ Example:
 
 Internal exception details and stack traces must not be exposed to users in production responses.
 
+Implemented authentication error mappings include:
+
+- invalid IANA time zone → `400 Bad Request`
+- invalid credentials → `401 Unauthorized`
+- normalized email or username conflict → `409 Conflict`
+
+The invalid-credentials response is generic and must not reveal whether the submitted email or password was incorrect.
+
 ---
 
 # Authentication Endpoints
 
-Authentication endpoints are implemented during Phase 2.
+Authentication endpoints were implemented during Phase 2.
 
 Successful registration or login creates an encrypted authentication cookie.
 
-The frontend does not receive, store, or manually attach the authentication credential.
+The frontend does not receive, store, decode, or manually attach the authentication credential.
 
 The `user` property of `AuthResponse` uses the `CurrentUserResponse` shape.
 
 Registration, login, and logout use antiforgery protection because they change authentication state.
 
-After registration or login changes the authenticated identity, the frontend obtains a new antiforgery request token for later state-changing requests.
+After registration, login, or logout changes the authenticated identity, the frontend clears the cached antiforgery request token. A new token is requested only when the next state-changing request needs one.
 
 ---
 
@@ -455,7 +489,7 @@ No request body.
 
 No response body.
 
-After logout succeeds, the frontend clears its current user state and obtains a new antiforgery request token for unauthenticated requests.
+After logout succeeds, the frontend clears its current user state and cached antiforgery request token. A new token is requested lazily before the next state-changing request.
 
 ### Possible Status Codes
 
@@ -498,7 +532,7 @@ Yes.
 
 # Habit Endpoints
 
-Habit endpoints are implemented during Phase 3.
+Habit endpoints are planned for Phase 3 and are not implemented yet.
 
 ---
 
@@ -506,7 +540,7 @@ Habit endpoints are implemented during Phase 3.
 
 Habit DTOs expand as later phases introduce new behavior.
 
-### Phase 3
+### Planned — Phase 3
 
 `HabitResponse` contains the basic habit fields:
 
@@ -521,13 +555,13 @@ Habit DTOs expand as later phases introduce new behavior.
 - createdAtUtc
 - updatedAtUtc
 
-### Phase 4
+### Planned — Phase 4
 
 `HabitResponse` adds:
 
 - isCompletedToday
 
-### Phase 5
+### Planned — Phase 5
 
 Habit request and response DTOs add:
 
@@ -795,7 +829,7 @@ The MVP does not permanently delete habits.
 
 # Habit Completion Endpoints
 
-Habit completion endpoints are implemented during Phase 4.
+Habit completion endpoints are planned for Phase 4 and are not implemented yet.
 
 ---
 
@@ -924,7 +958,7 @@ Negative reversal transactions and immutable undo history are deferred until aft
 
 # Attribute Endpoints
 
-Attribute endpoints are implemented during Phase 5.
+Attribute endpoints are planned for Phase 5 and are not implemented yet.
 
 ---
 
@@ -976,7 +1010,7 @@ They are returned through the response DTO but are not stored as separate UserAt
 
 # Dashboard Endpoints
 
-Dashboard endpoints are implemented during Phase 6.
+Dashboard endpoints are planned for Phase 6 and are not implemented yet.
 
 ---
 
@@ -1135,7 +1169,7 @@ A contract change is not complete until both sides are updated and verified.
 
 # Endpoint Phase Summary
 
-## Phase 2
+## Implemented — Phase 2
 
 - `GET /api/auth/csrf-token`
 - `POST /api/auth/register`
@@ -1160,7 +1194,7 @@ A contract change is not complete until both sides are updated and verified.
 
 - `GET /api/attributes`
 
-## Phase 6
+## Planned — Phase 6
 
 - `GET /api/dashboard/today`
 - `GET /api/dashboard/week`

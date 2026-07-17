@@ -1,12 +1,14 @@
 # Roadmap
 
-This roadmap defines the planned development phases for the Gamified Habit Tracker app.
+This roadmap defines the development phases for the Gamified Habit Tracker app.
 
 The goal is to build the application in small, understandable stages while keeping the architecture clean and the core habit-tracking loop stable.
 
 ---
 
 ## Phase 1 — Project Setup
+
+**Status: Complete**
 
 ### Goal
 
@@ -47,11 +49,13 @@ Set up the frontend, backend, and PostgreSQL database so the project has a worki
 
 ## Phase 2 — Authentication
 
+**Status: Complete**
+
 ### Goal
 
-Allow users to register, log in, log out, and access private user-specific data.
+Allow users to register, log in, log out, restore their authenticated session, and establish the secure identity foundation for private user-specific data.
 
-### Scope
+### Original Feature Scope
 
 - Create the User entity.
 - Create the UserSettings entity.
@@ -64,30 +68,79 @@ Allow users to register, log in, log out, and access private user-specific data.
 - Add antiforgery protection for state-changing requests.
 - Add backend logout endpoint.
 - Add protected backend endpoints.
-- Add frontend login and register pages.
-- Add basic frontend auth state.
+- Add frontend login and registration UI.
+- Add basic frontend authentication state.
+
+### Implemented Authentication Details
+
+- Use application-generated Guid version 7 identifiers.
+- Normalize email and username for case-insensitive lookup and uniqueness.
+- Enforce unique normalized email and username indexes in PostgreSQL.
+- Create User and UserSettings together during registration.
+- Validate IANA time-zone identifiers.
+- Use ASP.NET Core password hashing and verification.
+- Use an encrypted `HttpOnly` authentication cookie.
+- Use a 12-hour non-persistent session by default.
+- Use a fixed 30-day persistent session only when `rememberMe` is selected during login.
+- Disable sliding authentication expiration during the MVP.
+- Add `GET /api/auth/me` for current-user restoration.
+- Derive the authenticated user identifier from backend claims.
+- Do not accept client-provided user identifiers for user-owned operations.
+- Make logout idempotent.
+- Return expected API failures through Problem Details responses.
+- Centralize frontend HTTP credentials, antiforgery tokens, and API error handling.
+- Clear the cached antiforgery request token when authentication identity changes.
+
+### Cross-Cutting Infrastructure Added During Phase 2
+
+These items were not part of the smallest original authentication scope, but were added to make the feature reliable and continuously verifiable:
+
+- Add the ASP.NET Core integration test project.
+- Use `WebApplicationFactory` for HTTP integration tests.
+- Replace PostgreSQL with EF Core InMemory only inside API integration tests.
+- Add Vitest and React Testing Library.
+- Add frontend authentication-state and form tests.
+- Add Playwright browser testing.
+- Add an isolated local PostgreSQL end-to-end database.
+- Test the full registration, refresh, logout, and login journey.
+- Add a repository-local `dotnet-ef` tool manifest.
+- Add GitHub Actions continuous integration.
+- Run separate Backend, Frontend, and End-to-end CI jobs.
+- Run the end-to-end CI job against a disposable PostgreSQL service container.
+- Apply real EF Core migrations before CI browser tests.
 
 ### Definition of Done
 
 - A new user can register.
 - Registration creates default settings for the new user.
+- User and UserSettings registration data is saved atomically.
 - The user's display name and time zone are stored.
 - An existing user can log in.
+- A user can choose a temporary or remembered login session.
 - A user can log out.
-- Protected backend endpoints require authentication.
-- User-specific data cannot be accessed by another user.
+- The frontend restores the current authenticated user after a refresh.
+- Anonymous requests cannot access protected endpoints.
+- Authenticated identity is derived from server-side claims rather than a client-provided user identifier.
+- Passwords are stored only as password hashes.
+- State-changing browser requests require a valid antiforgery token.
+- Authentication behavior is covered by backend, frontend, and browser tests.
+- GitHub Actions verifies backend, frontend, and PostgreSQL-backed end-to-end behavior.
 
 ### Not Included Yet
 
+- Habit CRUD
 - Habit completion
 - XP
 - Streaks
 - Dashboard
 - Advanced user settings
+- General ownership tests for habit resources, which begin when those resources exist in Phase 3
 
 ---
 
 ## Phase 3 — Habit CRUD
+
+**Status: Next**
 
 ### Goal
 
@@ -99,18 +152,23 @@ Allow authenticated users to create and manage their habits.
 - Add habit request and response DTOs.
 - Add HabitService.
 - Add habit API endpoints.
-- Create frontend habit list page.
+- Create frontend habit list UI.
 - Create frontend habit form.
 - Allow users to create habits.
 - Allow users to edit habits.
 - Allow users to deactivate habits.
+- Derive habit ownership from the authenticated user identity.
+- Add tests proving users can only view and modify their own habits.
 
 ### Definition of Done
 
 - A logged-in user can create a habit.
 - A logged-in user can view only their own habits.
-- A logged-in user can edit their own habits.
-- A logged-in user can deactivate a habit without deleting its history.
+- A logged-in user can edit only their own habits.
+- A logged-in user can deactivate only their own habit.
+- A habit owned by another user is not exposed.
+- A habit can be deactivated without deleting its history.
+- Habit ownership behavior is covered by backend tests.
 
 ### Not Included Yet
 
@@ -286,13 +344,19 @@ Prepare the application for real usage and public demonstration.
 - Improve the README.
 - Add screenshots.
 - Add setup instructions.
-- Review and strengthen backend test coverage.
-- Add seed/demo data if useful.
+- Review and strengthen backend and frontend test coverage.
+- Add seed or demo data if useful.
 - Deploy the frontend.
 - Deploy the backend.
-- Deploy PostgreSQL database.
+- Deploy the PostgreSQL database.
 - Document environment variables.
 - Document local setup steps.
+- Configure production authentication-cookie security.
+- Decide and document the production frontend/API origin model.
+- Prefer a shared public origin where practical.
+- Configure explicit production CORS and credential behavior if separate public origins are required.
+- Protect deployment secrets.
+- Confirm production migrations and startup behavior.
 
 ### Definition of Done
 
@@ -300,7 +364,9 @@ Prepare the application for real usage and public demonstration.
 - The app is deployed.
 - The GitHub repository is organized.
 - The README explains the project clearly.
-- Core backend logic has test coverage.
+- Core backend and frontend behavior has appropriate test coverage.
+- Production authentication and antiforgery behavior is verified.
+- Deployment configuration does not expose secrets.
 
 ---
 

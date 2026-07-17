@@ -10,6 +10,21 @@ The app combines personal productivity with RPG-style progression to make daily 
 
 ---
 
+## Current Project Status
+
+Completed phases:
+
+- Phase 1 — Project Setup
+- Phase 2 — Authentication
+
+Next phase:
+
+- Phase 3 — Habit CRUD
+
+The current application has a working React frontend, ASP.NET Core backend, PostgreSQL database, secure cookie-based authentication, antiforgery protection, automated tests, browser end-to-end tests, and GitHub Actions continuous integration.
+
+---
+
 ## Core Objectives
 
 - Provide a clean habit tracking experience.
@@ -18,6 +33,8 @@ The app combines personal productivity with RPG-style progression to make daily 
 - Track habits, completions, XP, attributes, and streaks.
 - Support milestones and achievements after the MVP.
 - Maintain a modular architecture that can support future features.
+- Protect user-owned data through backend authentication and ownership checks.
+- Keep important application rules testable and continuously verified.
 
 ---
 
@@ -42,8 +59,18 @@ The app combines personal productivity with RPG-style progression to make daily 
 
 ### Testing
 
-- xUnit for backend tests
-- Frontend testing may be added later
+- xUnit for backend unit tests
+- ASP.NET Core integration tests with `WebApplicationFactory`
+- Vitest for frontend tests
+- React Testing Library for component and provider behavior
+- Playwright for browser end-to-end tests
+- Real PostgreSQL for the end-to-end authentication journey
+
+### Automation
+
+- GitHub Actions continuous integration
+- Separate Backend, Frontend, and End-to-end CI jobs
+- Repository-local `dotnet-ef` tool manifest for repeatable EF Core commands
 
 ---
 
@@ -57,7 +84,39 @@ The app combines personal productivity with RPG-style progression to make daily 
 - DTOs are used between frontend and backend.
 - Database entities are not exposed directly as API responses.
 - Core business rules should be implemented in backend services.
-- Backend tests should be added alongside the business rules they protect.
+- Controllers should remain thin.
+- Authentication identity comes from backend-validated claims, not a client-provided user identifier.
+- Backend and frontend tests should be added alongside the behavior they protect.
+- Browser-facing state-changing requests use antiforgery protection.
+- Architecture, naming, and scope changes should be deliberate rather than introduced silently.
+
+---
+
+## Implemented Authentication Foundation
+
+Phase 2 added:
+
+- `User` and `UserSettings` entities
+- PostgreSQL migration and database constraints for authentication data
+- case-insensitive email and username uniqueness
+- application-generated Guid version 7 identifiers
+- password hashing and verification
+- registration with atomic `User` and `UserSettings` creation
+- login with optional fixed 30-day `rememberMe` persistence
+- logout
+- current-user session restoration
+- encrypted, browser-managed authentication cookies
+- globally applied antiforgery validation for state-changing controller requests
+- centralized frontend API and CSRF-token handling
+- frontend authentication state, login UI, and registration UI
+- consistent API error handling with Problem Details
+- backend unit and HTTP integration tests
+- frontend component and authentication-state tests
+- Playwright authentication smoke and full journey tests
+- real PostgreSQL end-to-end testing
+- GitHub Actions continuous integration
+
+The frontend never receives or stores the authentication credential directly.
 
 ---
 
@@ -85,12 +144,15 @@ The MVP includes:
 
 ---
 
-## Planned Entities
+## Entity Status
 
-### MVP Entities
+### Implemented MVP Entities
 
 - User
 - UserSettings
+
+### Planned MVP Entities
+
 - Habit
 - HabitCompletion
 - HabitAttributeReward

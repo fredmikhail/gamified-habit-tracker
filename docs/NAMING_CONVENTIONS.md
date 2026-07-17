@@ -284,6 +284,7 @@ Response DTOs should describe the returned resource and end with `Response`.
 
 Examples:
 
+- `AntiforgeryTokenResponse`
 - `AuthResponse`
 - `CurrentUserResponse`
 - `HabitResponse`
@@ -479,25 +480,55 @@ Examples:
 
 ## Frontend File and Folder Naming
 
-Planned top-level source folders use lowercase names:
+Top-level source folders use lowercase names.
+
+Current folders include:
 
 - `api`
+- `auth`
 - `components`
+- `types`
+
+Folders that may be introduced when later features need them include:
+
 - `pages`
 - `hooks`
-- `types`
 - `utils`
+
+Feature-specific component folders also use lowercase names.
+
+Example:
+
+- `components/auth`
 
 React component files use PascalCase:
 
+- `LoginForm.tsx`
+- `RegisterForm.tsx`
 - `HabitCard.tsx`
 - `DashboardPage.tsx`
 
 Non-component TypeScript files normally use camelCase:
 
-- `habitsApi.ts`
+- `apiClient.ts`
 - `authApi.ts`
+- `readApiError.ts`
+- `useAuth.ts`
 - `dateUtils.ts`
+
+Frontend unit and component tests use the source name followed by `.test.ts` or `.test.tsx`.
+
+Examples:
+
+- `AuthProvider.test.tsx`
+- `LoginForm.test.tsx`
+- `RegisterForm.test.tsx`
+
+Playwright end-to-end tests use `.spec.ts`.
+
+Example:
+
+- `auth-smoke.spec.ts`
 
 ---
 
@@ -541,19 +572,28 @@ Database names should not be changed casually after migrations and deployed data
 
 ## Test Naming Conventions
 
-The backend test project is named:
+Backend test projects are separated by test level:
 
-- `HabitTracker.Tests`
+- `HabitTracker.Tests` for focused backend unit tests
+- `HabitTracker.IntegrationTests` for ASP.NET Core HTTP integration tests
 
-The test project remains separate from the production API project:
+Both test projects remain separate from the production project:
 
 - `HabitTracker.Api`
 - `HabitTracker.Tests`
+- `HabitTracker.IntegrationTests`
 
-Backend test classes should identify the class or behavior under test.
+Integration-test infrastructure uses descriptive names.
+
+Current example:
+
+- `CustomWebApplicationFactory`
+
+Backend test classes should identify the class, controller, endpoint group, or behavior under test.
 
 Examples:
 
+- `AuthControllerTests`
 - `HabitServiceTests`
 - `CompletionServiceTests`
 - `StreakServiceTests`
@@ -564,11 +604,21 @@ Test method names should describe:
 2. the condition
 3. the expected result
 
-Example:
+Examples:
 
 - `CompleteHabitAsync_WhenHabitAlreadyCompleted_ThrowsConflictException`
+- `GetCurrentUser_WhenAnonymous_ReturnsUnauthorized`
 
-Tests should prioritize clarity over brevity.
+Frontend tests use:
+
+- `.test.ts` for non-component TypeScript tests
+- `.test.tsx` for React component or provider tests
+
+Playwright browser tests use:
+
+- `.spec.ts`
+
+Tests should prioritize clarity over brevity and verify observable behavior rather than private implementation details.
 
 ---
 

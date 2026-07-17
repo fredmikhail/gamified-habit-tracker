@@ -1,10 +1,10 @@
 # Data Model
 
-This document describes the planned data model for the Gamified Habit Tracker app.
+This document describes the implemented and planned data model for the Gamified Habit Tracker app.
 
 The data model defines the main entities, their responsibilities, and how they relate to each other.
 
-This document is a planning reference. The final database schema will be created through C# entity classes, Entity Framework Core, and PostgreSQL migrations.
+`User` and `UserSettings` were implemented during Phase 2 through C# entity classes, Entity Framework Core configuration, and a PostgreSQL migration. The remaining MVP entities are still planned for their later phases.
 
 ---
 
@@ -25,12 +25,15 @@ The data model should support:
 
 ---
 
-## Planned Entity List
+## Entity Status
 
-### MVP Entities
+### Implemented MVP Entities
 
 - User
 - UserSettings
+
+### Planned MVP Entities
+
 - Habit
 - HabitCompletion
 - HabitAttributeReward
@@ -44,6 +47,23 @@ The data model should support:
 
 The post-MVP entity names are reserved, but those features are not implemented during the initial MVP phases.
 
+### Current Authentication Schema
+
+The Phase 2 migration `AddAuthenticationUserEntities` creates the authentication data model.
+
+Current PostgreSQL application tables:
+
+- `users`
+- `user_settings`
+
+Entity Framework Core migration history is stored in:
+
+- `__ef_migrations_history`
+
+Physical table, column, key, foreign-key, and index identifiers use `snake_case`.
+
+Application-generated identifiers are configured with `ValueGeneratedNever()` so PostgreSQL preserves the Guid version 7 values created by the backend.
+
 ---
 
 ## Entity: User
@@ -54,7 +74,7 @@ Each user owns their own habits, completions, attributes, XP transactions, and s
 
 Post-MVP, a user may also own milestone unlock records.
 
-### Planned Fields
+### Implemented Fields
 
 - Id
 - Email
@@ -101,10 +121,16 @@ Before storage and lookup, leading and trailing whitespace is removed and normal
 
 Passwords are never trimmed, normalized, or stored directly.
 
-Unique database indexes are created for:
+Unique database indexes are implemented for:
 
 - `NormalizedEmail`
 - `NormalizedUsername`
+
+The backend creates normalized values with trimmed input and invariant uppercase casing.
+
+`PasswordHash` is produced and verified through ASP.NET Core's password hasher. The plaintext password is never stored.
+
+`LastLoginAtUtc` begins as `null` and is updated after a successful login.
 
 ---
 
@@ -112,7 +138,7 @@ Unique database indexes are created for:
 
 Stores user preferences and customization options.
 
-### Planned Fields
+### Implemented Fields
 
 - Id
 - UserId
@@ -134,6 +160,8 @@ Stores user preferences and customization options.
 
 - One UserSettings belongs to one User.
 - The application requires each User to have exactly one UserSettings record.
+
+The database enforces that one User cannot have more than one UserSettings row through a unique index on `UserSettings.UserId`. Registration logic guarantees that application-created users receive their settings in the same save operation.
 - `UserSettings.UserId` has a unique database index so a User cannot have more than one UserSettings record.
 - Deleting a User also deletes the related UserSettings record.
 
@@ -149,9 +177,9 @@ DisplayName initially defaults to Username.
 
 Changing a user's time zone should not rewrite historical CompletedDate values.
 
-Registration creates User and UserSettings together as one atomic operation.
+Registration creates User and UserSettings together through one EF Core unit of work and one `SaveChangesAsync` call.
 
-Both records must be saved successfully, or neither record should be persisted.
+Both records must be saved successfully, or registration fails without intentionally persisting only one record.
 
 During registration:
 
@@ -554,11 +582,19 @@ Used by:
 
 The database should prevent invalid or duplicate data where possible.
 
-Planned constraints:
+### Implemented Phase 2 Constraints
 
-- `User.NormalizedEmail` must have a unique database index.
-- `User.NormalizedUsername` must have a unique database index.
-- `UserSettings.UserId` must have a unique database index so a User cannot have more than one UserSettings record.
+- `User.NormalizedEmail` has a unique database index.
+- `User.NormalizedUsername` has a unique database index.
+- `UserSettings.UserId` has a unique database index so a User cannot have more than one UserSettings row.
+- `UserSettings.UserId` is a required foreign key to `User`.
+- Deleting a User cascades to the related UserSettings row.
+- Required authentication fields do not allow null values.
+- Email, normalized email, username, normalized username, display name, and time zone have database maximum lengths matching the documented model.
+- User and UserSettings identifiers are supplied by the application.
+
+### Planned Later-Phase Constraints
+
 - A HabitCompletion should be unique per HabitId and CompletedDate.
 - HabitAttributeReward should be unique per HabitId and AttributeType.
 - UserAttribute should be unique per UserId and AttributeType.
@@ -574,7 +610,14 @@ Planned constraints:
 
 Date and time handling is important because the app tracks daily habits.
 
-General rules:
+Implemented Phase 2 behavior:
+
+- registration requires an IANA time-zone identifier
+- the backend validates that identifier before saving UserSettings
+- `CreatedAtUtc`, `UpdatedAtUtc`, and `LastLoginAtUtc` use UTC timestamps
+- changing time-zone behavior is deferred until settings editing exists
+
+General MVP rules:
 
 - Store timestamps in UTC.
 - Require a valid time-zone identifier in UserSettings.

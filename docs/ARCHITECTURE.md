@@ -1,8 +1,8 @@
 # Architecture
 
-This document describes the planned architecture for the Gamified Habit Tracker app.
+This document describes the current and planned architecture for the Gamified Habit Tracker app.
 
-The application is built as a full-stack web app with a separate frontend, backend, and database.
+The application is a full-stack web app with a separate frontend, backend, and PostgreSQL database.
 
 ---
 
@@ -20,6 +20,55 @@ ASP.NET Core Web API
 PostgreSQL Database
 ```
 
+During local development and browser end-to-end testing, the frontend calls `/api` through the Vite development server. Vite proxies those requests to the ASP.NET Core backend.
+
+This keeps the browser-facing requests same-origin while the frontend and backend remain separate applications.
+
+---
+
+## Current Repository Structure
+
+The repository currently contains:
+
+```text
+gamified-habit-tracker/
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── client/
+│   ├── e2e/
+│   ├── src/
+│   │   ├── api/
+│   │   ├── auth/
+│   │   ├── components/
+│   │   │   └── auth/
+│   │   ├── types/
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── playwright.config.ts
+│   └── vite.config.ts
+├── docs/
+├── server/
+│   ├── HabitTracker.Api/
+│   │   ├── Controllers/
+│   │   ├── Data/
+│   │   │   ├── Configurations/
+│   │   │   └── Migrations/
+│   │   ├── Domain/
+│   │   │   └── Entities/
+│   │   ├── DTOs/
+│   │   ├── ExceptionHandling/
+│   │   ├── Exceptions/
+│   │   ├── Services/
+│   │   ├── Program.cs
+│   │   └── appsettings.json
+│   ├── HabitTracker.Tests/
+│   └── HabitTracker.IntegrationTests/
+└── dotnet-tools.json
+```
+
+Folders for later phases should be added only when the related feature requires them.
+
 ---
 
 ## Main Responsibilities
@@ -32,15 +81,20 @@ The frontend is responsible for:
 - Handling user interactions.
 - Calling backend API endpoints.
 - Showing loading, success, and error states.
+- Holding temporary UI state.
 - Rendering habit cards, progress bars, attributes, and dashboard UI.
 
-The frontend should not contain core business logic such as:
+The frontend should not contain authoritative application rules such as:
 
+- authentication credential validation
+- user ownership enforcement
 - XP calculation
 - streak calculation
 - habit completion validation
 - duplicate completion prevention
 - database rules
+
+The frontend may perform basic input checks for faster user feedback, but the backend remains authoritative.
 
 ---
 
@@ -50,12 +104,15 @@ The backend is responsible for:
 
 - Exposing HTTP API endpoints.
 - Validating important user actions.
+- Authenticating requests.
 - Enforcing user-specific data access.
-- Running business logic.
+- Running application and business logic.
 - Calculating XP rewards.
 - Calculating streaks.
 - Managing habit completions.
 - Reading and writing data through Entity Framework Core.
+- Returning DTOs rather than database entities.
+- Producing consistent HTTP status codes and error responses.
 
 The backend owns the core rules of the application.
 
@@ -75,30 +132,13 @@ PostgreSQL is responsible for storing persistent data, including:
 
 The database is the source of truth.
 
+Database constraints should protect important invariants where practical, even when the backend also validates the same rule for a friendlier response.
+
 ---
 
 ## Backend Structure
 
-The backend will use ASP.NET Core Web API.
-
-Planned structure:
-
-```text
-server/
-├── HabitTracker.Api/
-│   ├── Controllers/
-│   ├── Data/
-│   ├── Domain/
-│   │   ├── Entities/
-│   │   └── Enums/
-│   ├── DTOs/
-│   ├── Services/
-│   ├── Program.cs
-│   └── appsettings.json
-│
-└── HabitTracker.Tests/
-    └── HabitTracker.Tests.csproj
-```
+The backend uses ASP.NET Core Web API.
 
 ### Controllers
 
@@ -109,19 +149,20 @@ They should stay thin.
 A controller should usually:
 
 1. Receive the HTTP request.
-2. Validate basic request shape.
-3. Call the appropriate service.
-4. Return an HTTP response.
+2. Rely on ASP.NET Core for request-shape validation.
+3. Read authenticated identity or other HTTP context when needed.
+4. Call the appropriate service.
+5. Translate the result into an HTTP response.
 
-Controllers should not contain complex business logic.
+Controllers should not contain complex business logic or direct database queries.
 
----
+Authentication-specific HTTP work such as creating or removing the authentication cookie belongs in `AuthController`.
 
 ### Services
 
 Services contain application and business logic.
 
-Examples:
+Stable service names:
 
 - `AuthService`
 - `HabitService`
@@ -133,54 +174,64 @@ Examples:
 
 Services should handle decisions such as:
 
+- whether an account can be created
+- how account identifiers are normalized
+- whether credentials are valid
+- whether a habit belongs to the authenticated user
 - whether a habit can be completed
 - how much XP is awarded
 - how attributes are updated
 - how streaks are calculated
 - what data the dashboard needs
 
----
-
 ### Data
 
 The `Data` folder contains database-related code.
 
-It will include:
+It includes:
 
 - `AppDbContext`
-- Entity Framework Core configuration
-- migrations
+- entity configuration classes
+- Entity Framework Core migrations
 
 `AppDbContext` represents the connection between C# entity classes and PostgreSQL tables.
 
----
+Entity configuration classes define database lengths, required properties, relationships, indexes, delete behavior, and application-generated identifiers.
+
+Physical PostgreSQL identifiers use `snake_case`.
 
 ### Domain
 
 The `Domain` folder contains core domain types.
 
-It includes:
+It includes or will include:
 
 - entities
 - enums
 
-Entities represent important business objects such as:
+Implemented entities:
 
 - `User`
 - `UserSettings`
+
+Planned MVP entities:
+
 - `Habit`
 - `HabitCompletion`
 - `HabitAttributeReward`
 - `UserAttribute`
 - `XpTransaction`
 
-Enums represent fixed sets of values such as:
+Reserved post-MVP entities:
+
+- `Milestone`
+- `UserMilestone`
+
+Enums will represent fixed domain values such as:
 
 - habit difficulty
 - habit frequency type
 - attribute type
-
----
 
 ### DTOs
 
@@ -188,48 +239,67 @@ DTOs define the data that moves between frontend and backend.
 
 DTO stands for Data Transfer Object.
 
-The API should return DTOs instead of database entities.
+The API returns DTOs instead of database entities. This keeps the database model separate from the public API shape and prevents sensitive properties such as password hashes from being exposed.
 
-This keeps the database model separate from the public API shape.
+Implemented authentication DTOs include:
 
-Examples:
+- `RegisterRequest`
+- `LoginRequest`
+- `AntiforgeryTokenResponse`
+- `AuthResponse`
+- `CurrentUserResponse`
+
+Planned feature DTOs include:
 
 - `CreateHabitRequest`
 - `UpdateHabitRequest`
 - `HabitResponse`
 - `DashboardResponse`
-- `AuthResponse`
+
+### Exceptions and Exception Handling
+
+Expected application failures use specific exception types.
+
+Examples include:
+
+- invalid credentials
+- account conflict
+- invalid IANA time zone
+
+`ApiExceptionHandler` maps known application exceptions to Problem Details responses and appropriate HTTP status codes.
+
+Unexpected exceptions continue through ASP.NET Core's normal exception handling rather than being disguised as expected authentication failures.
 
 ---
 
-### Tests
+## Backend Startup and Database Configuration
 
-The `HabitTracker.Tests` project contains backend tests written with xUnit.
+The production API registers PostgreSQL through `AddDbContext`.
 
-The test project should focus on important application and business rules, including:
+The connection string is resolved when `AppDbContext` is created rather than during immediate top-level service registration. This allows integration tests to replace the production database registration before it is resolved.
 
-- duplicate habit completion prevention
-- undo completion behavior
-- XP calculations
-- attribute updates
-- streak calculations
-- user data ownership rules where appropriate
+During normal application startup:
 
-The test project is created during Phase 1.
+1. ASP.NET Core builds the service provider.
+2. The application creates a scope.
+3. `AppDbContext` is resolved.
+4. The configured connection string is required.
+5. The application verifies that PostgreSQL can be reached.
+6. Startup fails when the connection string is missing or the database cannot be reached.
 
-Tests for specific business rules are added alongside the phases that implement those rules.
+This preserves fail-fast production behavior while keeping integration tests replaceable.
 
-Tests should verify observable behavior rather than depend heavily on private implementation details.
+Database schema changes are applied through EF Core migrations. The repository-local `dotnet-ef` tool manifest keeps the EF Core command-line tool version repeatable.
 
 ---
 
 ## Authentication Architecture
 
-The browser application uses secure cookie-based authentication.
+The browser application uses encrypted cookie-based authentication.
 
 The frontend does not receive, store, decode, or manually attach authentication credentials.
 
-After successful registration or login, ASP.NET Core creates an encrypted authentication cookie. The browser sends the cookie automatically with later requests.
+After successful registration or login, ASP.NET Core creates the authentication cookie. The browser sends it automatically with later requests.
 
 The authentication flow is:
 
@@ -240,7 +310,7 @@ React frontend
         v
 ASP.NET Core authentication middleware
         |
-        | authenticated user identity
+        | authenticated ClaimsPrincipal
         v
 AuthController
         |
@@ -252,170 +322,322 @@ AuthService
 PostgreSQL
 ```
 
+### Authentication Cookie
+
+The current authentication cookie:
+
+- is named `HabitTracker.Auth`
+- is `HttpOnly`
+- uses `SameSite=Lax`
+- is secure outside the Development environment
+- has a fixed 12-hour maximum ticket lifetime by default
+- becomes persistent for a fixed 30 days only when `rememberMe` is selected during login
+- does not use sliding expiration during the MVP
+
+Registration creates a non-persistent 12-hour session.
+
+Unauthorized and forbidden API requests return `401` and `403` status codes instead of browser redirects.
+
 ### AuthController Responsibilities
 
 `AuthController` handles authentication-related HTTP concerns.
 
-It should:
+It:
 
-- receive registration and login requests
-- call `AuthService`
-- create the authentication session after successful registration or login
-- end the authentication session during logout
-- receive request DTOs and return response DTOs
-- return appropriate HTTP status codes
+- receives registration and login requests
+- calls `AuthService`
+- creates the authentication session after successful registration or login
+- ends the authentication session during logout
+- generates antiforgery request tokens
+- reads the authenticated user identifier from claims
+- returns request and response DTOs with appropriate status codes
 
-It should not:
+It does not:
 
 - query users directly
 - normalize email or username
 - hash or verify passwords
 - decide whether registration data is available
-- create User or UserSettings directly
+- create `User` or `UserSettings` directly
 - contain account business rules
 
 ### AuthService Responsibilities
 
 `AuthService` owns authentication application logic.
 
-It should:
+It:
 
-- validate account-related rules not handled by basic DTO validation
-- normalize email and username
-- check email and username availability
-- hash passwords during registration
-- verify passwords during login
-- create User and UserSettings together
-- update LastLoginAtUtc after successful login
-- return user data through response DTOs
+- validates account-related rules not handled by DTO validation
+- validates IANA time-zone identifiers
+- trims and normalizes email and username
+- checks normalized email and username availability
+- hashes passwords during registration
+- verifies passwords during login
+- creates `User` and `UserSettings` together
+- handles database uniqueness races
+- updates `LastLoginAtUtc` after successful login
+- returns user data through response DTOs
 
-### Authentication Middleware
+### Authenticated Identity and Ownership
 
 ASP.NET Core authentication middleware validates the encrypted authentication cookie and creates the authenticated request identity.
 
 Authorization middleware runs after authentication.
 
-Controllers derive the current User identifier from the authenticated request context and pass it to services that perform user-owned operations.
+Controllers derive the current `User` identifier from `ClaimTypes.NameIdentifier` and pass it to services that perform user-owned operations.
 
-Services must not trust a UserId supplied by the frontend.
+Services must not trust a `UserId` supplied by the frontend.
 
-User-owned requests must not accept a client-provided UserId.
+User-owned requests must not accept a client-provided `UserId`.
+
+Phase 3 adds the first resource-ownership tests when Habit resources exist.
 
 ### Antiforgery Protection
 
 Because browsers send authentication cookies automatically, state-changing browser requests use antiforgery protection.
 
-The frontend obtains an antiforgery request token from the backend and sends it through a request header for:
+The current antiforgery configuration uses:
+
+- request header `X-CSRF-TOKEN`
+- cookie `HabitTracker.Antiforgery`
+- `HttpOnly`
+- `SameSite=Lax`
+- secure cookies outside Development
+
+Global automatic antiforgery validation applies to controller actions using:
 
 - POST
 - PUT
 - PATCH
 - DELETE
 
+The frontend API client:
+
+1. requests a token from `GET /api/auth/csrf-token`
+2. caches the request token in memory
+3. attaches it to state-changing requests
+4. includes browser credentials on API requests
+5. clears the cached token after registration, login, or logout
+6. obtains a replacement lazily before the next state-changing request
+
 Antiforgery handling is centralized in the frontend API layer rather than repeated inside pages or components.
 
-### Browser-Facing Origin
+---
 
-The frontend and backend remain separate applications.
+## Registration Persistence
 
-Where practical, they are presented through the same browser-facing origin.
+Registration creates `User` and `UserSettings` before one call to `SaveChangesAsync`.
 
-During local development, the Vite development server proxies `/api` requests to the ASP.NET Core backend.
+The relationship is configured as required one-to-one with cascade delete.
 
-In deployment, a reverse proxy or hosting configuration may expose the React frontend and `/api` backend through one public origin.
+The database has unique indexes for normalized email, normalized username, and `UserSettings.UserId`.
+
+The service performs a friendly duplicate pre-check and also catches matching PostgreSQL unique-constraint violations. This protects against two concurrent requests passing the pre-check at the same time.
+
+Because the related entities are saved as one EF Core unit of work, registration persists both records or fails without intentionally leaving only one of them.
 
 ---
 
 ## Frontend Structure
 
-The frontend will use React, TypeScript, Vite, and Tailwind CSS.
-
-Planned structure:
-
-```text
-client/
-└── src/
-    ├── api/
-    ├── components/
-    ├── pages/
-    ├── types/
-    ├── hooks/
-    ├── utils/
-    ├── App.tsx
-    └── main.tsx
-```
+The frontend uses React, TypeScript, Vite, and Tailwind CSS.
 
 ### api
 
 The `api` folder contains functions that call backend endpoints.
 
-Examples:
+Current files include:
 
+- `apiClient.ts`
 - `authApi.ts`
-- `habitsApi.ts`
-- `dashboardApi.ts`
+- `healthApi.ts`
+- `readApiError.ts`
 
-These files centralize HTTP calls so components do not directly manage endpoint details everywhere.
+`apiClient.ts` centralizes:
 
----
+- browser credentials
+- state-changing method detection
+- antiforgery token acquisition
+- antiforgery request headers
+
+Feature API files own endpoint paths, request serialization, response parsing, and API-specific error handling.
+
+Components should not duplicate those details.
+
+### auth
+
+The `auth` folder contains shared authentication state and access.
+
+Current files include:
+
+- `AuthContext.ts`
+- `AuthProvider.tsx`
+- `useAuth.ts`
+- authentication provider tests
+
+`AuthProvider` owns:
+
+- loading the current user when the app starts
+- authenticated-user state
+- registration, login, and logout state transitions
+- authentication loading states
+- authentication error state
+
+It does not own password rules, credential validation, cookie contents, or user ownership rules.
 
 ### components
 
 The `components` folder contains reusable UI pieces.
 
-Examples:
+Current authentication components include:
+
+- `LoginForm`
+- `RegisterForm`
+
+Later examples include:
 
 - habit cards
 - attribute cards
 - progress bars
-- buttons
 - layout components
 
-Components should focus on display and user interaction.
-
----
+Components focus on display, local form state, user interaction, and calling the relevant context or API abstraction.
 
 ### pages
 
-The `pages` folder contains route-level screens.
+Route-level pages may be introduced when the application needs navigation between larger screens.
 
-Examples:
+Planned examples:
 
-- `LoginPage.tsx`
-- `RegisterPage.tsx`
-- `DashboardPage.tsx`
-- `HabitsPage.tsx`
-- `SettingsPage.tsx`
+- dashboard page
+- habits page
+- settings page
 
-Pages combine components and call hooks/API functions.
-
----
+Routing should not be added merely to satisfy a hypothetical structure before it is needed.
 
 ### types
 
-The `types` folder contains TypeScript types used by the frontend.
+The `types` folder contains TypeScript request and response types.
 
-These types should match backend DTOs where appropriate.
-
-Examples:
-
-- `HabitResponse`
-- `DashboardResponse`
-- `UserAttributeResponse`
-
----
+Where a frontend type represents an API contract, it should use the same conceptual name and shape as the backend DTO.
 
 ### hooks
 
-The `hooks` folder contains reusable React logic.
+Reusable hooks may be added when they provide a clear shared abstraction.
 
-Examples:
+The current authentication access hook is `useAuth`.
 
-- `useAuth`
-- `useDashboard`
-- `useHabits`
+Hooks may manage frontend state and API loading behavior, but they must not contain backend business rules.
 
-Hooks can manage frontend state and API loading behavior, but they should not contain backend business rules.
+---
+
+## Testing Architecture
+
+Different test layers protect different risks.
+
+### Backend Unit Tests
+
+Project:
+
+- `HabitTracker.Tests`
+
+Purpose:
+
+- test focused backend behavior and rules
+- keep tests fast
+- avoid depending on HTTP or a real database when those layers are not under test
+
+### Backend HTTP Integration Tests
+
+Project:
+
+- `HabitTracker.IntegrationTests`
+
+Infrastructure:
+
+- ASP.NET Core `WebApplicationFactory`
+- test server hosting the real API pipeline
+- EF Core InMemory database substituted only inside the integration host
+
+Purpose:
+
+- test controller routes and status codes
+- test authentication cookies and protected endpoints
+- test antiforgery behavior
+- test Problem Details responses
+- test interactions between controller, service, middleware, and persistence boundaries
+
+The integration host removes the production `AppDbContext` registration before adding the test database provider.
+
+### Frontend Tests
+
+Tools:
+
+- Vitest
+- React Testing Library
+
+Purpose:
+
+- test form behavior
+- test authentication state transitions
+- test provider behavior
+- test observable UI behavior without a real browser or backend
+
+Frontend test files use `.test.ts` or `.test.tsx`.
+
+### Browser End-to-End Tests
+
+Tool:
+
+- Playwright with Chromium
+
+Purpose:
+
+- exercise the real browser
+- start the ASP.NET Core backend and Vite frontend
+- use a real PostgreSQL database
+- verify the anonymous authentication screen
+- verify registration, refresh, logout, and login as one user journey
+
+Local E2E testing uses an isolated ignored environment file and a separate `habit_tracker_e2e` PostgreSQL database so browser tests do not modify the normal development database.
+
+Each E2E run currently creates a unique account. A deliberate cleanup or reset strategy may be added later if accumulated test data becomes inconvenient.
+
+### Continuous Integration
+
+GitHub Actions runs three independent jobs:
+
+```text
+Backend
+Frontend
+End-to-end
+```
+
+The Backend job:
+
+- restores .NET dependencies
+- builds the solution in Release
+- runs backend unit and integration tests
+
+The Frontend job:
+
+- installs exact npm dependencies
+- checks formatting
+- runs linting
+- builds the frontend
+- runs Vitest tests
+
+The End-to-end job:
+
+- starts a disposable PostgreSQL service container
+- restores the repository-local `dotnet-ef` tool
+- restores backend dependencies
+- applies the real EF Core migration
+- installs frontend dependencies
+- installs Chromium and its Linux dependencies
+- runs Playwright tests
+
+Temporary CI database credentials belong only to the disposable service container. Local or production database secrets are not stored in the workflow.
 
 ---
 
@@ -433,7 +655,7 @@ React calls backend API
 CompletionsController receives request
         |
         v
-CompletionService validates and completes habit
+CompletionService validates ownership and completion rules
         |
         v
 XpService applies XP rewards
@@ -448,6 +670,41 @@ Backend returns response DTO
 React updates the UI
 ```
 
+This flow is planned for later phases. The same separation already exists in the Phase 2 authentication flow.
+
+---
+
+## Browser-Facing Origin and Deployment
+
+The frontend and backend remain separate applications.
+
+Where practical, they should be presented through the same browser-facing origin.
+
+During local development, Vite proxies `/api` requests to ASP.NET Core.
+
+The current local CORS policy allows the Vite development origin. Browser authentication works through the same-origin proxy, so the current development path does not require cross-origin credential handling.
+
+During deployment, the preferred model is:
+
+```text
+Public origin
+├── React application
+└── /api → ASP.NET Core backend
+```
+
+A reverse proxy or hosting platform may provide that shared origin.
+
+If deployment requires separate public origins, Phase 8 must deliberately configure:
+
+- the exact allowed frontend origin
+- credentialed CORS
+- compatible cookie `SameSite` and `Secure` behavior
+- HTTPS
+- antiforgery behavior
+- deployment secrets
+
+The exact deployment provider will be decided later.
+
 ---
 
 ## Key Architecture Rules
@@ -459,7 +716,10 @@ React updates the UI
 - Do not expose database entities directly.
 - Use PostgreSQL as the source of truth.
 - Use EF Core for database access.
-- Write backend tests alongside the business rules they protect.
+- Derive user identity from authenticated backend claims.
+- Do not accept client-provided user identifiers for user-owned operations.
+- Centralize cross-cutting frontend API behavior.
+- Write tests alongside the behavior they protect.
 - Preserve stable domain names.
 - Build in phases.
 - Avoid adding out-of-scope features during MVP development.
@@ -479,22 +739,3 @@ Before changing an established architectural decision:
 5. Make the change in a focused commit.
 
 The architecture may evolve, but it should not drift silently.
-
----
-
-## Initial Deployment Model
-
-The app may eventually be deployed as separate services:
-
-```text
-Frontend hosting
-    React static site
-
-Backend hosting
-    ASP.NET Core Web API
-
-Database hosting
-    PostgreSQL
-```
-
-The exact deployment provider will be decided later.
