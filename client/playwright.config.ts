@@ -1,7 +1,12 @@
 import { defineConfig, devices } from '@playwright/test'
+import { existsSync } from 'node:fs'
 import { loadEnvFile } from 'node:process'
 
-loadEnvFile('.env.e2e')
+const localEnvironmentFile = '.env.e2e'
+
+if (existsSync(localEnvironmentFile)) {
+  loadEnvFile(localEnvironmentFile)
+}
 
 function getRequiredEnvironmentVariable(name: string): string {
   const value = process.env[name]

@@ -66,3 +66,71 @@ jobs:
 
       - name: Test frontend
         run: npm test
+
+  end-to-end:
+    name: End-to-end
+    runs-on: ubuntu-latest
+
+    env:
+      ConnectionStrings__DefaultConnection: 'Host=127.0.0.1;Port=5432;Database=habit_tracker_e2e;Username=habit_tracker_app;Password=habit_tracker_test_password'
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://127.0.0.1:5168
+      VITE_API_PROXY_TARGET: http://127.0.0.1:5168
+
+    services:
+      postgres:
+        image: postgres:18
+
+        env:
+          POSTGRES_DB: habit_tracker_e2e
+          POSTGRES_USER: habit_tracker_app
+          POSTGRES_PASSWORD: habit_tracker_test_password
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd "pg_isready -U habit_tracker_app -d habit_tracker_e2e"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24.x'
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Restore .NET tools
+        run: dotnet tool restore
+
+      - name: Restore backend dependencies
+        run: dotnet restore server/HabitTracker.sln
+
+      - name: Apply database migrations
+        run: >
+          dotnet ef database update
+          --project server/HabitTracker.Api/HabitTracker.Api.csproj
+          --startup-project server/HabitTracker.Api/HabitTracker.Api.csproj
+
+      - name: Install frontend dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: client
+        run: npx playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        working-directory: client
+        run: npm run test:e2e
