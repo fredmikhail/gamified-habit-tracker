@@ -93,19 +93,26 @@ builder.Services.AddCors(options =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-var connectionString =
-    builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException(
-        "Connection string 'DefaultConnection' was not found.");
+builder.Services.AddDbContext<AppDbContext>(
+    (serviceProvider, options) =>
+    {
+        var configuration =
+            serviceProvider.GetRequiredService<IConfiguration>();
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options
-        .UseNpgsql(
-            connectionString,
-            npgsqlOptions =>
-                npgsqlOptions.MigrationsHistoryTable(
-                    "__ef_migrations_history"))
-        .UseSnakeCaseNamingConvention());
+        var connectionString =
+            configuration.GetConnectionString(
+                "DefaultConnection")
+            ?? throw new InvalidOperationException(
+                "Connection string 'DefaultConnection' was not found.");
+
+        options
+            .UseNpgsql(
+                connectionString,
+                npgsqlOptions =>
+                    npgsqlOptions.MigrationsHistoryTable(
+                        "__ef_migrations_history"))
+            .UseSnakeCaseNamingConvention();
+    });
 
 var app = builder.Build();
 
