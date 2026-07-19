@@ -5,14 +5,15 @@ import { HabitList } from './HabitList'
 export function HabitSection() {
   const [refreshKey, setRefreshKey] = useState(0)
 
-  function handleHabitCreated() {
+  function refreshHabits() {
     setRefreshKey((currentKey) => currentKey + 1)
   }
 
   return (
     <>
-      <HabitForm onHabitCreated={handleHabitCreated} />
-      <HabitList refreshKey={refreshKey} />
+      <HabitForm onHabitCreated={refreshHabits} />
+
+      <HabitList refreshKey={refreshKey} onHabitUpdated={refreshHabits} />
     </>
   )
 }

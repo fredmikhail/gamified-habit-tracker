@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { getHabits } from '../../api/habitsApi'
 import type { HabitResponse } from '../../types/HabitResponse'
+import { HabitEditForm } from './HabitEditForm'
 
 type HabitListProps = {
   refreshKey: number
+  onHabitUpdated: (habit: HabitResponse) => void
 }
 
 function formatLabel(value: string): string {
@@ -24,10 +26,11 @@ function getHabitErrorMessage(error: unknown): string {
     : 'An unknown habit-loading error occurred.'
 }
 
-export function HabitList({ refreshKey }: HabitListProps) {
+export function HabitList({ refreshKey, onHabitUpdated }: HabitListProps) {
   const [habits, setHabits] = useState<HabitResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [editingHabitId, setEditingHabitId] = useState<string | null>(null)
 
   useEffect(() => {
     let isActive = true
@@ -58,6 +61,11 @@ export function HabitList({ refreshKey }: HabitListProps) {
       isActive = false
     }
   }, [refreshKey])
+
+  function handleHabitUpdated(updatedHabit: HabitResponse) {
+    setEditingHabitId(null)
+    onHabitUpdated(updatedHabit)
+  }
 
   return (
     <section
@@ -102,6 +110,22 @@ export function HabitList({ refreshKey }: HabitListProps) {
 
                 {habit.category && <p>Category: {habit.category}</p>}
               </div>
+
+              {editingHabitId === habit.id ? (
+                <HabitEditForm
+                  habit={habit}
+                  onCancel={() => setEditingHabitId(null)}
+                  onHabitUpdated={handleHabitUpdated}
+                />
+              ) : (
+                <button
+                  className="mt-4 rounded border border-slate-300 px-4 py-2 font-semibold"
+                  type="button"
+                  onClick={() => setEditingHabitId(habit.id)}
+                >
+                  Edit
+                </button>
+              )}
             </li>
           ))}
         </ul>
