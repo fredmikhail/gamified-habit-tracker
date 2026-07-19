@@ -517,6 +517,377 @@ public sealed class HabitsControllerTests
             response.StatusCode);
     }
 
+    [Fact]
+    public async Task UpdateHabit_WhenAnonymous_ReturnsUnauthorized()
+    {
+        using var client = CreateClient();
+
+        var response =
+            await PutHabitAsync(
+                client,
+                Guid.CreateVersion7(),
+                CreateValidUpdateHabitRequest());
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateHabit_WithoutCsrfToken_ReturnsBadRequest()
+    {
+        using var client = CreateClient();
+
+        var registration =
+            await RegisterAsync(client);
+
+        var habit =
+            await SeedHabitAsync(
+                registration.User.Id,
+                "Existing habit",
+                DateTime.UtcNow.AddDays(-1),
+                isActive: true);
+
+        var response =
+            await PutHabitAsync(
+                client,
+                habit.Id,
+                CreateValidUpdateHabitRequest());
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+    }
+    [Fact]
+    public async Task UpdateHabit_WhenHabitBelongsToUser_UpdatesAndReturnsHabit()
+    {
+        using var client = CreateClient();
+
+        var registration =
+            await RegisterAsync(client);
+
+        var createdAtUtc =
+            DateTime.UtcNow.AddDays(-2);
+
+        var habit =
+            await SeedHabitAsync(
+                registration.User.Id,
+                "Old habit name",
+                createdAtUtc,
+                isActive: false);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(client);
+
+        var updateRequest =
+            new UpdateHabitRequest
+            {
+                Name = "  Updated habit name  ",
+                Description =
+                    "  Updated description  ",
+                Category = "  Fitness  ",
+                FrequencyType =
+                    HabitFrequencyType.Weekly,
+                TargetCount = 4,
+                Difficulty =
+                    HabitDifficulty.Elite
+            };
+
+        var response =
+            await PutHabitAsync(
+                client,
+                habit.Id,
+                updateRequest,
+                csrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            response.StatusCode);
+
+        var responseBody =
+            await response.Content
+                .ReadFromJsonAsync<HabitResponse>(
+                    _jsonOptions);
+
+        Assert.NotNull(responseBody);
+
+        Assert.Equal(habit.Id, responseBody.Id);
+        Assert.Equal(
+            "Updated habit name",
+            responseBody.Name);
+        Assert.Equal(
+            "Updated description",
+            responseBody.Description);
+        Assert.Equal(
+            "Fitness",
+            responseBody.Category);
+        Assert.Equal(
+            HabitFrequencyType.Weekly,
+            responseBody.FrequencyType);
+        Assert.Equal(4, responseBody.TargetCount);
+        Assert.Equal(
+            HabitDifficulty.Elite,
+            responseBody.Difficulty);
+
+        Assert.False(responseBody.IsActive);
+
+        Assert.Equal(
+            createdAtUtc,
+            responseBody.CreatedAtUtc);
+
+        Assert.True(
+            responseBody.UpdatedAtUtc
+                > createdAtUtc);
+
+        var getResponse =
+            await client.GetAsync(
+                $"/api/habits/{habit.Id}");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            getResponse.StatusCode);
+
+        var savedHabit =
+            await getResponse.Content
+                .ReadFromJsonAsync<HabitResponse>(
+                    _jsonOptions);
+
+        Assert.NotNull(savedHabit);
+        Assert.Equal(
+            "Updated habit name",
+            savedHabit.Name);
+        Assert.False(savedHabit.IsActive);
+    }
+
+    [Fact]
+    public async Task UpdateHabit_WhenNameIsWhitespace_ReturnsValidationProblemDetails()
+    {
+        using var client = CreateClient();
+
+        var registration =
+            await RegisterAsync(client);
+
+        var habit =
+            await SeedHabitAsync(
+                registration.User.Id,
+                "Existing habit",
+                DateTime.UtcNow.AddDays(-1),
+                isActive: true);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(client);
+
+        var updateRequest =
+            CreateValidUpdateHabitRequest();
+
+        updateRequest.Name = "   ";
+
+        var response =
+            await PutHabitAsync(
+                client,
+                habit.Id,
+                updateRequest,
+                csrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        var problemDetails =
+            await response.Content
+                .ReadFromJsonAsync<ValidationProblemDetails>();
+
+        Assert.NotNull(problemDetails);
+
+        Assert.Equal(
+            StatusCodes.Status400BadRequest,
+            problemDetails.Status);
+
+        Assert.Equal(
+            "One or more validation errors occurred.",
+            problemDetails.Title);
+
+        var nameError =
+            Assert.Single(
+                problemDetails.Errors,
+                error =>
+                    string.Equals(
+                        error.Key,
+                        nameof(UpdateHabitRequest.Name),
+                        StringComparison.OrdinalIgnoreCase));
+
+        Assert.NotEmpty(nameError.Value);
+    }
+
+    [Fact]
+    public async Task UpdateHabit_WhenDailyTargetCountIsNotOne_ReturnsBadRequestProblemDetails()
+    {
+        using var client = CreateClient();
+
+        var registration =
+            await RegisterAsync(client);
+
+        var habit =
+            await SeedHabitAsync(
+                registration.User.Id,
+                "Existing habit",
+                DateTime.UtcNow.AddDays(-1),
+                isActive: true);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(client);
+
+        var updateRequest =
+            CreateValidUpdateHabitRequest();
+
+        updateRequest.FrequencyType =
+            HabitFrequencyType.Daily;
+
+        updateRequest.TargetCount = 2;
+
+        var response =
+            await PutHabitAsync(
+                client,
+                habit.Id,
+                updateRequest,
+                csrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+
+        var problemDetails =
+            await response.Content
+                .ReadFromJsonAsync<ProblemDetails>();
+
+        Assert.NotNull(problemDetails);
+
+        Assert.Equal(
+            "Invalid habit target count",
+            problemDetails.Title);
+
+        Assert.Equal(
+            "Daily habits must have a target count of 1. "
+            + "Weekly habits must have a target count between 1 and 7.",
+            problemDetails.Detail);
+
+        Assert.Equal(
+            $"/api/habits/{habit.Id}",
+            problemDetails.Instance);
+    }
+
+    [Fact]
+    public async Task UpdateHabit_WhenHabitBelongsToAnotherUser_ReturnsNotFoundAndDoesNotModifyHabit()
+    {
+        using var ownerClient = CreateClient();
+        using var requestingClient = CreateClient();
+
+        var ownerRegistration =
+            await RegisterAsync(ownerClient);
+
+        await RegisterAsync(requestingClient);
+
+        var habit =
+            await SeedHabitAsync(
+                ownerRegistration.User.Id,
+                "Private habit",
+                DateTime.UtcNow.AddDays(-1),
+                isActive: true);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(
+                requestingClient);
+
+        var updateRequest =
+            CreateValidUpdateHabitRequest();
+
+        updateRequest.Name =
+            "Attempted unauthorized update";
+
+        var response =
+            await PutHabitAsync(
+                requestingClient,
+                habit.Id,
+                updateRequest,
+                csrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+
+        var ownerResponse =
+            await ownerClient.GetAsync(
+                $"/api/habits/{habit.Id}");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            ownerResponse.StatusCode);
+
+        var unchangedHabit =
+            await ownerResponse.Content
+                .ReadFromJsonAsync<HabitResponse>(
+                    _jsonOptions);
+
+        Assert.NotNull(unchangedHabit);
+
+        Assert.Equal(
+            "Private habit",
+            unchangedHabit.Name);
+    }
+
+    [Fact]
+    public async Task UpdateHabit_WhenHabitDoesNotExist_ReturnsNotFound()
+    {
+        using var client = CreateClient();
+
+        await RegisterAsync(client);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(client);
+
+        var missingHabitId =
+            Guid.CreateVersion7();
+
+        var response =
+            await PutHabitAsync(
+                client,
+                missingHabitId,
+                CreateValidUpdateHabitRequest(),
+                csrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+    }
+
+    private async Task<HttpResponseMessage> PutHabitAsync(
+    HttpClient client,
+    Guid habitId,
+    UpdateHabitRequest updateRequest,
+    string? csrfToken = null)
+    {
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Put,
+                $"/api/habits/{habitId}")
+            {
+                Content =
+                    JsonContent.Create(
+                        updateRequest,
+                        options: _jsonOptions)
+            };
+
+        if (!string.IsNullOrWhiteSpace(
+            csrfToken))
+        {
+            request.Headers.Add(
+                "X-CSRF-TOKEN",
+                csrfToken);
+        }
+
+        return await client.SendAsync(request);
+    }
+
     private HttpClient CreateClient()
     {
         return _factory.CreateClient(
@@ -647,6 +1018,21 @@ public sealed class HabitsControllerTests
             TargetCount = 1,
             Difficulty =
                 HabitDifficulty.Medium
+        };
+    }
+
+    private static UpdateHabitRequest CreateValidUpdateHabitRequest()
+    {
+        return new UpdateHabitRequest
+        {
+            Name = "Updated habit",
+            Description = "Updated description",
+            Category = "Learning",
+            FrequencyType =
+                HabitFrequencyType.Weekly,
+            TargetCount = 3,
+            Difficulty =
+                HabitDifficulty.Hard
         };
     }
 }

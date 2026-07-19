@@ -94,6 +94,61 @@ public sealed class HabitService
             .ToList();
     }
 
+    public async Task<HabitResponse?> UpdateHabitAsync(
+    Guid userId,
+    Guid habitId,
+    UpdateHabitRequest request,
+    CancellationToken cancellationToken = default)
+    {
+        var habit =
+            await _dbContext.Habits
+                .SingleOrDefaultAsync(
+                    habit =>
+                        habit.Id == habitId
+                        && habit.UserId == userId,
+                    cancellationToken);
+
+        if (habit is null)
+        {
+            return null;
+        }
+
+        var name = request.Name.Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new InvalidHabitNameException();
+        }
+
+        var frequencyType =
+            request.FrequencyType!.Value;
+
+        var targetCount =
+            request.TargetCount!.Value;
+
+        var difficulty =
+            request.Difficulty!.Value;
+
+        ValidateTargetCount(
+            frequencyType,
+            targetCount);
+
+        habit.Name = name;
+        habit.Description =
+            NormalizeOptionalText(request.Description);
+        habit.Category =
+            NormalizeOptionalText(request.Category);
+        habit.FrequencyType = frequencyType;
+        habit.TargetCount = targetCount;
+        habit.Difficulty = difficulty;
+        habit.UpdatedAtUtc = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(
+            cancellationToken);
+
+        return CreateHabitResponse(habit);
+    }
+
     public async Task<HabitResponse?> GetUserHabitAsync(
         Guid userId,
         Guid habitId,

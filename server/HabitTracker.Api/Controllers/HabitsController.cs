@@ -99,4 +99,36 @@ public sealed class HabitsController : ControllerBase
 
         return Ok(habit);
     }
+
+    [HttpPut("{habitId:guid}")]
+    public async Task<ActionResult<HabitResponse>> UpdateHabitAsync(
+    Guid habitId,
+    UpdateHabitRequest request,
+    CancellationToken cancellationToken)
+    {
+        var userIdValue =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(
+            userIdValue,
+            out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var habit =
+            await _habitService.UpdateHabitAsync(
+                userId,
+                habitId,
+                request,
+                cancellationToken);
+
+        if (habit is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(habit);
+    }
 }
