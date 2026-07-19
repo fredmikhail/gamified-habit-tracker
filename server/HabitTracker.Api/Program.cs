@@ -85,6 +85,8 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddScoped<AuthService>();
 
+builder.Services.AddScoped<HabitService>();
+
 builder.Services.AddScoped<
     IPasswordHasher<User>,
     PasswordHasher<User>>();
