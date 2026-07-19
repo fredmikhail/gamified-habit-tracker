@@ -41,7 +41,8 @@ gamified-habit-tracker/
 │   │   ├── api/
 │   │   ├── auth/
 │   │   ├── components/
-│   │   │   └── auth/
+│   │   │   ├── auth/
+│   │   │   └── habits/
 │   │   ├── types/
 │   │   ├── App.tsx
 │   │   └── main.tsx
@@ -213,10 +214,10 @@ Implemented entities:
 
 - `User`
 - `UserSettings`
+- `Habit`
 
 Planned MVP entities:
 
-- `Habit`
 - `HabitCompletion`
 - `HabitAttributeReward`
 - `UserAttribute`
@@ -249,11 +250,16 @@ Implemented authentication DTOs include:
 - `AuthResponse`
 - `CurrentUserResponse`
 
-Planned feature DTOs include:
+Implemented habit DTOs include:
 
 - `CreateHabitRequest`
 - `UpdateHabitRequest`
 - `HabitResponse`
+
+Planned feature DTOs include:
+
+- `CompleteHabitRequest`
+- `CompleteHabitResponse`
 - `DashboardResponse`
 
 ### Exceptions and Exception Handling
@@ -390,7 +396,7 @@ Services must not trust a `UserId` supplied by the frontend.
 
 User-owned requests must not accept a client-provided `UserId`.
 
-Phase 3 adds the first resource-ownership tests when Habit resources exist.
+Phase 3 implemented the first resource-ownership rules and tests through the Habit resource. Missing and foreign-owned habit identifiers both produce `404 Not Found`, and habit requests never accept a client-supplied `UserId`.
 
 ### Antiforgery Protection
 
@@ -438,9 +444,52 @@ Because the related entities are saved as one EF Core unit of work, registration
 
 ---
 
+## Habit CRUD Architecture
+
+Phase 3 follows the same frontend/backend/database boundaries as authentication.
+
+```text
+React habit component
+        |
+        | typed HTTP request through habitsApi and apiClient
+        v
+HabitsController
+        |
+        | authenticated user identifier from claims
+        v
+HabitService
+        |
+        | owned EF Core query and backend validation
+        v
+PostgreSQL habits table
+```
+
+`HabitsController` stays thin. It receives the route and DTO, derives the authenticated user identifier, calls `HabitService`, and translates the result into the documented HTTP response.
+
+`HabitService` owns:
+
+- text trimming and blank-to-null normalization
+- Daily and Weekly target validation
+- difficulty and frequency validation through enum-backed contracts
+- user ownership filtering
+- active-only and include-inactive list behavior
+- deterministic list ordering
+- owned get-by-ID behavior
+- updates for active or inactive owned habits
+- idempotent soft deactivation
+- DTO mapping
+
+The frontend owns only temporary interaction state such as form values, loading, editing, confirmation, pending, and error display.
+
+After create, update, or deactivation succeeds, `HabitSection` triggers a fresh `GET /api/habits` request. The frontend does not manually treat its local array as the persistent source of truth.
+
+The normal list excludes inactive habits. `includeInactive=true` is available when a later UI needs to display archived habits.
+
+---
+
 ## Frontend Structure
 
-The frontend uses React, TypeScript, Vite, and Tailwind CSS.
+The frontend uses React, TypeScript, Vite, Tailwind CSS, Prettier, and Oxlint.
 
 ### api
 
@@ -450,6 +499,7 @@ Current files include:
 
 - `apiClient.ts`
 - `authApi.ts`
+- `habitsApi.ts`
 - `healthApi.ts`
 - `readApiError.ts`
 
@@ -494,12 +544,19 @@ Current authentication components include:
 - `LoginForm`
 - `RegisterForm`
 
+Current habit components include:
+
+- `HabitForm`
+- `HabitList`
+- `HabitSection`
+- `HabitEditForm`
+- `HabitDeactivateButton`
+
 Later examples include:
 
-- habit cards
 - attribute cards
 - progress bars
-- layout components
+- dashboard layout components
 
 Components focus on display, local form state, user interaction, and calling the relevant context or API abstraction.
 
@@ -670,7 +727,7 @@ Backend returns response DTO
 React updates the UI
 ```
 
-This flow is planned for later phases. The same separation already exists in the Phase 2 authentication flow.
+This completion flow is planned for later phases. The same separation already exists in the implemented Phase 2 authentication and Phase 3 habit-management flows.
 
 ---
 

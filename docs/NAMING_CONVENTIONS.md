@@ -530,6 +530,28 @@ Example:
 
 - `auth-smoke.spec.ts`
 
+### Frontend Formatting
+
+Prettier is the canonical formatter for frontend TypeScript, TSX, JSON, CSS, HTML, and related supported files.
+
+After changing frontend files, run:
+
+```text
+cd client
+npm run format
+```
+
+Before committing frontend changes, verify:
+
+```text
+npm run format:check
+npm run lint
+npm test
+npm run build
+```
+
+Do not manually preserve formatting that conflicts with Prettier. Let Prettier normalize indentation, line wrapping, and supported file formatting before interpreting formatting-only diffs or CI failures.
+
 ---
 
 ## Backend File Naming
@@ -566,7 +588,51 @@ Examples:
 
 The EF Core database configuration applies the naming strategy consistently across the model.
 
-Database names should not be changed casually after migrations and deployed data exist.
+The normal local application database is named:
+
+```text
+habit_tracker
+```
+
+The application role is:
+
+```text
+habit_tracker_app
+```
+
+The implemented `habits` table uses these exact lowercase column names:
+
+```text
+id
+user_id
+name
+description
+category
+frequency_type
+target_count
+difficulty
+is_active
+created_at_utc
+updated_at_utc
+```
+
+When writing direct PostgreSQL or `psql` queries, use the actual lowercase `snake_case` identifiers. Do not guess quoted PascalCase identifiers such as `"Id"`, `"UserId"`, or `"CreatedAtUtc"`.
+
+Correct example:
+
+```sql
+SELECT id, user_id, name, frequency_type, target_count, difficulty, is_active
+FROM habits
+ORDER BY created_at_utc DESC;
+```
+
+Inspect the current table definition before guessing identifiers:
+
+```text
+\d habits
+```
+
+Database names, table names, columns, constraints, and indexes should not be changed casually after migrations and deployed data exist.
 
 ---
 

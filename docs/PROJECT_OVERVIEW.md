@@ -16,12 +16,13 @@ Completed phases:
 
 - Phase 1 — Project Setup
 - Phase 2 — Authentication
+- Phase 3 — Habit CRUD
 
 Next phase:
 
-- Phase 3 — Habit CRUD
+- Phase 4 — Habit Completion
 
-The current application has a working React frontend, ASP.NET Core backend, PostgreSQL database, secure cookie-based authentication, antiforgery protection, automated tests, browser end-to-end tests, and GitHub Actions continuous integration.
+The current application has a working React frontend, ASP.NET Core backend, PostgreSQL database, secure cookie-based authentication, antiforgery protection, private user-owned habit CRUD, automated tests, browser end-to-end tests, and GitHub Actions continuous integration.
 
 ---
 
@@ -120,6 +121,35 @@ The frontend never receives or stores the authentication credential directly.
 
 ---
 
+## Implemented Habit CRUD Foundation
+
+Phase 3 added:
+
+- the `Habit` entity and `HabitDifficulty` and `HabitFrequencyType` enums
+- EF Core configuration, PostgreSQL migration, ownership foreign key, indexes, and check constraints
+- application-generated Guid version 7 habit identifiers
+- backend trimming and normalization of habit text fields
+- Daily and Weekly frequency validation
+- Easy, Medium, Hard, and Elite difficulty support
+- `CreateHabitRequest`, `UpdateHabitRequest`, and `HabitResponse` DTOs
+- thin authenticated habit controller endpoints
+- `HabitService` ownership and application logic
+- active-only listing by default with optional inactive inclusion
+- owned get-by-ID, update, and soft-deactivation behavior
+- indistinguishable `404 Not Found` behavior for missing and foreign-owned habits
+- idempotent deactivation that preserves the original update timestamp on repeated calls
+- React list, create, edit, and deactivation UI
+- authoritative list reloads after successful mutations
+- backend unit and HTTP integration tests for habit behavior and ownership
+- frontend API and component tests for the habit-management flows
+- manual full-stack verification against PostgreSQL
+
+PostgreSQL remains the source of truth. React displays the returned DTOs and sends user actions; it does not own habit validation or ownership rules.
+
+The current habit UI is intentionally functional scaffolding. Phase 7 performs the major modern game-UI redesign after the completion, XP, attribute, dashboard, and streak data needed by that experience exists.
+
+---
+
 ## MVP Scope
 
 The MVP includes:
@@ -150,10 +180,10 @@ The MVP includes:
 
 - User
 - UserSettings
+- Habit
 
 ### Planned MVP Entities
 
-- Habit
 - HabitCompletion
 - HabitAttributeReward
 - UserAttribute

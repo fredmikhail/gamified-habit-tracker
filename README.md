@@ -2,15 +2,18 @@
 
 A full-stack habit tracking application with RPG-style progression, habit completions, streaks, XP, and character attributes.
 
-The application is being built in deliberate phases, beginning with the secure multi-user foundation and then moving through the core habit-tracking loop. Milestones and achievements are planned as post-MVP features.
+The application is being built in deliberate phases, beginning with a secure multi-user foundation and then moving through the core habit-tracking and progression loop. Milestones and achievements are planned as post-MVP features.
 
 ## Current Status
 
 - Phase 1 — Project Setup: complete
 - Phase 2 — Authentication: complete
-- Next phase: Phase 3 — Habit CRUD
+- Phase 3 — Habit CRUD: complete
+- Next phase: Phase 4 — Habit Completion
 
-The current application supports registration, login, logout, browser-managed authentication sessions, antiforgery protection, authenticated user restoration, PostgreSQL persistence, automated tests, browser end-to-end tests, and continuous integration.
+The current application supports registration, login, logout, authenticated-session restoration, antiforgery protection, and private user-owned habit management. Authenticated users can create, list, edit, and soft-deactivate habits through the React frontend, ASP.NET Core API, Entity Framework Core, and PostgreSQL.
+
+The current frontend is functional scaffolding. Phase 7 includes a substantial game-UI redesign with a modern, futuristic, intuitive visual system, responsive layouts, progression feedback, and purposeful animations while preserving backend ownership of business rules.
 
 ## Tech Stack
 
@@ -38,16 +41,19 @@ The current application supports registration, login, logout, browser-managed au
 - Vitest
 - React Testing Library
 - Playwright browser tests
+- Prettier formatting
+- Oxlint linting
 - GitHub Actions continuous integration
 
 ## Architecture
 
 - The frontend and backend are separate applications.
 - The frontend calls backend APIs through HTTP.
-- The backend owns authentication and business rules.
+- The backend owns authentication, validation, ownership, and business rules.
 - PostgreSQL is the source of truth for persistent data.
 - DTOs define the public API boundary.
 - Database entities are not returned directly as API responses.
+- Controllers stay thin and delegate application logic to services.
 
 ## Documentation
 

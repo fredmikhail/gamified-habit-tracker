@@ -140,25 +140,26 @@ These items were not part of the smallest original authentication scope, but wer
 
 ## Phase 3 — Habit CRUD
 
-**Status: Next**
+**Status: Complete**
 
 ### Goal
 
 Allow authenticated users to create and manage their habits.
 
-### Scope
+### Implemented Scope
 
-- Create the Habit entity.
-- Add habit request and response DTOs.
-- Add HabitService.
-- Add habit API endpoints.
-- Create frontend habit list UI.
-- Create frontend habit form.
-- Allow users to create habits.
-- Allow users to edit habits.
-- Allow users to deactivate habits.
-- Derive habit ownership from the authenticated user identity.
-- Add tests proving users can only view and modify their own habits.
+- Create the `Habit` entity, enum types, EF Core configuration, migration, indexes, foreign key, and database check constraints.
+- Add `CreateHabitRequest`, `UpdateHabitRequest`, and `HabitResponse` DTOs.
+- Add `HabitService` with backend-owned validation, normalization, ownership, ordering, update, and soft-deactivation behavior.
+- Add authenticated create, list, get-by-ID, update, and deactivate endpoints.
+- Derive habit ownership from the authenticated user's claims; habit requests never accept `userId`.
+- Return `404 Not Found` for missing and foreign-owned habits so another user's resource is not exposed.
+- Add the React habit list, create form, edit form, and guarded deactivation flow.
+- Reload the authoritative habit list from the backend after create, update, and deactivation.
+- Add backend unit and HTTP integration tests for validation, ownership, inactive habits, ordering, updates, and idempotent deactivation.
+- Add frontend API and component tests for loading, errors, create, edit, cancel, confirmation, deactivation, and list refresh behavior.
+- Verify the complete create, edit, and soft-deactivate flows manually against PostgreSQL.
+- Verify Backend, Frontend, and End-to-end GitHub Actions jobs on the final Phase 3 implementation commit.
 
 ### Definition of Done
 
@@ -180,6 +181,8 @@ Allow authenticated users to create and manage their habits.
 ---
 
 ## Phase 4 — Habit Completion
+
+**Status: Next**
 
 ### Goal
 
@@ -308,28 +311,33 @@ Make the app feel visually rewarding and game-like while preserving the existing
 
 ### Scope
 
-- Improve the dashboard layout.
-- Add modern dark UI styling.
-- Add RPG-style habit cards.
-- Add XP progress bars.
-- Add attribute progress bars.
-- Add simple completion animations.
-- Add level-up feedback.
+- Substantially redesign the functional MVP scaffolding into a cohesive game-inspired interface.
+- Establish a modern, futuristic, minimal, and intuitive visual system.
+- Improve the dashboard layout and information hierarchy.
+- Add polished dark UI styling, responsive layouts, and consistent component states.
+- Add RPG-style habit cards and progression-focused surfaces.
+- Add XP, level, attribute, streak, reward, and milestone-ready visual patterns.
+- Add purposeful habit-completion, XP-gain, progress, and level-up animations.
+- Add satisfying micro-interactions and celebratory feedback without creating distracting or casino-like UI.
+- Preserve accessibility, readability, mobile usability, and backend ownership of all business rules.
 
 ### Definition of Done
 
-- The app feels visually polished.
-- Habit completion gives clear visual feedback.
-- XP and attribute progress are easy to understand.
+- The app has a distinctive, premium, game-like visual identity rather than generic CRUD styling.
+- The primary habit and progression actions remain simple and immediately understandable.
+- Habit completion and progression changes provide satisfying visual feedback.
+- XP, levels, attributes, streaks, and rewards are easy to understand at a glance.
+- Loading, empty, error, pending, and success states are visually consistent.
 - The UI works well on desktop and mobile.
-- Visual polish does not move business logic into the frontend.
+- Animations are purposeful, performant, and do not block normal use.
+- Visual polish does not move validation, XP, completion, streak, or ownership logic into the frontend.
 
 ### Not Included Yet
 
 - Avatar systems
 - Theme marketplace
-- Complex animations
 - Social UI
+- Large post-MVP cinematic animation systems
 
 ---
 

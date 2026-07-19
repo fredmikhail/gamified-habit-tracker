@@ -2,7 +2,7 @@
 
 This document defines the current and planned HTTP API contract between the React frontend and the ASP.NET Core backend.
 
-Phase 2 authentication endpoints are implemented. Endpoints for later phases remain planned until their phase is completed.
+Phase 2 authentication endpoints and Phase 3 habit-management endpoints are implemented. Endpoints for later phases remain planned until their phase is completed.
 
 The contract establishes consistent routes, request shapes, response shapes, status codes, authentication behavior, and error behavior.
 
@@ -62,7 +62,7 @@ Example:
 
 Entity identifiers are represented as JSON strings containing `Guid` values.
 
-The backend generates identifiers using UUID version 7 for the implemented authentication entities.
+The backend generates identifiers using UUID version 7 for implemented authentication and habit entities.
 
 API clients must still treat identifiers as opaque values. The frontend should not parse ordering information from them or generate business behavior from their format.
 
@@ -532,7 +532,7 @@ Yes.
 
 # Habit Endpoints
 
-Habit endpoints are planned for Phase 3 and are not implemented yet.
+Habit endpoints were implemented during Phase 3.
 
 ---
 
@@ -540,7 +540,7 @@ Habit endpoints are planned for Phase 3 and are not implemented yet.
 
 Habit DTOs expand as later phases introduce new behavior.
 
-### Planned — Phase 3
+### Implemented — Phase 3
 
 `HabitResponse` contains the basic habit fields:
 
@@ -567,7 +567,7 @@ Habit request and response DTOs add:
 
 - attributeRewards
 
-Examples in this document that contain all of these properties represent the final MVP contract shape.
+Examples in implemented Phase 3 endpoint sections show the current contract shape. Examples in later-phase sections may include planned fields and are labeled accordingly.
 
 ## Get User Habits
 
@@ -608,22 +608,13 @@ An array of `HabitResponse`.
     "targetCount": 3,
     "difficulty": "medium",
     "isActive": true,
-    "isCompletedToday": false,
-    "attributeRewards": [
-      {
-        "attributeType": "strength",
-        "xpAmount": 20
-      },
-      {
-        "attributeType": "discipline",
-        "xpAmount": 10
-      }
-    ],
     "createdAtUtc": "2026-07-10T15:00:00Z",
     "updatedAtUtc": "2026-07-10T15:00:00Z"
   }
 ]
 ```
+
+By default, only active habits are returned. When `includeInactive=true`, active and inactive habits are returned with active habits first. Within each active state, newer habits are returned first with a stable identifier tie-breaker.
 
 ### Possible Status Codes
 
@@ -720,13 +711,16 @@ During Phase 5, `CreateHabitRequest` adds:
 
 ### Validation Notes
 
-During Phase 3, the backend should validate:
+The implemented Phase 3 backend validates:
 
 - habit name
 - supported frequency type
 - Daily habits use TargetCount of 1
 - Weekly TargetCount is between 1 and 7
 - supported difficulty: `easy`, `medium`, `hard`, or `elite`
+- `name` is required after trimming and is at most 100 characters
+- `description` is optional, trimmed, at most 500 characters, and blank input becomes `null`
+- `category` is optional, trimmed, at most 50 characters, and blank input becomes `null`
 
 During Phase 5, the backend should additionally validate:
 
@@ -802,10 +796,10 @@ During Phase 5, `UpdateHabitRequest` adds:
 ## Deactivate Habit
 
 ```text
-PATCH /api/habits/{habitId}/deactivate
+DELETE /api/habits/{habitId}
 ```
 
-Deactivates a habit without deleting its history.
+Soft-deactivates a habit without deleting its database record or future related history.
 
 ### Authentication Required
 
@@ -826,6 +820,10 @@ Updated `HabitResponse`.
 - `404 Not Found`
 
 The MVP does not permanently delete habits.
+
+Deactivation is idempotent. Repeating the request for an already inactive owned habit returns the same inactive resource without changing `updatedAtUtc` again.
+
+A missing habit and a habit owned by another user both return `404 Not Found`.
 
 ---
 
@@ -1179,13 +1177,13 @@ A contract change is not complete until both sides are updated and verified.
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 
-## Phase 3
+## Implemented — Phase 3
 
 - `GET /api/habits`
 - `GET /api/habits/{habitId}`
 - `POST /api/habits`
 - `PUT /api/habits/{habitId}`
-- `PATCH /api/habits/{habitId}/deactivate`
+- `DELETE /api/habits/{habitId}`
 
 ## Phase 4
 
