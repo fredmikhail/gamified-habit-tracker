@@ -67,9 +67,7 @@ export function HabitList() {
       {isLoading && <p className="mt-4 text-slate-600">Loading habits...</p>}
 
       {!isLoading && errorMessage && (
-        <p className="mt-4 text-red-700">
-          Habit loading error: {errorMessage}
-        </p>
+        <p className="mt-4 text-red-700">Habit loading error: {errorMessage}</p>
       )}
 
       {!isLoading && !errorMessage && habits.length === 0 && (

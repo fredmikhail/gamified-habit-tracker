@@ -99,9 +99,7 @@ describe('HabitList', () => {
     expect(screen.getByText('Read one chapter.')).toBeInTheDocument()
     expect(screen.getByText('Frequency: Daily')).toBeInTheDocument()
 
-    expect(
-      screen.getByText('Frequency: 3 times per week'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Frequency: 3 times per week')).toBeInTheDocument()
 
     expect(screen.getByText('Category: Learning')).toBeInTheDocument()
     expect(screen.getByText('Category: Fitness')).toBeInTheDocument()
