@@ -44,4 +44,59 @@ public sealed class HabitsController : ControllerBase
             StatusCodes.Status201Created,
             habit);
     }
+
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<HabitResponse>>> GetUserHabitsAsync(
+    [FromQuery] bool includeInactive = false,
+    CancellationToken cancellationToken = default)
+    {
+        var userIdValue =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(
+            userIdValue,
+            out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var habits =
+            await _habitService.GetUserHabitsAsync(
+                userId,
+                includeInactive,
+                cancellationToken);
+
+        return Ok(habits);
+    }
+
+    [HttpGet("{habitId:guid}")]
+    public async Task<ActionResult<HabitResponse>> GetUserHabitAsync(
+        Guid habitId,
+        CancellationToken cancellationToken)
+    {
+        var userIdValue =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(
+            userIdValue,
+            out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var habit =
+            await _habitService.GetUserHabitAsync(
+                userId,
+                habitId,
+                cancellationToken);
+
+        if (habit is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(habit);
+    }
 }

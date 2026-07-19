@@ -3,6 +3,7 @@ using HabitTracker.Api.Domain.Enums;
 using HabitTracker.Api.DTOs;
 using HabitTracker.Api.Exceptions;
 using HabitTracker.Api.Services;
+using HabitTracker.Api.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace HabitTracker.Tests.Services;
@@ -158,6 +159,213 @@ public sealed class HabitServiceTests
         Assert.Empty(dbContext.Habits);
     }
 
+    [Fact]
+    public async Task GetUserHabitsAsync_WhenInactiveHabitsAreExcluded_ReturnsOnlyOwnedActiveHabitsNewestFirst()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+        var otherUserId = Guid.CreateVersion7();
+        var baseTimestampUtc = DateTime.UtcNow.AddDays(-1);
+
+        var olderActiveHabit =
+            CreateHabit(
+                userId,
+                "Older active habit",
+                baseTimestampUtc,
+                isActive: true);
+
+        var newerActiveHabit =
+            CreateHabit(
+                userId,
+                "Newer active habit",
+                baseTimestampUtc.AddHours(1),
+                isActive: true);
+
+        var inactiveHabit =
+            CreateHabit(
+                userId,
+                "Inactive habit",
+                baseTimestampUtc.AddHours(2),
+                isActive: false);
+
+        var otherUserHabit =
+            CreateHabit(
+                otherUserId,
+                "Another user's habit",
+                baseTimestampUtc.AddHours(3),
+                isActive: true);
+
+        dbContext.Habits.AddRange(
+            olderActiveHabit,
+            newerActiveHabit,
+            inactiveHabit,
+            otherUserHabit);
+
+        await dbContext.SaveChangesAsync();
+
+        var habitService = new HabitService(dbContext);
+
+        var response =
+            await habitService.GetUserHabitsAsync(
+                userId);
+
+        Assert.Collection(
+            response,
+            firstHabit =>
+                Assert.Equal(
+                    newerActiveHabit.Id,
+                    firstHabit.Id),
+            secondHabit =>
+                Assert.Equal(
+                    olderActiveHabit.Id,
+                    secondHabit.Id));
+    }
+
+    [Fact]
+    public async Task GetUserHabitsAsync_WhenInactiveHabitsAreIncluded_ReturnsOwnedActiveHabitsBeforeInactiveHabits()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+        var baseTimestampUtc = DateTime.UtcNow.AddDays(-1);
+
+        var olderActiveHabit =
+            CreateHabit(
+                userId,
+                "Older active habit",
+                baseTimestampUtc,
+                isActive: true);
+
+        var newerActiveHabit =
+            CreateHabit(
+                userId,
+                "Newer active habit",
+                baseTimestampUtc.AddHours(1),
+                isActive: true);
+
+        var olderInactiveHabit =
+            CreateHabit(
+                userId,
+                "Older inactive habit",
+                baseTimestampUtc.AddHours(2),
+                isActive: false);
+
+        var newerInactiveHabit =
+            CreateHabit(
+                userId,
+                "Newer inactive habit",
+                baseTimestampUtc.AddHours(3),
+                isActive: false);
+
+        dbContext.Habits.AddRange(
+            olderActiveHabit,
+            newerActiveHabit,
+            olderInactiveHabit,
+            newerInactiveHabit);
+
+        await dbContext.SaveChangesAsync();
+
+        var habitService = new HabitService(dbContext);
+
+        var response =
+            await habitService.GetUserHabitsAsync(
+                userId,
+                includeInactive: true);
+
+        Assert.Collection(
+            response,
+            firstHabit =>
+                Assert.Equal(
+                    newerActiveHabit.Id,
+                    firstHabit.Id),
+            secondHabit =>
+                Assert.Equal(
+                    olderActiveHabit.Id,
+                    secondHabit.Id),
+            thirdHabit =>
+                Assert.Equal(
+                    newerInactiveHabit.Id,
+                    thirdHabit.Id),
+            fourthHabit =>
+                Assert.Equal(
+                    olderInactiveHabit.Id,
+                    fourthHabit.Id));
+    }
+
+    [Fact]
+    public async Task GetUserHabitAsync_WhenHabitBelongsToUser_ReturnsHabit()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+
+        var habit =
+            CreateHabit(
+                userId,
+                "Read C# textbook",
+                DateTime.UtcNow,
+                isActive: false);
+
+        dbContext.Habits.Add(habit);
+        await dbContext.SaveChangesAsync();
+
+        var habitService = new HabitService(dbContext);
+
+        var response =
+            await habitService.GetUserHabitAsync(
+                userId,
+                habit.Id);
+
+        Assert.NotNull(response);
+        Assert.Equal(habit.Id, response.Id);
+        Assert.Equal(habit.Name, response.Name);
+        Assert.False(response.IsActive);
+    }
+
+    [Fact]
+    public async Task GetUserHabitAsync_WhenHabitBelongsToAnotherUser_ReturnsNull()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var ownerUserId = Guid.CreateVersion7();
+        var requestingUserId = Guid.CreateVersion7();
+
+        var habit =
+            CreateHabit(
+                ownerUserId,
+                "Private habit",
+                DateTime.UtcNow,
+                isActive: true);
+
+        dbContext.Habits.Add(habit);
+        await dbContext.SaveChangesAsync();
+
+        var habitService = new HabitService(dbContext);
+
+        var response =
+            await habitService.GetUserHabitAsync(
+                requestingUserId,
+                habit.Id);
+
+        Assert.Null(response);
+    }
+
+    [Fact]
+    public async Task GetUserHabitAsync_WhenHabitDoesNotExist_ReturnsNull()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var habitService = new HabitService(dbContext);
+
+        var response =
+            await habitService.GetUserHabitAsync(
+                Guid.CreateVersion7(),
+                Guid.CreateVersion7());
+
+        Assert.Null(response);
+    }
+
     private static AppDbContext CreateDbContext()
     {
         var options =
@@ -167,6 +375,27 @@ public sealed class HabitServiceTests
                 .Options;
 
         return new AppDbContext(options);
+    }
+
+    private static Habit CreateHabit(
+    Guid userId,
+    string name,
+    DateTime createdAtUtc,
+    bool isActive)
+    {
+        return new Habit
+        {
+            UserId = userId,
+            Name = name,
+            FrequencyType =
+                HabitFrequencyType.Daily,
+            TargetCount = 1,
+            Difficulty =
+                HabitDifficulty.Medium,
+            IsActive = isActive,
+            CreatedAtUtc = createdAtUtc,
+            UpdatedAtUtc = createdAtUtc
+        };
     }
 
     private static CreateHabitRequest CreateValidRequest()

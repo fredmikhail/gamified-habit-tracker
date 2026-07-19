@@ -3,6 +3,7 @@ using HabitTracker.Api.Domain.Entities;
 using HabitTracker.Api.Domain.Enums;
 using HabitTracker.Api.DTOs;
 using HabitTracker.Api.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace HabitTracker.Api.Services;
 
@@ -61,6 +62,56 @@ public sealed class HabitService
 
         await _dbContext.SaveChangesAsync(
             cancellationToken);
+
+        return CreateHabitResponse(habit);
+    }
+
+    public async Task<IReadOnlyList<HabitResponse>> GetUserHabitsAsync(
+    Guid userId,
+    bool includeInactive = false,
+    CancellationToken cancellationToken = default)
+    {
+        var query =
+            _dbContext.Habits
+                .AsNoTracking()
+                .Where(habit => habit.UserId == userId);
+
+        if (!includeInactive)
+        {
+            query =
+                query.Where(habit => habit.IsActive);
+        }
+
+        var habits =
+            await query
+                .OrderByDescending(habit => habit.IsActive)
+                .ThenByDescending(habit => habit.CreatedAtUtc)
+                .ThenBy(habit => habit.Id)
+                .ToListAsync(cancellationToken);
+
+        return habits
+            .Select(CreateHabitResponse)
+            .ToList();
+    }
+
+    public async Task<HabitResponse?> GetUserHabitAsync(
+        Guid userId,
+        Guid habitId,
+        CancellationToken cancellationToken = default)
+    {
+        var habit =
+            await _dbContext.Habits
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    habit =>
+                        habit.Id == habitId
+                        && habit.UserId == userId,
+                    cancellationToken);
+
+        if (habit is null)
+        {
+            return null;
+        }
 
         return CreateHabitResponse(habit);
     }
