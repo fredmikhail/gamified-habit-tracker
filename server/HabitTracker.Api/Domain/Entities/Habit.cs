@@ -26,5 +26,8 @@ public sealed class Habit
 
     public DateTime UpdatedAtUtc { get; set; }
 
+    public ICollection<HabitCompletion> HabitCompletions { get; set; }
+    = new List<HabitCompletion>();
+
     public User User { get; set; } = null!;
 }
