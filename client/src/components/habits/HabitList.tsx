@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import { getHabits } from '../../api/habitsApi'
 import type { HabitResponse } from '../../types/HabitResponse'
 
+type HabitListProps = {
+  refreshKey: number
+}
+
 function formatLabel(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
@@ -20,7 +24,7 @@ function getHabitErrorMessage(error: unknown): string {
     : 'An unknown habit-loading error occurred.'
 }
 
-export function HabitList() {
+export function HabitList({ refreshKey }: HabitListProps) {
   const [habits, setHabits] = useState<HabitResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -53,7 +57,7 @@ export function HabitList() {
     return () => {
       isActive = false
     }
-  }, [])
+  }, [refreshKey])
 
   return (
     <section

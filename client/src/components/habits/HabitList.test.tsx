@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getHabits } from '../../api/habitsApi'
 import type { HabitResponse } from '../../types/HabitResponse'
@@ -20,7 +20,7 @@ describe('HabitList', () => {
       () => new Promise<HabitResponse[]>(() => undefined),
     )
 
-    render(<HabitList />)
+    render(<HabitList refreshKey={0} />)
 
     expect(screen.getByText('Loading habits...')).toBeInTheDocument()
   })
@@ -30,7 +30,7 @@ describe('HabitList', () => {
       new Error('The habits could not be loaded.'),
     )
 
-    render(<HabitList />)
+    render(<HabitList refreshKey={0} />)
 
     expect(
       await screen.findByText(
@@ -42,7 +42,7 @@ describe('HabitList', () => {
   it('shows an empty message when the user has no active habits', async () => {
     getHabitsMock.mockResolvedValue([])
 
-    render(<HabitList />)
+    render(<HabitList refreshKey={0} />)
 
     expect(
       await screen.findByText('You do not have any habits yet.'),
@@ -82,7 +82,7 @@ describe('HabitList', () => {
 
     getHabitsMock.mockResolvedValue(habits)
 
-    render(<HabitList />)
+    render(<HabitList refreshKey={0} />)
 
     expect(
       await screen.findByRole('heading', {
@@ -105,5 +105,21 @@ describe('HabitList', () => {
     expect(screen.getByText('Category: Fitness')).toBeInTheDocument()
     expect(screen.getByText('Medium')).toBeInTheDocument()
     expect(screen.getByText('Elite')).toBeInTheDocument()
+  })
+
+  it('reloads habits when the refresh key changes', async () => {
+    getHabitsMock.mockResolvedValue([])
+
+    const { rerender } = render(<HabitList refreshKey={0} />)
+
+    await screen.findByText('You do not have any habits yet.')
+
+    expect(getHabitsMock).toHaveBeenCalledTimes(1)
+
+    rerender(<HabitList refreshKey={1} />)
+
+    await waitFor(() => {
+      expect(getHabitsMock).toHaveBeenCalledTimes(2)
+    })
   })
 })
