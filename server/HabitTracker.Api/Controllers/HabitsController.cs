@@ -131,4 +131,34 @@ public sealed class HabitsController : ControllerBase
 
         return Ok(habit);
     }
+
+    [HttpDelete("{habitId:guid}")]
+    public async Task<ActionResult<HabitResponse>> DeactivateHabitAsync(
+    Guid habitId,
+    CancellationToken cancellationToken)
+    {
+        var userIdValue =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(
+            userIdValue,
+            out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var habit =
+            await _habitService.DeactivateHabitAsync(
+                userId,
+                habitId,
+                cancellationToken);
+
+        if (habit is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(habit);
+    }
 }

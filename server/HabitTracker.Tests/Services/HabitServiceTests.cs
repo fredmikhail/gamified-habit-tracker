@@ -662,6 +662,183 @@ public sealed class HabitServiceTests
         Assert.Equal(createdAtUtc, habit.UpdatedAtUtc);
     }
 
+    [Fact]
+    public async Task DeactivateHabitAsync_WhenOwnedHabitIsActive_DeactivatesHabitAndUpdatesTimestamp()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+        var createdAtUtc = DateTime.UtcNow.AddDays(-2);
+        var previousUpdatedAtUtc =
+            DateTime.UtcNow.AddDays(-1);
+
+        var habit =
+            CreateHabit(
+                userId,
+                "Active habit",
+                createdAtUtc,
+                isActive: true);
+
+        habit.UpdatedAtUtc =
+            previousUpdatedAtUtc;
+
+        dbContext.Habits.Add(habit);
+        await dbContext.SaveChangesAsync();
+
+        var originalId = habit.Id;
+        var originalUserId = habit.UserId;
+        var originalCreatedAtUtc = habit.CreatedAtUtc;
+        var originalName = habit.Name;
+
+        var habitService =
+            new HabitService(dbContext);
+
+        var response =
+            await habitService.DeactivateHabitAsync(
+                userId,
+                habit.Id);
+
+        Assert.NotNull(response);
+
+        var savedHabit =
+            Assert.Single(dbContext.Habits);
+
+        Assert.Equal(originalId, savedHabit.Id);
+        Assert.Equal(
+            originalUserId,
+            savedHabit.UserId);
+        Assert.Equal(
+            originalCreatedAtUtc,
+            savedHabit.CreatedAtUtc);
+        Assert.Equal(
+            originalName,
+            savedHabit.Name);
+
+        Assert.False(savedHabit.IsActive);
+
+        Assert.True(
+            savedHabit.UpdatedAtUtc
+                > previousUpdatedAtUtc);
+
+        Assert.Equal(
+            savedHabit.Id,
+            response.Id);
+
+        Assert.False(response.IsActive);
+
+        Assert.Equal(
+            savedHabit.UpdatedAtUtc,
+            response.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public async Task DeactivateHabitAsync_WhenOwnedHabitIsAlreadyInactive_ReturnsUnchangedHabit()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+        var createdAtUtc =
+            DateTime.UtcNow.AddDays(-2);
+        var previousUpdatedAtUtc =
+            DateTime.UtcNow.AddDays(-1);
+
+        var habit =
+            CreateHabit(
+                userId,
+                "Inactive habit",
+                createdAtUtc,
+                isActive: false);
+
+        habit.UpdatedAtUtc =
+            previousUpdatedAtUtc;
+
+        dbContext.Habits.Add(habit);
+        await dbContext.SaveChangesAsync();
+
+        var habitService =
+            new HabitService(dbContext);
+
+        var response =
+            await habitService.DeactivateHabitAsync(
+                userId,
+                habit.Id);
+
+        Assert.NotNull(response);
+
+        var savedHabit =
+            Assert.Single(dbContext.Habits);
+
+        Assert.False(savedHabit.IsActive);
+
+        Assert.Equal(
+            previousUpdatedAtUtc,
+            savedHabit.UpdatedAtUtc);
+
+        Assert.False(response.IsActive);
+
+        Assert.Equal(
+            previousUpdatedAtUtc,
+            response.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public async Task DeactivateHabitAsync_WhenHabitBelongsToAnotherUser_ReturnsNullAndDoesNotModifyHabit()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var ownerUserId =
+            Guid.CreateVersion7();
+
+        var requestingUserId =
+            Guid.CreateVersion7();
+
+        var createdAtUtc =
+            DateTime.UtcNow.AddDays(-1);
+
+        var habit =
+            CreateHabit(
+                ownerUserId,
+                "Private habit",
+                createdAtUtc,
+                isActive: true);
+
+        dbContext.Habits.Add(habit);
+        await dbContext.SaveChangesAsync();
+
+        var habitService =
+            new HabitService(dbContext);
+
+        var response =
+            await habitService.DeactivateHabitAsync(
+                requestingUserId,
+                habit.Id);
+
+        Assert.Null(response);
+
+        Assert.True(habit.IsActive);
+
+        Assert.Equal(
+            createdAtUtc,
+            habit.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public async Task DeactivateHabitAsync_WhenHabitDoesNotExist_ReturnsNull()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var habitService =
+            new HabitService(dbContext);
+
+        var response =
+            await habitService.DeactivateHabitAsync(
+                Guid.CreateVersion7(),
+                Guid.CreateVersion7());
+
+        Assert.Null(response);
+        Assert.Empty(dbContext.Habits);
+    }
+
     private static AppDbContext CreateDbContext()
     {
         var options =

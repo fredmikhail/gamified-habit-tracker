@@ -149,6 +149,38 @@ public sealed class HabitService
         return CreateHabitResponse(habit);
     }
 
+    public async Task<HabitResponse?> DeactivateHabitAsync(
+    Guid userId,
+    Guid habitId,
+    CancellationToken cancellationToken = default)
+    {
+        var habit =
+            await _dbContext.Habits
+                .SingleOrDefaultAsync(
+                    habit =>
+                        habit.Id == habitId
+                        && habit.UserId == userId,
+                    cancellationToken);
+
+        if (habit is null)
+        {
+            return null;
+        }
+
+        if (!habit.IsActive)
+        {
+            return CreateHabitResponse(habit);
+        }
+
+        habit.IsActive = false;
+        habit.UpdatedAtUtc = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(
+            cancellationToken);
+
+        return CreateHabitResponse(habit);
+    }
+
     public async Task<HabitResponse?> GetUserHabitAsync(
         Guid userId,
         Guid habitId,
