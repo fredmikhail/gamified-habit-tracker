@@ -1,20 +1,23 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getHabits, updateHabit } from '../../api/habitsApi'
+import { deactivateHabit, getHabits, updateHabit } from '../../api/habitsApi'
 import type { HabitResponse } from '../../types/HabitResponse'
 import { HabitList } from './HabitList'
-import userEvent from '@testing-library/user-event'
 
 vi.mock('../../api/habitsApi', () => ({
+  deactivateHabit: vi.fn(),
   getHabits: vi.fn(),
   updateHabit: vi.fn(),
 }))
 
+const deactivateHabitMock = vi.mocked(deactivateHabit)
 const getHabitsMock = vi.mocked(getHabits)
 const updateHabitMock = vi.mocked(updateHabit)
 
 describe('HabitList', () => {
   beforeEach(() => {
+    deactivateHabitMock.mockReset()
     getHabitsMock.mockReset()
     updateHabitMock.mockReset()
   })
@@ -24,7 +27,13 @@ describe('HabitList', () => {
       () => new Promise<HabitResponse[]>(() => undefined),
     )
 
-    render(<HabitList refreshKey={0} onHabitUpdated={vi.fn()} />)
+    render(
+      <HabitList
+        refreshKey={0}
+        onHabitDeactivated={vi.fn()}
+        onHabitUpdated={vi.fn()}
+      />,
+    )
 
     expect(screen.getByText('Loading habits...')).toBeInTheDocument()
   })
@@ -34,7 +43,13 @@ describe('HabitList', () => {
       new Error('The habits could not be loaded.'),
     )
 
-    render(<HabitList refreshKey={0} onHabitUpdated={vi.fn()} />)
+    render(
+      <HabitList
+        refreshKey={0}
+        onHabitDeactivated={vi.fn()}
+        onHabitUpdated={vi.fn()}
+      />,
+    )
 
     expect(
       await screen.findByText(
@@ -46,7 +61,13 @@ describe('HabitList', () => {
   it('shows an empty message when the user has no active habits', async () => {
     getHabitsMock.mockResolvedValue([])
 
-    render(<HabitList refreshKey={0} onHabitUpdated={vi.fn()} />)
+    render(
+      <HabitList
+        refreshKey={0}
+        onHabitDeactivated={vi.fn()}
+        onHabitUpdated={vi.fn()}
+      />,
+    )
 
     expect(
       await screen.findByText('You do not have any habits yet.'),
@@ -86,7 +107,13 @@ describe('HabitList', () => {
 
     getHabitsMock.mockResolvedValue(habits)
 
-    render(<HabitList refreshKey={0} onHabitUpdated={vi.fn()} />)
+    render(
+      <HabitList
+        refreshKey={0}
+        onHabitDeactivated={vi.fn()}
+        onHabitUpdated={vi.fn()}
+      />,
+    )
 
     expect(
       await screen.findByRole('heading', {
@@ -102,9 +129,7 @@ describe('HabitList', () => {
 
     expect(screen.getByText('Read one chapter.')).toBeInTheDocument()
     expect(screen.getByText('Frequency: Daily')).toBeInTheDocument()
-
     expect(screen.getByText('Frequency: 3 times per week')).toBeInTheDocument()
-
     expect(screen.getByText('Category: Learning')).toBeInTheDocument()
     expect(screen.getByText('Category: Fitness')).toBeInTheDocument()
     expect(screen.getByText('Medium')).toBeInTheDocument()
@@ -115,14 +140,24 @@ describe('HabitList', () => {
     getHabitsMock.mockResolvedValue([])
 
     const { rerender } = render(
-      <HabitList refreshKey={0} onHabitUpdated={vi.fn()} />,
+      <HabitList
+        refreshKey={0}
+        onHabitDeactivated={vi.fn()}
+        onHabitUpdated={vi.fn()}
+      />,
     )
 
     await screen.findByText('You do not have any habits yet.')
 
     expect(getHabitsMock).toHaveBeenCalledTimes(1)
 
-    rerender(<HabitList refreshKey={1} onHabitUpdated={vi.fn()} />)
+    rerender(
+      <HabitList
+        refreshKey={1}
+        onHabitDeactivated={vi.fn()}
+        onHabitUpdated={vi.fn()}
+      />,
+    )
 
     await waitFor(() => {
       expect(getHabitsMock).toHaveBeenCalledTimes(2)
@@ -156,7 +191,13 @@ describe('HabitList', () => {
     getHabitsMock.mockResolvedValue([habit])
     updateHabitMock.mockResolvedValue(updatedHabit)
 
-    render(<HabitList refreshKey={0} onHabitUpdated={onHabitUpdated} />)
+    render(
+      <HabitList
+        refreshKey={0}
+        onHabitDeactivated={vi.fn()}
+        onHabitUpdated={onHabitUpdated}
+      />,
+    )
 
     await screen.findByRole('heading', {
       name: 'Read C# textbook',
@@ -224,7 +265,13 @@ describe('HabitList', () => {
 
     getHabitsMock.mockResolvedValue([habit])
 
-    render(<HabitList refreshKey={0} onHabitUpdated={vi.fn()} />)
+    render(
+      <HabitList
+        refreshKey={0}
+        onHabitDeactivated={vi.fn()}
+        onHabitUpdated={vi.fn()}
+      />,
+    )
 
     await screen.findByRole('heading', {
       name: 'Read C# textbook',
@@ -255,5 +302,62 @@ describe('HabitList', () => {
     ).not.toBeInTheDocument()
 
     expect(updateHabitMock).not.toHaveBeenCalled()
+  })
+
+  it('deactivates a habit and reports that the list should refresh', async () => {
+    const user = userEvent.setup()
+    const onHabitDeactivated = vi.fn()
+
+    const habit: HabitResponse = {
+      id: '019c0000-0000-7000-8000-000000000001',
+      name: 'Read C# textbook',
+      description: 'Read one chapter.',
+      category: 'Learning',
+      frequencyType: 'daily',
+      targetCount: 1,
+      difficulty: 'medium',
+      isActive: true,
+      createdAtUtc: '2026-07-19T12:00:00Z',
+      updatedAtUtc: '2026-07-19T12:00:00Z',
+    }
+
+    const deactivatedHabit: HabitResponse = {
+      ...habit,
+      isActive: false,
+      updatedAtUtc: '2026-07-20T12:00:00Z',
+    }
+
+    getHabitsMock.mockResolvedValue([habit])
+    deactivateHabitMock.mockResolvedValue(deactivatedHabit)
+
+    render(
+      <HabitList
+        refreshKey={0}
+        onHabitDeactivated={onHabitDeactivated}
+        onHabitUpdated={vi.fn()}
+      />,
+    )
+
+    await screen.findByRole('heading', {
+      name: 'Read C# textbook',
+    })
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Deactivate',
+      }),
+    )
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Confirm deactivation',
+      }),
+    )
+
+    expect(deactivateHabitMock).toHaveBeenCalledTimes(1)
+    expect(deactivateHabitMock).toHaveBeenCalledWith(habit.id)
+
+    expect(onHabitDeactivated).toHaveBeenCalledTimes(1)
+    expect(onHabitDeactivated).toHaveBeenCalledWith(deactivatedHabit)
   })
 })

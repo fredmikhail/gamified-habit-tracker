@@ -13,7 +13,11 @@ export function HabitSection() {
     <>
       <HabitForm onHabitCreated={refreshHabits} />
 
-      <HabitList refreshKey={refreshKey} onHabitUpdated={refreshHabits} />
+      <HabitList
+        refreshKey={refreshKey}
+        onHabitUpdated={refreshHabits}
+        onHabitDeactivated={refreshHabits}
+      />
     </>
   )
 }

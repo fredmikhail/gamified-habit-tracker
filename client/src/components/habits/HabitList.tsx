@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { getHabits } from '../../api/habitsApi'
 import type { HabitResponse } from '../../types/HabitResponse'
+import { HabitDeactivateButton } from './HabitDeactivateButton'
 import { HabitEditForm } from './HabitEditForm'
 
 type HabitListProps = {
   refreshKey: number
   onHabitUpdated: (habit: HabitResponse) => void
+  onHabitDeactivated: (habit: HabitResponse) => void
 }
 
 function formatLabel(value: string): string {
@@ -26,7 +28,11 @@ function getHabitErrorMessage(error: unknown): string {
     : 'An unknown habit-loading error occurred.'
 }
 
-export function HabitList({ refreshKey, onHabitUpdated }: HabitListProps) {
+export function HabitList({
+  refreshKey,
+  onHabitUpdated,
+  onHabitDeactivated,
+}: HabitListProps) {
   const [habits, setHabits] = useState<HabitResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -118,13 +124,20 @@ export function HabitList({ refreshKey, onHabitUpdated }: HabitListProps) {
                   onHabitUpdated={handleHabitUpdated}
                 />
               ) : (
-                <button
-                  className="mt-4 rounded border border-slate-300 px-4 py-2 font-semibold"
-                  type="button"
-                  onClick={() => setEditingHabitId(habit.id)}
-                >
-                  Edit
-                </button>
+                <div className="flex flex-wrap items-start gap-3">
+                  <button
+                    className="mt-4 rounded border border-slate-300 px-4 py-2 font-semibold"
+                    type="button"
+                    onClick={() => setEditingHabitId(habit.id)}
+                  >
+                    Edit
+                  </button>
+
+                  <HabitDeactivateButton
+                    habit={habit}
+                    onHabitDeactivated={onHabitDeactivated}
+                  />
+                </div>
               )}
             </li>
           ))}

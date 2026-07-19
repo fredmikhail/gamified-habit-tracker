@@ -75,3 +75,22 @@ export async function updateHabit(
 
   return habit
 }
+
+export async function deactivateHabit(habitId: string): Promise<HabitResponse> {
+  const response = await apiRequest(`/api/habits/${habitId}`, {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    const errorMessage = await readApiError(
+      response,
+      `Habit deactivation failed with status ${response.status}.`,
+    )
+
+    throw new Error(errorMessage)
+  }
+
+  const habit: HabitResponse = await response.json()
+
+  return habit
+}

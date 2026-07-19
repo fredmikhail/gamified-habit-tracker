@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CreateHabitRequest } from '../types/CreateHabitRequest'
 import { clearCsrfToken } from './apiClient'
-import { createHabit, getHabits, updateHabit } from './habitsApi'
+import {
+  createHabit,
+  deactivateHabit,
+  getHabits,
+  updateHabit,
+} from './habitsApi'
 import type { UpdateHabitRequest } from '../types/UpdateHabitRequest'
 
 describe('habitsApi', () => {
@@ -366,6 +371,125 @@ describe('habitsApi', () => {
 
     await expect(updateHabit(habitId, updateRequest)).rejects.toThrow(
       'Daily habits must have a target count of 1.',
+    )
+  })
+
+  it('deactivates a habit using a CSRF-protected request', async () => {
+    const habitId = '019c0000-0000-7000-8000-000000000001'
+
+    const deactivatedHabit = {
+      id: habitId,
+      name: 'Read C# textbook',
+      description: 'Read one chapter.',
+      category: 'Learning',
+      frequencyType: 'daily',
+      targetCount: 1,
+      difficulty: 'medium',
+      isActive: false,
+      createdAtUtc: '2026-07-19T12:00:00Z',
+      updatedAtUtc: '2026-07-20T12:00:00Z',
+    }
+
+    const fetchMock = vi.fn<typeof fetch>()
+
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            requestToken: 'test-csrf-token',
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(deactivatedHabit), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      )
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    const habit = await deactivateHabit(habitId)
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      '/api/auth/csrf-token',
+      expect.objectContaining({
+        credentials: 'include',
+      }),
+    )
+
+    const habitRequestCall = fetchMock.mock.calls[1]
+
+    expect(habitRequestCall).toBeDefined()
+
+    const [habitRequestPath, habitRequestOptions] = habitRequestCall!
+
+    expect(habitRequestPath).toBe(`/api/habits/${habitId}`)
+
+    expect(habitRequestOptions).toEqual(
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include',
+      }),
+    )
+
+    const headers = new Headers(habitRequestOptions?.headers)
+
+    expect(headers.get('X-CSRF-TOKEN')).toBe('test-csrf-token')
+
+    expect(habit).toEqual(deactivatedHabit)
+  })
+
+  it('throws the habit deactivation error returned by the API', async () => {
+    const habitId = '019c0000-0000-7000-8000-000000000001'
+
+    const fetchMock = vi.fn<typeof fetch>()
+
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            requestToken: 'test-csrf-token',
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: 404,
+            title: 'Not Found',
+            detail: 'The habit could not be found.',
+          }),
+          {
+            status: 404,
+            headers: {
+              'Content-Type': 'application/problem+json',
+            },
+          },
+        ),
+      )
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(deactivateHabit(habitId)).rejects.toThrow(
+      'The habit could not be found.',
     )
   })
 })
