@@ -3,6 +3,7 @@ import { getHealth } from './api/healthApi'
 import { useAuth } from './auth/useAuth'
 import { LoginForm } from './components/auth/LoginForm'
 import { RegisterForm } from './components/auth/RegisterForm'
+import { HabitList } from './components/habits/HabitList'
 import type { HealthResponse } from './types/HealthResponse'
 
 type AuthMode = 'login' | 'register'
@@ -22,6 +23,7 @@ function App() {
   const [healthResponse, setHealthResponse] = useState<HealthResponse | null>(
     null,
   )
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -36,6 +38,7 @@ function App() {
 
     try {
       const response = await getHealth()
+
       setHealthResponse(response)
     } catch (error) {
       setHealthResponse(null)
@@ -122,6 +125,8 @@ function App() {
             </p>
           )}
         </div>
+
+        {!isAuthLoading && currentUser && <HabitList />}
 
         <button
           className="mt-8 rounded bg-slate-900 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
