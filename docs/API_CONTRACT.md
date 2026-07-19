@@ -726,7 +726,7 @@ During Phase 3, the backend should validate:
 - supported frequency type
 - Daily habits use TargetCount of 1
 - Weekly TargetCount is between 1 and 7
-- supported difficulty
+- supported difficulty: `easy`, `medium`, `hard`, or `elite`
 
 During Phase 5, the backend should additionally validate:
 
@@ -764,6 +764,8 @@ Yes.
   "difficulty": "hard"
 }
 ```
+
+Update requests use the same Phase 3 validation rules as habit creation.
 
 The request does not include `userId`.
 

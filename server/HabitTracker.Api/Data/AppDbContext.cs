@@ -14,6 +14,8 @@ public sealed class AppDbContext : DbContext
 
     public DbSet<UserSettings> UserSettings => Set<UserSettings>();
 
+    public DbSet<Habit> Habits => Set<Habit>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
