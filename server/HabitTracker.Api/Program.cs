@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,11 +16,19 @@ const string frontendCorsPolicy = "FrontendCorsPolicy";
 
 // Add services to the container.
 
-builder.Services.AddControllersWithViews(options =>
-{
-    options.Filters.Add(
-        new AutoValidateAntiforgeryTokenAttribute());
-});
+builder.Services
+    .AddControllersWithViews(options =>
+    {
+        options.Filters.Add(
+            new AutoValidateAntiforgeryTokenAttribute());
+    })
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter(
+                JsonNamingPolicy.CamelCase,
+                allowIntegerValues: false));
+    });
 
 builder.Services.AddProblemDetails();
 
