@@ -55,6 +55,27 @@ public sealed class ApiExceptionHandler
                         Detail =
                             exception.Message
                     },
+                InvalidHabitNameException =>
+                    new ProblemDetails
+                    {
+                        Status =
+                            StatusCodes.Status400BadRequest,
+                        Title =
+                            "Invalid habit name",
+                        Detail =
+                            exception.Message
+                    },
+
+                InvalidHabitTargetCountException =>
+                    new ProblemDetails
+                    {
+                        Status =
+                            StatusCodes.Status400BadRequest,
+                        Title =
+                            "Invalid habit target count",
+                        Detail =
+                            exception.Message
+                    },
 
                 _ => null
             };
