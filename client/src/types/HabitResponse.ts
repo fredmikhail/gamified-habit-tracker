@@ -10,6 +10,7 @@ export type HabitResponse = {
   targetCount: number
   difficulty: HabitDifficulty
   isActive: boolean
+  isCompletedToday: boolean
   createdAtUtc: string
   updatedAtUtc: string
 }

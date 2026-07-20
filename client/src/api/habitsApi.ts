@@ -1,6 +1,8 @@
+import type { CompleteHabitRequest } from '../types/CompleteHabitRequest'
+import type { CompleteHabitResponse } from '../types/CompleteHabitResponse'
 import type { CreateHabitRequest } from '../types/CreateHabitRequest'
-import type { UpdateHabitRequest } from '../types/UpdateHabitRequest'
 import type { HabitResponse } from '../types/HabitResponse'
+import type { UpdateHabitRequest } from '../types/UpdateHabitRequest'
 import { apiRequest } from './apiClient'
 import { readApiError } from './readApiError'
 
@@ -93,4 +95,48 @@ export async function deactivateHabit(habitId: string): Promise<HabitResponse> {
   const habit: HabitResponse = await response.json()
 
   return habit
+}
+
+export async function completeHabit(
+  habitId: string,
+  request: CompleteHabitRequest,
+): Promise<CompleteHabitResponse> {
+  const response = await apiRequest(`/api/habits/${habitId}/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  })
+
+  if (!response.ok) {
+    const errorMessage = await readApiError(
+      response,
+      `Habit completion failed with status ${response.status}.`,
+    )
+
+    throw new Error(errorMessage)
+  }
+
+  const completion: CompleteHabitResponse = await response.json()
+
+  return completion
+}
+
+export async function undoHabitCompletion(habitId: string): Promise<void> {
+  const response = await apiRequest(
+    `/api/habits/${habitId}/completions/today`,
+    {
+      method: 'DELETE',
+    },
+  )
+
+  if (!response.ok) {
+    const errorMessage = await readApiError(
+      response,
+      `Habit completion undo failed with status ${response.status}.`,
+    )
+
+    throw new Error(errorMessage)
+  }
 }

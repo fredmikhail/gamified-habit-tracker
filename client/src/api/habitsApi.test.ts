@@ -1,13 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { CompleteHabitRequest } from '../types/CompleteHabitRequest'
 import type { CreateHabitRequest } from '../types/CreateHabitRequest'
+import type { UpdateHabitRequest } from '../types/UpdateHabitRequest'
 import { clearCsrfToken } from './apiClient'
 import {
+  completeHabit,
   createHabit,
   deactivateHabit,
   getHabits,
+  undoHabitCompletion,
   updateHabit,
 } from './habitsApi'
-import type { UpdateHabitRequest } from '../types/UpdateHabitRequest'
 
 describe('habitsApi', () => {
   afterEach(() => {
@@ -26,6 +29,7 @@ describe('habitsApi', () => {
         targetCount: 1,
         difficulty: 'medium',
         isActive: true,
+        isCompletedToday: false,
         createdAtUtc: '2026-07-19T12:00:00Z',
         updatedAtUtc: '2026-07-19T12:00:00Z',
       },
@@ -122,6 +126,7 @@ describe('habitsApi', () => {
       id: '019c0000-0000-7000-8000-000000000001',
       ...createRequest,
       isActive: true,
+      isCompletedToday: false,
       createdAtUtc: '2026-07-19T12:00:00Z',
       updatedAtUtc: '2026-07-19T12:00:00Z',
     }
@@ -255,6 +260,7 @@ describe('habitsApi', () => {
       id: habitId,
       ...updateRequest,
       isActive: true,
+      isCompletedToday: false,
       createdAtUtc: '2026-07-19T12:00:00Z',
       updatedAtUtc: '2026-07-20T12:00:00Z',
     }
@@ -386,6 +392,7 @@ describe('habitsApi', () => {
       targetCount: 1,
       difficulty: 'medium',
       isActive: false,
+      isCompletedToday: false,
       createdAtUtc: '2026-07-19T12:00:00Z',
       updatedAtUtc: '2026-07-20T12:00:00Z',
     }
@@ -490,6 +497,216 @@ describe('habitsApi', () => {
 
     await expect(deactivateHabit(habitId)).rejects.toThrow(
       'The habit could not be found.',
+    )
+  })
+
+  it('completes a habit using a CSRF-protected request', async () => {
+    const habitId = '019c0000-0000-7000-8000-000000000001'
+
+    const completeRequest: CompleteHabitRequest = {
+      notes: 'Completed after dinner.',
+    }
+
+    const completionResponse = {
+      completion: {
+        id: '019c0000-0000-7000-8000-000000000002',
+        habitId,
+        completedDate: '2026-07-19',
+        completedAtUtc: '2026-07-20T01:30:00Z',
+        notes: 'Completed after dinner.',
+      },
+    }
+
+    const fetchMock = vi.fn<typeof fetch>()
+
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            requestToken: 'test-csrf-token',
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(completionResponse), {
+          status: 201,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+      )
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    const response = await completeHabit(habitId, completeRequest)
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    const completionRequestCall = fetchMock.mock.calls[1]
+
+    expect(completionRequestCall).toBeDefined()
+
+    const [requestPath, requestOptions] = completionRequestCall!
+
+    expect(requestPath).toBe(`/api/habits/${habitId}/completions`)
+
+    expect(requestOptions).toEqual(
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify(completeRequest),
+      }),
+    )
+
+    const headers = new Headers(requestOptions?.headers)
+
+    expect(headers.get('Content-Type')).toBe('application/json')
+
+    expect(headers.get('X-CSRF-TOKEN')).toBe('test-csrf-token')
+
+    expect(response).toEqual(completionResponse)
+  })
+
+  it('throws the habit completion error returned by the API', async () => {
+    const habitId = '019c0000-0000-7000-8000-000000000001'
+
+    const fetchMock = vi.fn<typeof fetch>()
+
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            requestToken: 'test-csrf-token',
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: 409,
+            title: 'Habit already completed',
+            detail: 'This habit has already been completed for today.',
+          }),
+          {
+            status: 409,
+            headers: {
+              'Content-Type': 'application/problem+json',
+            },
+          },
+        ),
+      )
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(
+      completeHabit(habitId, {
+        notes: null,
+      }),
+    ).rejects.toThrow('This habit has already been completed for today.')
+  })
+
+  it('undoes a habit completion using a CSRF-protected request', async () => {
+    const habitId = '019c0000-0000-7000-8000-000000000001'
+
+    const fetchMock = vi.fn<typeof fetch>()
+
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            requestToken: 'test-csrf-token',
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 204,
+        }),
+      )
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(undoHabitCompletion(habitId)).resolves.toBeUndefined()
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    const undoRequestCall = fetchMock.mock.calls[1]
+
+    expect(undoRequestCall).toBeDefined()
+
+    const [requestPath, requestOptions] = undoRequestCall!
+
+    expect(requestPath).toBe(`/api/habits/${habitId}/completions/today`)
+
+    expect(requestOptions).toEqual(
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include',
+      }),
+    )
+
+    const headers = new Headers(requestOptions?.headers)
+
+    expect(headers.get('X-CSRF-TOKEN')).toBe('test-csrf-token')
+  })
+
+  it('throws the habit completion undo error returned by the API', async () => {
+    const habitId = '019c0000-0000-7000-8000-000000000001'
+
+    const fetchMock = vi.fn<typeof fetch>()
+
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            requestToken: 'test-csrf-token',
+          }),
+          {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: 404,
+            title: 'Not Found',
+            detail: 'No completion exists for today.',
+          }),
+          {
+            status: 404,
+            headers: {
+              'Content-Type': 'application/problem+json',
+            },
+          },
+        ),
+      )
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(undoHabitCompletion(habitId)).rejects.toThrow(
+      'No completion exists for today.',
     )
   })
 })
