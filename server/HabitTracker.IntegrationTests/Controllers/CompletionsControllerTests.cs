@@ -513,6 +513,338 @@ public sealed class CompletionsControllerTests
             savedCompletion.Notes);
     }
 
+    [Fact]
+    public async Task UndoToday_WhenCompletionExists_ReturnsNoContentAndRemovesCompletion()
+    {
+        using var client = CreateClient();
+
+        var registration =
+            await RegisterAsync(client);
+
+        var habit =
+            await SeedHabitAsync(
+                registration.User.Id,
+                isActive: true);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(client);
+
+        using var completeRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                $"/api/habits/{habit.Id}/completions")
+            {
+                Content =
+                    JsonContent.Create(
+                        new CompleteHabitRequest
+                        {
+                            Notes = "Completed before undo."
+                        },
+                        options: _jsonOptions)
+            };
+
+        completeRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            csrfToken);
+
+        var completeResponse =
+            await client.SendAsync(
+                completeRequest);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            completeResponse.StatusCode);
+
+        using var undoRequest =
+            new HttpRequestMessage(
+                HttpMethod.Delete,
+                $"/api/habits/{habit.Id}/completions/today");
+
+        undoRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            csrfToken);
+
+        var undoResponse =
+            await client.SendAsync(
+                undoRequest);
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            undoResponse.StatusCode);
+
+        Assert.Equal(
+            string.Empty,
+            await undoResponse.Content.ReadAsStringAsync());
+
+        using var scope =
+            _factory.Services.CreateScope();
+
+        var dbContext =
+            scope.ServiceProvider
+                .GetRequiredService<AppDbContext>();
+
+        Assert.DoesNotContain(
+            dbContext.HabitCompletions,
+            completion =>
+                completion.HabitId == habit.Id);
+
+        Assert.Contains(
+            dbContext.Habits,
+            savedHabit =>
+                savedHabit.Id == habit.Id);
+    }
+
+    [Fact]
+    public async Task UndoToday_WhenAnonymous_ReturnsUnauthorized()
+    {
+        using var client = CreateClient();
+
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Delete,
+                $"/api/habits/{Guid.CreateVersion7()}/completions/today");
+
+        var response =
+            await client.SendAsync(request);
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UndoToday_WithoutCsrfToken_ReturnsBadRequest()
+    {
+        using var client = CreateClient();
+
+        var registration =
+            await RegisterAsync(client);
+
+        var habit =
+            await SeedHabitAsync(
+                registration.User.Id,
+                isActive: true);
+
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Delete,
+                $"/api/habits/{habit.Id}/completions/today");
+
+        var response =
+            await client.SendAsync(request);
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UndoToday_WhenHabitDoesNotExist_ReturnsNotFound()
+    {
+        using var client = CreateClient();
+
+        await RegisterAsync(client);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(client);
+
+        using var response =
+            await DeleteTodayCompletionAsync(
+                client,
+                Guid.CreateVersion7(),
+                csrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UndoToday_WhenHabitBelongsToAnotherUser_ReturnsNotFoundAndKeepsCompletion()
+    {
+        using var ownerClient = CreateClient();
+        using var requestingClient = CreateClient();
+
+        var ownerRegistration =
+            await RegisterAsync(ownerClient);
+
+        await RegisterAsync(requestingClient);
+
+        var habit =
+            await SeedHabitAsync(
+                ownerRegistration.User.Id,
+                isActive: true);
+
+        var ownerCsrfToken =
+            await GetCsrfTokenAsync(ownerClient);
+
+        using var completeRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                $"/api/habits/{habit.Id}/completions")
+            {
+                Content =
+                    JsonContent.Create(
+                        new CompleteHabitRequest(),
+                        options: _jsonOptions)
+            };
+
+        completeRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            ownerCsrfToken);
+
+        using var completeResponse =
+            await ownerClient.SendAsync(
+                completeRequest);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            completeResponse.StatusCode);
+
+        var requestingCsrfToken =
+            await GetCsrfTokenAsync(
+                requestingClient);
+
+        using var undoResponse =
+            await DeleteTodayCompletionAsync(
+                requestingClient,
+                habit.Id,
+                requestingCsrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            undoResponse.StatusCode);
+
+        using var scope =
+            _factory.Services.CreateScope();
+
+        var dbContext =
+            scope.ServiceProvider
+                .GetRequiredService<AppDbContext>();
+
+        Assert.Single(
+            dbContext.HabitCompletions,
+            completion =>
+                completion.HabitId == habit.Id);
+    }
+
+    [Fact]
+    public async Task UndoToday_WhenNoCompletionExistsToday_ReturnsNotFound()
+    {
+        using var client = CreateClient();
+
+        var registration =
+            await RegisterAsync(client);
+
+        var habit =
+            await SeedHabitAsync(
+                registration.User.Id,
+                isActive: true);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(client);
+
+        using var response =
+            await DeleteTodayCompletionAsync(
+                client,
+                habit.Id,
+                csrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UndoToday_WhenHabitIsInactive_ReturnsNoContentAndRemovesCompletion()
+    {
+        using var client = CreateClient();
+
+        var registration =
+            await RegisterAsync(client);
+
+        var habit =
+            await SeedHabitAsync(
+                registration.User.Id,
+                isActive: true);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(client);
+
+        using var completeRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                $"/api/habits/{habit.Id}/completions")
+            {
+                Content =
+                    JsonContent.Create(
+                        new CompleteHabitRequest(),
+                        options: _jsonOptions)
+            };
+
+        completeRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            csrfToken);
+
+        using var completeResponse =
+            await client.SendAsync(
+                completeRequest);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            completeResponse.StatusCode);
+
+        using (var scope =
+            _factory.Services.CreateScope())
+        {
+            var dbContext =
+                scope.ServiceProvider
+                    .GetRequiredService<AppDbContext>();
+
+            var savedHabit =
+                Assert.Single(
+                    dbContext.Habits,
+                    candidate =>
+                        candidate.Id == habit.Id);
+
+            savedHabit.IsActive = false;
+            savedHabit.UpdatedAtUtc =
+                DateTime.UtcNow;
+
+            await dbContext.SaveChangesAsync();
+        }
+
+        using var undoResponse =
+            await DeleteTodayCompletionAsync(
+                client,
+                habit.Id,
+                csrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            undoResponse.StatusCode);
+
+        using var verificationScope =
+            _factory.Services.CreateScope();
+
+        var verificationDbContext =
+            verificationScope.ServiceProvider
+                .GetRequiredService<AppDbContext>();
+
+        Assert.DoesNotContain(
+            verificationDbContext.HabitCompletions,
+            completion =>
+                completion.HabitId == habit.Id);
+
+        var inactiveHabit =
+            Assert.Single(
+                verificationDbContext.Habits,
+                candidate =>
+                    candidate.Id == habit.Id);
+
+        Assert.False(inactiveHabit.IsActive);
+    }
+
     private HttpClient CreateClient()
     {
         return _factory.CreateClient(
@@ -631,5 +963,25 @@ public sealed class CompletionsControllerTests
                 responseBody.RequestToken));
 
         return responseBody.RequestToken;
+    }
+
+    private static async Task<HttpResponseMessage> DeleteTodayCompletionAsync(
+    HttpClient client,
+    Guid habitId,
+    string? csrfToken = null)
+    {
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Delete,
+                $"/api/habits/{habitId}/completions/today");
+
+        if (!string.IsNullOrWhiteSpace(csrfToken))
+        {
+            request.Headers.Add(
+                "X-CSRF-TOKEN",
+                csrfToken);
+        }
+
+        return await client.SendAsync(request);
     }
 }

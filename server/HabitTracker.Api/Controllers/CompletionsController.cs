@@ -52,4 +52,34 @@ public sealed class CompletionsController : ControllerBase
             StatusCodes.Status201Created,
             response);
     }
+
+    [HttpDelete("today")]
+    public async Task<IActionResult> UndoTodayAsync(
+    Guid habitId,
+    CancellationToken cancellationToken)
+    {
+        var userIdValue =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(
+            userIdValue,
+            out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var wasRemoved =
+            await _completionService.UndoTodayAsync(
+                userId,
+                habitId,
+                cancellationToken);
+
+        if (!wasRemoved)
+        {
+            return NotFound();
+        }
+
+        return NoContent();
+    }
 }
