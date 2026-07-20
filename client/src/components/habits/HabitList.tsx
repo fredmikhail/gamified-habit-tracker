@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getHabits } from '../../api/habitsApi'
 import type { HabitResponse } from '../../types/HabitResponse'
+import { HabitCompletionButton } from './HabitCompletionButton'
 import { HabitDeactivateButton } from './HabitDeactivateButton'
 import { HabitEditForm } from './HabitEditForm'
 
@@ -73,6 +74,14 @@ export function HabitList({
     onHabitUpdated(updatedHabit)
   }
 
+  function handleCompletionStatusChanged(updatedHabit: HabitResponse) {
+    setHabits((currentHabits) =>
+      currentHabits.map((habit) =>
+        habit.id === updatedHabit.id ? updatedHabit : habit,
+      ),
+    )
+  }
+
   return (
     <section
       aria-labelledby="habit-list-heading"
@@ -117,6 +126,11 @@ export function HabitList({
                 {habit.category && <p>Category: {habit.category}</p>}
               </div>
 
+              <HabitCompletionButton
+                habit={habit}
+                onCompletionStatusChanged={handleCompletionStatusChanged}
+              />
+
               {editingHabitId === habit.id ? (
                 <HabitEditForm
                   habit={habit}
@@ -126,7 +140,7 @@ export function HabitList({
               ) : (
                 <div className="flex flex-wrap items-start gap-3">
                   <button
-                    className="mt-4 rounded border border-slate-300 px-4 py-2 font-semibold"
+                    className="mt-4 min-h-11 rounded border border-slate-300 px-4 py-2 font-semibold"
                     type="button"
                     onClick={() => setEditingHabitId(habit.id)}
                   >

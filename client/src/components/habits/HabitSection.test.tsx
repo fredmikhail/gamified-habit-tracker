@@ -6,9 +6,11 @@ import type { HabitResponse } from '../../types/HabitResponse'
 import { HabitSection } from './HabitSection'
 
 vi.mock('../../api/habitsApi', () => ({
+  completeHabit: vi.fn(),
   createHabit: vi.fn(),
   deactivateHabit: vi.fn(),
   getHabits: vi.fn(),
+  undoHabitCompletion: vi.fn(),
   updateHabit: vi.fn(),
 }))
 
@@ -35,6 +37,7 @@ describe('HabitSection', () => {
       targetCount: 1,
       difficulty: 'medium',
       isActive: true,
+      isCompletedToday: false,
       createdAtUtc: '2026-07-19T12:00:00Z',
       updatedAtUtc: '2026-07-19T12:00:00Z',
     }
@@ -91,6 +94,7 @@ describe('HabitSection', () => {
       targetCount: 1,
       difficulty: 'medium',
       isActive: true,
+      isCompletedToday: false,
       createdAtUtc: '2026-07-19T12:00:00Z',
       updatedAtUtc: '2026-07-19T12:00:00Z',
     }
@@ -98,6 +102,7 @@ describe('HabitSection', () => {
     const deactivatedHabit: HabitResponse = {
       ...activeHabit,
       isActive: false,
+      isCompletedToday: false,
       updatedAtUtc: '2026-07-20T12:00:00Z',
     }
 

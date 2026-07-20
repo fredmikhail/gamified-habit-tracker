@@ -20,6 +20,7 @@ const existingHabit: HabitResponse = {
   targetCount: 1,
   difficulty: 'medium',
   isActive: true,
+  isCompletedToday: false,
   createdAtUtc: '2026-07-19T12:00:00Z',
   updatedAtUtc: '2026-07-19T12:00:00Z',
 }
@@ -102,6 +103,7 @@ describe('HabitDeactivateButton', () => {
     const deactivatedHabit: HabitResponse = {
       ...existingHabit,
       isActive: false,
+      isCompletedToday: false,
       updatedAtUtc: '2026-07-20T12:00:00Z',
     }
 

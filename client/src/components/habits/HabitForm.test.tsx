@@ -29,6 +29,7 @@ describe('HabitForm', () => {
       targetCount: 3,
       difficulty: 'elite',
       isActive: true,
+      isCompletedToday: false,
       createdAtUtc: '2026-07-19T12:00:00Z',
       updatedAtUtc: '2026-07-19T12:00:00Z',
     }
@@ -100,6 +101,7 @@ describe('HabitForm', () => {
       targetCount: 1,
       difficulty: 'medium',
       isActive: true,
+      isCompletedToday: false,
       createdAtUtc: '2026-07-19T12:00:00Z',
       updatedAtUtc: '2026-07-19T12:00:00Z',
     }
