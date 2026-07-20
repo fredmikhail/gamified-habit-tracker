@@ -182,21 +182,29 @@ Allow authenticated users to create and manage their habits.
 
 ## Phase 4 — Habit Completion
 
-**Status: Next**
+**Status: Complete**
 
 ### Goal
 
 Allow users to complete habits for the current day.
 
-### Scope
+### Implemented Scope
 
-- Create the HabitCompletion entity.
-- Add CompletionService.
-- Add endpoint for completing a habit.
-- Add endpoint for undoing today's completion.
-- Prevent duplicate completions for the same habit and date.
-- Add backend tests for duplicate completion and undo behavior.
-- Display completed and incomplete habit states in the frontend.
+- Create the `HabitCompletion` entity, Entity Framework Core configuration, PostgreSQL migration, relationships, and unique database protection for one completion per habit and local date.
+- Add backend-owned user-local date calculation using `TimeProvider` and the user's stored IANA time zone.
+- Add `CompletionService` with ownership, active-habit, duplicate-completion, note-normalization, and undo rules.
+- Add the authenticated endpoint for completing an active habit.
+- Add the authenticated endpoint for undoing today's completion.
+- Return `404 Not Found` for missing and foreign-owned habits without exposing another user's resource.
+- Return `409 Conflict` when an inactive habit is completed or the habit was already completed for the same local date.
+- Allow today's completion to be undone even when the related habit has since been deactivated.
+- Extend `HabitResponse` with `isCompletedToday`.
+- Display completed and incomplete habit states in the React frontend.
+- Update completion state locally after a successful request without unnecessarily reloading the full habit list.
+- Add backend unit and HTTP integration tests for local dates, validation, ownership, inactive habits, duplicate completion, note normalization, completion, and undo behavior.
+- Add frontend API and component tests for completion, undo, pending states, errors, accessibility state, and local list updates.
+- Verify completion and undo manually through the React frontend, ASP.NET Core API, and PostgreSQL.
+- Configure the HTTPS launch profile as the default local backend profile so it matches the Vite API proxy target.
 
 ### Definition of Done
 
@@ -216,6 +224,8 @@ Allow users to complete habits for the current day.
 ---
 
 ## Phase 5 — XP and Attributes
+
+**Status: Next**
 
 ### Goal
 

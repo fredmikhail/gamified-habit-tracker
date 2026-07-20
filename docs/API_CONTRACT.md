@@ -2,7 +2,7 @@
 
 This document defines the current and planned HTTP API contract between the React frontend and the ASP.NET Core backend.
 
-Phase 2 authentication endpoints and Phase 3 habit-management endpoints are implemented. Endpoints for later phases remain planned until their phase is completed.
+Phase 2 authentication endpoints, Phase 3 habit-management endpoints, and Phase 4 habit-completion endpoints are implemented. Endpoints for later phases remain planned until their phase is completed.
 
 The contract establishes consistent routes, request shapes, response shapes, status codes, authentication behavior, and error behavior.
 
@@ -62,7 +62,7 @@ Example:
 
 Entity identifiers are represented as JSON strings containing `Guid` values.
 
-The backend generates identifiers using UUID version 7 for implemented authentication and habit entities.
+The backend generates identifiers using UUID version 7 for all currently implemented entities.
 
 API clients must still treat identifiers as opaque values. The frontend should not parse ordering information from them or generate business behavior from their format.
 
@@ -236,12 +236,8 @@ Example:
   "title": "Validation failed",
   "status": 400,
   "errors": {
-    "name": [
-      "Habit name is required."
-    ],
-    "targetCount": [
-      "Target count must be greater than zero."
-    ]
+    "name": ["Habit name is required."],
+    "targetCount": ["Target count must be greater than zero."]
   }
 }
 ```
@@ -542,7 +538,7 @@ Habit DTOs expand as later phases introduce new behavior.
 
 ### Implemented — Phase 3
 
-`HabitResponse` contains the basic habit fields:
+`HabitResponse` introduced the basic habit fields:
 
 - id
 - name
@@ -555,11 +551,13 @@ Habit DTOs expand as later phases introduce new behavior.
 - createdAtUtc
 - updatedAtUtc
 
-### Planned — Phase 4
+### Implemented — Phase 4
 
 `HabitResponse` adds:
 
 - isCompletedToday
+
+`isCompletedToday` is calculated by the backend using the authenticated user's current local date and stored completion records.
 
 ### Planned — Phase 5
 
@@ -567,7 +565,7 @@ Habit request and response DTOs add:
 
 - attributeRewards
 
-Examples in implemented Phase 3 endpoint sections show the current contract shape. Examples in later-phase sections may include planned fields and are labeled accordingly.
+Examples in implemented endpoint sections show the current contract shape. Examples for future phases are labeled as planned.
 
 ## Get User Habits
 
@@ -608,6 +606,7 @@ An array of `HabitResponse`.
     "targetCount": 3,
     "difficulty": "medium",
     "isActive": true,
+    "isCompletedToday": false,
     "createdAtUtc": "2026-07-10T15:00:00Z",
     "updatedAtUtc": "2026-07-10T15:00:00Z"
   }
@@ -615,6 +614,8 @@ An array of `HabitResponse`.
 ```
 
 By default, only active habits are returned. When `includeInactive=true`, active and inactive habits are returned with active habits first. Within each active state, newer habits are returned first with a stable identifier tie-breaker.
+
+For every returned habit, `isCompletedToday` reflects whether a completion exists for the authenticated user's current local date.
 
 ### Possible Status Codes
 
@@ -829,7 +830,7 @@ A missing habit and a habit owned by another user both return `404 Not Found`.
 
 # Habit Completion Endpoints
 
-Habit completion endpoints are planned for Phase 4 and are not implemented yet.
+Habit completion endpoints were implemented during Phase 4.
 
 ---
 
@@ -857,7 +858,9 @@ Yes.
 
 The MVP does not accept a client-selected completion date.
 
-The backend determines CompletedDate by converting the current UTC timestamp into the authenticated user's local date using their stored time zone.
+The backend determines `completedDate` by converting the current UTC timestamp into the authenticated user's local date using their stored time zone.
+
+`notes` is optional, trimmed by the backend, limited to 500 characters, and stored as `null` when the supplied value is blank.
 
 ### Response
 
@@ -871,23 +874,7 @@ The backend determines CompletedDate by converting the current UTC timestamp int
     "completedDate": "2026-07-10",
     "completedAtUtc": "2026-07-10T21:42:10Z",
     "notes": "Completed after work."
-  },
-  "rewards": [
-    {
-      "attributeType": "strength",
-      "xpAwarded": 20,
-      "currentXp": 240,
-      "level": 3,
-      "didLevelUp": false
-    },
-    {
-      "attributeType": "discipline",
-      "xpAwarded": 10,
-      "currentXp": 315,
-      "level": 4,
-      "didLevelUp": true
-    }
-  ]
+  }
 }
 ```
 
@@ -899,15 +886,13 @@ The backend determines CompletedDate by converting the current UTC timestamp int
 - `404 Not Found`
 - `409 Conflict`
 
-`409 Conflict` is returned when the habit is inactive or already completed for the same date.
+`404 Not Found` is returned when the habit does not exist or belongs to another user.
 
-The example above represents the Phase 5 response shape.
+`409 Conflict` is returned when the habit is inactive or already completed for the same local date.
 
-During Phase 4, `CompleteHabitResponse` contains only the `completion` property.
+The current Phase 4 `CompleteHabitResponse` contains only the `completion` property.
 
-During Phase 5, the `rewards` property is added.
-
-The backend calculates `currentXp`, `level`, and `didLevelUp`. The frontend does not calculate authoritative progression values.
+During Phase 5, the response will add a backend-calculated `rewards` property. The frontend will not calculate authoritative progression values.
 
 ---
 
@@ -939,7 +924,11 @@ No response body.
 
 The backend determines today's date from the authenticated user's stored time zone.
 
-During Phase 4, undo removes today's HabitCompletion.
+`404 Not Found` is returned when the habit does not exist, belongs to another user, or has no completion for the current local date.
+
+Undoing today's completion is allowed even if the related habit has since been deactivated.
+
+The current Phase 4 implementation removes today's `HabitCompletion`.
 
 Once XP is introduced in Phase 5, undo performs the following changes:
 
@@ -1185,12 +1174,12 @@ A contract change is not complete until both sides are updated and verified.
 - `PUT /api/habits/{habitId}`
 - `DELETE /api/habits/{habitId}`
 
-## Phase 4
+## Implemented — Phase 4
 
 - `POST /api/habits/{habitId}/completions`
 - `DELETE /api/habits/{habitId}/completions/today`
 
-## Phase 5
+## Planned — Phase 5
 
 - `GET /api/attributes`
 

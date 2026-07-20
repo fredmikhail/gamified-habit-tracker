@@ -9,9 +9,10 @@ The application is being built in deliberate phases, beginning with a secure mul
 - Phase 1 — Project Setup: complete
 - Phase 2 — Authentication: complete
 - Phase 3 — Habit CRUD: complete
-- Next phase: Phase 4 — Habit Completion
+- Phase 4 — Habit Completion: complete
+- Next phase: Phase 5 — XP and Attributes
 
-The current application supports registration, login, logout, authenticated-session restoration, antiforgery protection, and private user-owned habit management. Authenticated users can create, list, edit, and soft-deactivate habits through the React frontend, ASP.NET Core API, Entity Framework Core, and PostgreSQL.
+The current application supports registration, login, logout, authenticated-session restoration, antiforgery protection, private user-owned habit management, and daily habit completion. Authenticated users can create, list, edit, soft-deactivate, complete, and undo today's completion through the React frontend, ASP.NET Core API, Entity Framework Core, and PostgreSQL. The backend derives each completion date from the user's stored time zone and exposes the current completion state through `isCompletedToday`.
 
 The current frontend is functional scaffolding. Phase 7 includes a substantial game-UI redesign with a modern, futuristic, intuitive visual system, responsive layouts, progression feedback, and purposeful animations while preserving backend ownership of business rules.
 
