@@ -121,4 +121,57 @@ public sealed class CompletionService
                 }
         };
     }
+
+    public async Task<bool> UndoTodayAsync(
+    Guid userId,
+    Guid habitId,
+    CancellationToken cancellationToken = default)
+    {
+        var habitExists =
+            await _dbContext.Habits.AnyAsync(
+                habit =>
+                    habit.Id == habitId
+                    && habit.UserId == userId,
+                cancellationToken);
+
+        if (!habitExists)
+        {
+            return false;
+        }
+
+        var timeZoneId =
+            await _dbContext.UserSettings
+                .Where(settings =>
+                    settings.UserId == userId)
+                .Select(settings =>
+                    settings.TimeZone)
+                .SingleAsync(cancellationToken);
+
+        var completedDate =
+            LocalDateCalculator.GetLocalDate(
+                _timeProvider.GetUtcNow(),
+                timeZoneId);
+
+        var completion =
+            await _dbContext.HabitCompletions
+                .SingleOrDefaultAsync(
+                    completion =>
+                        completion.HabitId == habitId
+                        && completion.CompletedDate
+                            == completedDate,
+                    cancellationToken);
+
+        if (completion is null)
+        {
+            return false;
+        }
+
+        _dbContext.HabitCompletions.Remove(
+            completion);
+
+        await _dbContext.SaveChangesAsync(
+            cancellationToken);
+
+        return true;
+    }
 }

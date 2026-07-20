@@ -602,6 +602,411 @@ public sealed class CompletionServiceTests
                     == new DateOnly(2026, 7, 19));
     }
 
+    [Fact]
+    public async Task UndoTodayAsync_WhenCompletionExistsToday_RemovesCompletionAndKeepsHabit()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var utcNow =
+            new DateTimeOffset(
+                2026,
+                7,
+                20,
+                2,
+                30,
+                0,
+                TimeSpan.Zero);
+
+        var userId = Guid.CreateVersion7();
+        var habitId = Guid.CreateVersion7();
+
+        dbContext.Users.Add(
+            new User
+            {
+                Id = userId,
+                Email = "fred@example.com",
+                NormalizedEmail = "FRED@EXAMPLE.COM",
+                Username = "fred",
+                NormalizedUsername = "FRED",
+                PasswordHash = "test-password-hash",
+                CreatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2)
+            });
+
+        dbContext.UserSettings.Add(
+            new UserSettings
+            {
+                UserId = userId,
+                DisplayName = "Fred",
+                TimeZone = "America/Toronto",
+                CreatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2),
+                UpdatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2)
+            });
+
+        dbContext.Habits.Add(
+            new Habit
+            {
+                Id = habitId,
+                UserId = userId,
+                Name = "Go to gym",
+                FrequencyType =
+                    HabitFrequencyType.Daily,
+                TargetCount = 1,
+                Difficulty =
+                    HabitDifficulty.Medium,
+                IsActive = true,
+                CreatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2),
+                UpdatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2)
+            });
+
+        dbContext.HabitCompletions.Add(
+            new HabitCompletion
+            {
+                UserId = userId,
+                HabitId = habitId,
+                CompletedDate =
+                    new DateOnly(2026, 7, 19),
+                CompletedAtUtc =
+                    utcNow.UtcDateTime.AddHours(-1)
+            });
+
+        await dbContext.SaveChangesAsync();
+
+        var completionService =
+            new CompletionService(
+                dbContext,
+                new FixedTimeProvider(utcNow));
+
+        var wasRemoved =
+            await completionService.UndoTodayAsync(
+                userId,
+                habitId);
+
+        Assert.True(wasRemoved);
+
+        Assert.DoesNotContain(
+            dbContext.HabitCompletions,
+            completion =>
+                completion.HabitId == habitId);
+
+        var savedHabit =
+            Assert.Single(
+                dbContext.Habits,
+                habit =>
+                    habit.Id == habitId);
+
+        Assert.True(savedHabit.IsActive);
+    }
+
+    [Fact]
+    public async Task UndoTodayAsync_WhenHabitIsInactive_RemovesTodaysCompletion()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var utcNow =
+            new DateTimeOffset(
+                2026,
+                7,
+                20,
+                2,
+                30,
+                0,
+                TimeSpan.Zero);
+
+        var userId = Guid.CreateVersion7();
+        var habitId = Guid.CreateVersion7();
+
+        dbContext.Users.Add(
+            new User
+            {
+                Id = userId,
+                Email = "fred@example.com",
+                NormalizedEmail = "FRED@EXAMPLE.COM",
+                Username = "fred",
+                NormalizedUsername = "FRED",
+                PasswordHash = "test-password-hash",
+                CreatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2)
+            });
+
+        dbContext.UserSettings.Add(
+            new UserSettings
+            {
+                UserId = userId,
+                DisplayName = "Fred",
+                TimeZone = "America/Toronto",
+                CreatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2),
+                UpdatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2)
+            });
+
+        dbContext.Habits.Add(
+            new Habit
+            {
+                Id = habitId,
+                UserId = userId,
+                Name = "Go to gym",
+                FrequencyType =
+                    HabitFrequencyType.Daily,
+                TargetCount = 1,
+                Difficulty =
+                    HabitDifficulty.Medium,
+                IsActive = false,
+                CreatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2),
+                UpdatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-1)
+            });
+
+        dbContext.HabitCompletions.Add(
+            new HabitCompletion
+            {
+                UserId = userId,
+                HabitId = habitId,
+                CompletedDate =
+                    new DateOnly(2026, 7, 19),
+                CompletedAtUtc =
+                    utcNow.UtcDateTime.AddHours(-1)
+            });
+
+        await dbContext.SaveChangesAsync();
+
+        var completionService =
+            new CompletionService(
+                dbContext,
+                new FixedTimeProvider(utcNow));
+
+        var wasRemoved =
+            await completionService.UndoTodayAsync(
+                userId,
+                habitId);
+
+        Assert.True(wasRemoved);
+
+        Assert.DoesNotContain(
+            dbContext.HabitCompletions,
+            completion =>
+                completion.HabitId == habitId);
+
+        var savedHabit =
+            Assert.Single(
+                dbContext.Habits,
+                habit =>
+                    habit.Id == habitId);
+
+        Assert.False(savedHabit.IsActive);
+    }
+
+    [Fact]
+    public async Task UndoTodayAsync_WhenHabitDoesNotExist_ReturnsFalse()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var completionService =
+            new CompletionService(
+                dbContext,
+                new FixedTimeProvider(
+                    new DateTimeOffset(
+                        2026,
+                        7,
+                        20,
+                        2,
+                        30,
+                        0,
+                        TimeSpan.Zero)));
+
+        var wasRemoved =
+            await completionService.UndoTodayAsync(
+                Guid.CreateVersion7(),
+                Guid.CreateVersion7());
+
+        Assert.False(wasRemoved);
+        Assert.Empty(dbContext.HabitCompletions);
+    }
+
+    [Fact]
+    public async Task UndoTodayAsync_WhenHabitBelongsToAnotherUser_ReturnsFalseAndKeepsCompletion()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var utcNow =
+            new DateTimeOffset(
+                2026,
+                7,
+                20,
+                2,
+                30,
+                0,
+                TimeSpan.Zero);
+
+        var ownerId = Guid.CreateVersion7();
+        var requestingUserId = Guid.CreateVersion7();
+        var habitId = Guid.CreateVersion7();
+
+        dbContext.Users.Add(
+            new User
+            {
+                Id = ownerId,
+                Email = "owner@example.com",
+                NormalizedEmail = "OWNER@EXAMPLE.COM",
+                Username = "owner",
+                NormalizedUsername = "OWNER",
+                PasswordHash = "test-password-hash",
+                CreatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2)
+            });
+
+        dbContext.Habits.Add(
+            new Habit
+            {
+                Id = habitId,
+                UserId = ownerId,
+                Name = "Private habit",
+                FrequencyType =
+                    HabitFrequencyType.Daily,
+                TargetCount = 1,
+                Difficulty =
+                    HabitDifficulty.Medium,
+                IsActive = true,
+                CreatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2),
+                UpdatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2)
+            });
+
+        dbContext.HabitCompletions.Add(
+            new HabitCompletion
+            {
+                UserId = ownerId,
+                HabitId = habitId,
+                CompletedDate =
+                    new DateOnly(2026, 7, 19),
+                CompletedAtUtc =
+                    utcNow.UtcDateTime.AddHours(-1)
+            });
+
+        await dbContext.SaveChangesAsync();
+
+        var completionService =
+            new CompletionService(
+                dbContext,
+                new FixedTimeProvider(utcNow));
+
+        var wasRemoved =
+            await completionService.UndoTodayAsync(
+                requestingUserId,
+                habitId);
+
+        Assert.False(wasRemoved);
+
+        Assert.Single(
+            dbContext.HabitCompletions,
+            completion =>
+                completion.HabitId == habitId);
+    }
+
+    [Fact]
+    public async Task UndoTodayAsync_WhenOnlyYesterdayCompletionExists_ReturnsFalseAndKeepsCompletion()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var utcNow =
+            new DateTimeOffset(
+                2026,
+                7,
+                20,
+                2,
+                30,
+                0,
+                TimeSpan.Zero);
+
+        var userId = Guid.CreateVersion7();
+        var habitId = Guid.CreateVersion7();
+
+        dbContext.Users.Add(
+            new User
+            {
+                Id = userId,
+                Email = "fred@example.com",
+                NormalizedEmail = "FRED@EXAMPLE.COM",
+                Username = "fred",
+                NormalizedUsername = "FRED",
+                PasswordHash = "test-password-hash",
+                CreatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2)
+            });
+
+        dbContext.UserSettings.Add(
+            new UserSettings
+            {
+                UserId = userId,
+                DisplayName = "Fred",
+                TimeZone = "America/Toronto",
+                CreatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2),
+                UpdatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2)
+            });
+
+        dbContext.Habits.Add(
+            new Habit
+            {
+                Id = habitId,
+                UserId = userId,
+                Name = "Go to gym",
+                FrequencyType =
+                    HabitFrequencyType.Daily,
+                TargetCount = 1,
+                Difficulty =
+                    HabitDifficulty.Medium,
+                IsActive = true,
+                CreatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2),
+                UpdatedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-2)
+            });
+
+        dbContext.HabitCompletions.Add(
+            new HabitCompletion
+            {
+                UserId = userId,
+                HabitId = habitId,
+                CompletedDate =
+                    new DateOnly(2026, 7, 18),
+                CompletedAtUtc =
+                    utcNow.UtcDateTime.AddDays(-1)
+            });
+
+        await dbContext.SaveChangesAsync();
+
+        var completionService =
+            new CompletionService(
+                dbContext,
+                new FixedTimeProvider(utcNow));
+
+        var wasRemoved =
+            await completionService.UndoTodayAsync(
+                userId,
+                habitId);
+
+        Assert.False(wasRemoved);
+
+        var remainingCompletion =
+            Assert.Single(
+                dbContext.HabitCompletions,
+                completion =>
+                    completion.HabitId == habitId);
+
+        Assert.Equal(
+            new DateOnly(2026, 7, 18),
+            remainingCompletion.CompletedDate);
+    }
+
     private static AppDbContext CreateDbContext()
     {
         var options =
