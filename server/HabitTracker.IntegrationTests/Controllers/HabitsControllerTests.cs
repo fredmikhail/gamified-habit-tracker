@@ -152,6 +152,8 @@ public sealed class HabitsControllerTests
 
         Assert.True(responseBody.IsActive);
 
+        Assert.False(responseBody.IsCompletedToday);
+
         Assert.NotEqual(
             default,
             responseBody.CreatedAtUtc);
@@ -282,6 +284,134 @@ public sealed class HabitsControllerTests
         Assert.Equal(
             "/api/habits",
             problemDetails.Instance);
+    }
+
+    [Fact]
+    public async Task GetUserHabits_AfterCompleteAndUndo_ReflectsCompletionStatus()
+    {
+        using var client = CreateClient();
+
+        var registration =
+            await RegisterAsync(client);
+
+        var habit =
+            await SeedHabitAsync(
+                registration.User.Id,
+                "Read C# textbook",
+                DateTime.UtcNow,
+                isActive: true);
+
+        var initialResponse =
+            await client.GetAsync("/api/habits");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            initialResponse.StatusCode);
+
+        var initialHabits =
+            await initialResponse.Content
+                .ReadFromJsonAsync<List<HabitResponse>>(
+                    _jsonOptions);
+
+        Assert.NotNull(initialHabits);
+
+        var initiallyIncompleteHabit =
+            Assert.Single(
+                initialHabits,
+                responseHabit =>
+                    responseHabit.Id == habit.Id);
+
+        Assert.False(
+            initiallyIncompleteHabit.IsCompletedToday);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(client);
+
+        using var completeRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                $"/api/habits/{habit.Id}/completions")
+            {
+                Content =
+                    JsonContent.Create(
+                        new CompleteHabitRequest(),
+                        options: _jsonOptions)
+            };
+
+        completeRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            csrfToken);
+
+        using var completeResponse =
+            await client.SendAsync(
+                completeRequest);
+
+        Assert.Equal(
+            HttpStatusCode.Created,
+            completeResponse.StatusCode);
+
+        var completedListResponse =
+            await client.GetAsync("/api/habits");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            completedListResponse.StatusCode);
+
+        var completedHabits =
+            await completedListResponse.Content
+                .ReadFromJsonAsync<List<HabitResponse>>(
+                    _jsonOptions);
+
+        Assert.NotNull(completedHabits);
+
+        var completedHabit =
+            Assert.Single(
+                completedHabits,
+                responseHabit =>
+                    responseHabit.Id == habit.Id);
+
+        Assert.True(
+            completedHabit.IsCompletedToday);
+
+        using var undoRequest =
+            new HttpRequestMessage(
+                HttpMethod.Delete,
+                $"/api/habits/{habit.Id}/completions/today");
+
+        undoRequest.Headers.Add(
+            "X-CSRF-TOKEN",
+            csrfToken);
+
+        using var undoResponse =
+            await client.SendAsync(
+                undoRequest);
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            undoResponse.StatusCode);
+
+        var undoneListResponse =
+            await client.GetAsync("/api/habits");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            undoneListResponse.StatusCode);
+
+        var undoneHabits =
+            await undoneListResponse.Content
+                .ReadFromJsonAsync<List<HabitResponse>>(
+                    _jsonOptions);
+
+        Assert.NotNull(undoneHabits);
+
+        var undoneHabit =
+            Assert.Single(
+                undoneHabits,
+                responseHabit =>
+                    responseHabit.Id == habit.Id);
+
+        Assert.False(
+            undoneHabit.IsCompletedToday);
     }
 
     [Fact]

@@ -20,6 +20,8 @@ public sealed class HabitResponse
 
     public bool IsActive { get; set; }
 
+    public bool IsCompletedToday { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
 
     public DateTime UpdatedAtUtc { get; set; }

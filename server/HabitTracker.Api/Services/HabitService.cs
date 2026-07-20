@@ -10,10 +10,14 @@ namespace HabitTracker.Api.Services;
 public sealed class HabitService
 {
     private readonly AppDbContext _dbContext;
+    private readonly TimeProvider _timeProvider;
 
-    public HabitService(AppDbContext dbContext)
+    public HabitService(
+        AppDbContext dbContext,
+        TimeProvider timeProvider)
     {
         _dbContext = dbContext;
+        _timeProvider = timeProvider;
     }
 
     public async Task<HabitResponse> CreateHabitAsync(
@@ -63,13 +67,15 @@ public sealed class HabitService
         await _dbContext.SaveChangesAsync(
             cancellationToken);
 
-        return CreateHabitResponse(habit);
+        return CreateHabitResponse(
+            habit,
+            isCompletedToday: false);
     }
 
     public async Task<IReadOnlyList<HabitResponse>> GetUserHabitsAsync(
-    Guid userId,
-    bool includeInactive = false,
-    CancellationToken cancellationToken = default)
+        Guid userId,
+        bool includeInactive = false,
+        CancellationToken cancellationToken = default)
     {
         var query =
             _dbContext.Habits
@@ -89,16 +95,39 @@ public sealed class HabitService
                 .ThenBy(habit => habit.Id)
                 .ToListAsync(cancellationToken);
 
+        var completedDate =
+            await GetUserLocalDateAsync(
+                userId,
+                cancellationToken);
+
+        var completedHabitIds =
+            await _dbContext.HabitCompletions
+                .AsNoTracking()
+                .Where(completion =>
+                    completion.UserId == userId
+                    && completion.CompletedDate
+                        == completedDate)
+                .Select(completion =>
+                    completion.HabitId)
+                .ToListAsync(cancellationToken);
+
+        var completedHabitIdSet =
+            completedHabitIds.ToHashSet();
+
         return habits
-            .Select(CreateHabitResponse)
+            .Select(habit =>
+                CreateHabitResponse(
+                    habit,
+                    completedHabitIdSet.Contains(
+                        habit.Id)))
             .ToList();
     }
 
     public async Task<HabitResponse?> UpdateHabitAsync(
-    Guid userId,
-    Guid habitId,
-    UpdateHabitRequest request,
-    CancellationToken cancellationToken = default)
+        Guid userId,
+        Guid habitId,
+        UpdateHabitRequest request,
+        CancellationToken cancellationToken = default)
     {
         var habit =
             await _dbContext.Habits
@@ -146,13 +175,21 @@ public sealed class HabitService
         await _dbContext.SaveChangesAsync(
             cancellationToken);
 
-        return CreateHabitResponse(habit);
+        var isCompletedToday =
+            await IsCompletedTodayAsync(
+                userId,
+                habitId,
+                cancellationToken);
+
+        return CreateHabitResponse(
+            habit,
+            isCompletedToday);
     }
 
     public async Task<HabitResponse?> DeactivateHabitAsync(
-    Guid userId,
-    Guid habitId,
-    CancellationToken cancellationToken = default)
+        Guid userId,
+        Guid habitId,
+        CancellationToken cancellationToken = default)
     {
         var habit =
             await _dbContext.Habits
@@ -167,18 +204,24 @@ public sealed class HabitService
             return null;
         }
 
-        if (!habit.IsActive)
+        if (habit.IsActive)
         {
-            return CreateHabitResponse(habit);
+            habit.IsActive = false;
+            habit.UpdatedAtUtc = DateTime.UtcNow;
+
+            await _dbContext.SaveChangesAsync(
+                cancellationToken);
         }
 
-        habit.IsActive = false;
-        habit.UpdatedAtUtc = DateTime.UtcNow;
+        var isCompletedToday =
+            await IsCompletedTodayAsync(
+                userId,
+                habitId,
+                cancellationToken);
 
-        await _dbContext.SaveChangesAsync(
-            cancellationToken);
-
-        return CreateHabitResponse(habit);
+        return CreateHabitResponse(
+            habit,
+            isCompletedToday);
     }
 
     public async Task<HabitResponse?> GetUserHabitAsync(
@@ -200,7 +243,53 @@ public sealed class HabitService
             return null;
         }
 
-        return CreateHabitResponse(habit);
+        var isCompletedToday =
+            await IsCompletedTodayAsync(
+                userId,
+                habitId,
+                cancellationToken);
+
+        return CreateHabitResponse(
+            habit,
+            isCompletedToday);
+    }
+
+    private async Task<DateOnly> GetUserLocalDateAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var timeZoneId =
+            await _dbContext.UserSettings
+                .Where(settings =>
+                    settings.UserId == userId)
+                .Select(settings =>
+                    settings.TimeZone)
+                .SingleAsync(cancellationToken);
+
+        return LocalDateCalculator.GetLocalDate(
+            _timeProvider.GetUtcNow(),
+            timeZoneId);
+    }
+
+    private async Task<bool> IsCompletedTodayAsync(
+        Guid userId,
+        Guid habitId,
+        CancellationToken cancellationToken)
+    {
+        var completedDate =
+            await GetUserLocalDateAsync(
+                userId,
+                cancellationToken);
+
+        return await _dbContext.HabitCompletions
+            .AsNoTracking()
+            .AnyAsync(
+                completion =>
+                    completion.UserId == userId
+                    && completion.HabitId == habitId
+                    && completion.CompletedDate
+                        == completedDate,
+                cancellationToken);
     }
 
     private static void ValidateTargetCount(
@@ -237,7 +326,8 @@ public sealed class HabitService
     }
 
     private static HabitResponse CreateHabitResponse(
-        Habit habit)
+        Habit habit,
+        bool isCompletedToday)
     {
         return new HabitResponse
         {
@@ -249,6 +339,7 @@ public sealed class HabitService
             TargetCount = habit.TargetCount,
             Difficulty = habit.Difficulty,
             IsActive = habit.IsActive,
+            IsCompletedToday = isCompletedToday,
             CreatedAtUtc = habit.CreatedAtUtc,
             UpdatedAtUtc = habit.UpdatedAtUtc
         };

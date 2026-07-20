@@ -15,7 +15,7 @@ public sealed class HabitServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
         var userId = Guid.CreateVersion7();
         var beforeCreationUtc = DateTime.UtcNow;
 
@@ -78,6 +78,7 @@ public sealed class HabitServiceTests
             savedHabit.Difficulty,
             response.Difficulty);
         Assert.Equal(savedHabit.IsActive, response.IsActive);
+        Assert.False(response.IsCompletedToday);
         Assert.Equal(
             savedHabit.CreatedAtUtc,
             response.CreatedAtUtc);
@@ -91,7 +92,7 @@ public sealed class HabitServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var request = CreateValidRequest();
 
@@ -117,7 +118,7 @@ public sealed class HabitServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var request = CreateValidRequest();
 
@@ -143,7 +144,7 @@ public sealed class HabitServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var request = CreateValidRequest();
 
@@ -165,6 +166,9 @@ public sealed class HabitServiceTests
         await using var dbContext = CreateDbContext();
 
         var userId = Guid.CreateVersion7();
+        AddUserWithSettings(
+            dbContext,
+            userId);
         var otherUserId = Guid.CreateVersion7();
         var baseTimestampUtc = DateTime.UtcNow.AddDays(-1);
 
@@ -204,7 +208,7 @@ public sealed class HabitServiceTests
 
         await dbContext.SaveChangesAsync();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var response =
             await habitService.GetUserHabitsAsync(
@@ -228,6 +232,9 @@ public sealed class HabitServiceTests
         await using var dbContext = CreateDbContext();
 
         var userId = Guid.CreateVersion7();
+        AddUserWithSettings(
+            dbContext,
+            userId);
         var baseTimestampUtc = DateTime.UtcNow.AddDays(-1);
 
         var olderActiveHabit =
@@ -266,7 +273,7 @@ public sealed class HabitServiceTests
 
         await dbContext.SaveChangesAsync();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var response =
             await habitService.GetUserHabitsAsync(
@@ -300,6 +307,10 @@ public sealed class HabitServiceTests
 
         var userId = Guid.CreateVersion7();
 
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
         var habit =
             CreateHabit(
                 userId,
@@ -310,7 +321,7 @@ public sealed class HabitServiceTests
         dbContext.Habits.Add(habit);
         await dbContext.SaveChangesAsync();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var response =
             await habitService.GetUserHabitAsync(
@@ -341,7 +352,7 @@ public sealed class HabitServiceTests
         dbContext.Habits.Add(habit);
         await dbContext.SaveChangesAsync();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var response =
             await habitService.GetUserHabitAsync(
@@ -356,7 +367,7 @@ public sealed class HabitServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var response =
             await habitService.GetUserHabitAsync(
@@ -367,11 +378,208 @@ public sealed class HabitServiceTests
     }
 
     [Fact]
+    public async Task GetUserHabitsAsync_WhenOneHabitIsCompletedToday_ReturnsCorrectCompletionStatus()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
+        var completedHabit =
+            CreateHabit(
+                userId,
+                "Completed habit",
+                DateTime.UtcNow.AddHours(-2),
+                isActive: true);
+
+        var incompleteHabit =
+            CreateHabit(
+                userId,
+                "Incomplete habit",
+                DateTime.UtcNow.AddHours(-1),
+                isActive: true);
+
+        dbContext.Habits.AddRange(
+            completedHabit,
+            incompleteHabit);
+
+        dbContext.HabitCompletions.Add(
+            new HabitCompletion
+            {
+                UserId = userId,
+                HabitId = completedHabit.Id,
+                CompletedDate =
+                    new DateOnly(2026, 7, 19),
+                CompletedAtUtc =
+                    new DateTime(
+                        2026,
+                        7,
+                        20,
+                        1,
+                        30,
+                        0,
+                        DateTimeKind.Utc)
+            });
+
+        await dbContext.SaveChangesAsync();
+
+        var habitService =
+            CreateHabitService(dbContext);
+
+        var response =
+            await habitService.GetUserHabitsAsync(
+                userId);
+
+        var completedHabitResponse =
+            Assert.Single(
+                response,
+                habit =>
+                    habit.Id == completedHabit.Id);
+
+        var incompleteHabitResponse =
+            Assert.Single(
+                response,
+                habit =>
+                    habit.Id == incompleteHabit.Id);
+
+        Assert.True(
+            completedHabitResponse.IsCompletedToday);
+
+        Assert.False(
+            incompleteHabitResponse.IsCompletedToday);
+    }
+
+    [Fact]
+    public async Task GetUserHabitAsync_WhenHabitIsCompletedToday_ReturnsCompletedStatus()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
+        var habit =
+            CreateHabit(
+                userId,
+                "Completed habit",
+                DateTime.UtcNow.AddDays(-1),
+                isActive: true);
+
+        dbContext.Habits.Add(habit);
+
+        dbContext.HabitCompletions.Add(
+            new HabitCompletion
+            {
+                UserId = userId,
+                HabitId = habit.Id,
+                CompletedDate =
+                    new DateOnly(2026, 7, 19),
+                CompletedAtUtc =
+                    new DateTime(
+                        2026,
+                        7,
+                        20,
+                        1,
+                        30,
+                        0,
+                        DateTimeKind.Utc)
+            });
+
+        await dbContext.SaveChangesAsync();
+
+        var habitService =
+            CreateHabitService(dbContext);
+
+        var response =
+            await habitService.GetUserHabitAsync(
+                userId,
+                habit.Id);
+
+        Assert.NotNull(response);
+        Assert.Equal(habit.Id, response.Id);
+        Assert.True(response.IsCompletedToday);
+    }
+
+    [Fact]
+    public async Task UpdateHabitAsync_WhenHabitIsCompletedToday_ReturnsCompletedStatus()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
+        var habit =
+            CreateHabit(
+                userId,
+                "Original habit",
+                DateTime.UtcNow.AddDays(-1),
+                isActive: true);
+
+        dbContext.Habits.Add(habit);
+
+        dbContext.HabitCompletions.Add(
+            new HabitCompletion
+            {
+                UserId = userId,
+                HabitId = habit.Id,
+                CompletedDate =
+                    new DateOnly(2026, 7, 19),
+                CompletedAtUtc =
+                    new DateTime(
+                        2026,
+                        7,
+                        20,
+                        1,
+                        30,
+                        0,
+                        DateTimeKind.Utc)
+            });
+
+        await dbContext.SaveChangesAsync();
+
+        var habitService =
+            CreateHabitService(dbContext);
+
+        var response =
+            await habitService.UpdateHabitAsync(
+                userId,
+                habit.Id,
+                new UpdateHabitRequest
+                {
+                    Name = "Updated habit",
+                    Description = null,
+                    Category = "Learning",
+                    FrequencyType =
+                        HabitFrequencyType.Daily,
+                    TargetCount = 1,
+                    Difficulty =
+                        HabitDifficulty.Medium
+                });
+
+        Assert.NotNull(response);
+        Assert.Equal("Updated habit", response.Name);
+        Assert.True(response.IsCompletedToday);
+    }
+
+    [Fact]
     public async Task UpdateHabitAsync_WhenHabitBelongsToUser_UpdatesEditableFieldsAndPreservesProtectedFields()
     {
         await using var dbContext = CreateDbContext();
 
         var userId = Guid.CreateVersion7();
+
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
         var createdAtUtc = DateTime.UtcNow.AddDays(-2);
         var previousUpdatedAtUtc = createdAtUtc.AddDays(1);
 
@@ -394,7 +602,7 @@ public sealed class HabitServiceTests
         var originalCreatedAtUtc = habit.CreatedAtUtc;
         var originalIsActive = habit.IsActive;
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var request = new UpdateHabitRequest
         {
@@ -478,6 +686,10 @@ public sealed class HabitServiceTests
 
         var userId = Guid.CreateVersion7();
 
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
         var habit =
             CreateHabit(
                 userId,
@@ -491,7 +703,7 @@ public sealed class HabitServiceTests
         dbContext.Habits.Add(habit);
         await dbContext.SaveChangesAsync();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var request = new UpdateHabitRequest
         {
@@ -537,7 +749,7 @@ public sealed class HabitServiceTests
         dbContext.Habits.Add(habit);
         await dbContext.SaveChangesAsync();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var request = new UpdateHabitRequest
         {
@@ -571,7 +783,7 @@ public sealed class HabitServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var response =
             await habitService.UpdateHabitAsync(
@@ -601,7 +813,7 @@ public sealed class HabitServiceTests
         dbContext.Habits.Add(habit);
         await dbContext.SaveChangesAsync();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var request = CreateValidUpdateRequest();
         request.Name = "   ";
@@ -641,7 +853,7 @@ public sealed class HabitServiceTests
         dbContext.Habits.Add(habit);
         await dbContext.SaveChangesAsync();
 
-        var habitService = new HabitService(dbContext);
+        var habitService = CreateHabitService(dbContext);
 
         var request = CreateValidUpdateRequest();
         request.FrequencyType = frequencyType;
@@ -668,6 +880,11 @@ public sealed class HabitServiceTests
         await using var dbContext = CreateDbContext();
 
         var userId = Guid.CreateVersion7();
+
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
         var createdAtUtc = DateTime.UtcNow.AddDays(-2);
         var previousUpdatedAtUtc =
             DateTime.UtcNow.AddDays(-1);
@@ -691,7 +908,7 @@ public sealed class HabitServiceTests
         var originalName = habit.Name;
 
         var habitService =
-            new HabitService(dbContext);
+            CreateHabitService(dbContext);
 
         var response =
             await habitService.DeactivateHabitAsync(
@@ -737,6 +954,11 @@ public sealed class HabitServiceTests
         await using var dbContext = CreateDbContext();
 
         var userId = Guid.CreateVersion7();
+
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
         var createdAtUtc =
             DateTime.UtcNow.AddDays(-2);
         var previousUpdatedAtUtc =
@@ -756,7 +978,7 @@ public sealed class HabitServiceTests
         await dbContext.SaveChangesAsync();
 
         var habitService =
-            new HabitService(dbContext);
+            CreateHabitService(dbContext);
 
         var response =
             await habitService.DeactivateHabitAsync(
@@ -806,7 +1028,7 @@ public sealed class HabitServiceTests
         await dbContext.SaveChangesAsync();
 
         var habitService =
-            new HabitService(dbContext);
+            CreateHabitService(dbContext);
 
         var response =
             await habitService.DeactivateHabitAsync(
@@ -828,7 +1050,7 @@ public sealed class HabitServiceTests
         await using var dbContext = CreateDbContext();
 
         var habitService =
-            new HabitService(dbContext);
+            CreateHabitService(dbContext);
 
         var response =
             await habitService.DeactivateHabitAsync(
@@ -837,6 +1059,82 @@ public sealed class HabitServiceTests
 
         Assert.Null(response);
         Assert.Empty(dbContext.Habits);
+    }
+
+    [Fact]
+    public async Task DeactivateHabitAsync_WhenHabitIsCompletedToday_ReturnsCompletedStatus()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
+        var habit =
+            CreateHabit(
+                userId,
+                "Completed habit",
+                DateTime.UtcNow.AddDays(-1),
+                isActive: true);
+
+        dbContext.Habits.Add(habit);
+
+        dbContext.HabitCompletions.Add(
+            new HabitCompletion
+            {
+                UserId = userId,
+                HabitId = habit.Id,
+                CompletedDate =
+                    new DateOnly(2026, 7, 19),
+                CompletedAtUtc =
+                    new DateTime(
+                        2026,
+                        7,
+                        20,
+                        1,
+                        30,
+                        0,
+                        DateTimeKind.Utc)
+            });
+
+        await dbContext.SaveChangesAsync();
+
+        var habitService =
+            CreateHabitService(dbContext);
+
+        var response =
+            await habitService.DeactivateHabitAsync(
+                userId,
+                habit.Id);
+
+        Assert.NotNull(response);
+        Assert.False(response.IsActive);
+        Assert.True(response.IsCompletedToday);
+
+        Assert.Single(
+            dbContext.HabitCompletions,
+            completion =>
+                completion.HabitId == habit.Id);
+    }
+
+    private static HabitService CreateHabitService(
+        AppDbContext dbContext)
+    {
+        var utcNow =
+            new DateTimeOffset(
+                2026,
+                7,
+                20,
+                2,
+                30,
+                0,
+                TimeSpan.Zero);
+
+        return new HabitService(
+            dbContext,
+            new FixedTimeProvider(utcNow));
     }
 
     private static AppDbContext CreateDbContext()
@@ -850,11 +1148,64 @@ public sealed class HabitServiceTests
         return new AppDbContext(options);
     }
 
+    private static void AddUserWithSettings(
+    AppDbContext dbContext,
+    Guid userId)
+    {
+        var timestampUtc =
+            new DateTime(
+                2026,
+                7,
+                1,
+                12,
+                0,
+                0,
+                DateTimeKind.Utc);
+
+        var uniqueSuffix =
+            userId.ToString("N");
+
+        var user = new User
+        {
+            Id = userId,
+            Email =
+                $"user_{uniqueSuffix}@example.com",
+            NormalizedEmail =
+                $"USER_{uniqueSuffix}@EXAMPLE.COM",
+            Username =
+                $"user_{uniqueSuffix[..8]}",
+            NormalizedUsername =
+                $"USER_{uniqueSuffix[..8]}",
+            PasswordHash =
+                "test-password-hash",
+            CreatedAtUtc =
+                timestampUtc
+        };
+
+        var settings = new UserSettings
+        {
+            UserId = userId,
+            DisplayName =
+                $"User {uniqueSuffix[..8]}",
+            TimeZone =
+                "America/Toronto",
+            CreatedAtUtc =
+                timestampUtc,
+            UpdatedAtUtc =
+                timestampUtc,
+            User = user
+        };
+
+        user.UserSettings = settings;
+
+        dbContext.Users.Add(user);
+    }
+
     private static Habit CreateHabit(
-    Guid userId,
-    string name,
-    DateTime createdAtUtc,
-    bool isActive)
+        Guid userId,
+        string name,
+        DateTime createdAtUtc,
+        bool isActive)
     {
         return new Habit
         {
@@ -897,5 +1248,22 @@ public sealed class HabitServiceTests
             Difficulty =
                 HabitDifficulty.Hard
         };
+    }
+
+    private sealed class FixedTimeProvider
+        : TimeProvider
+    {
+        private readonly DateTimeOffset _utcNow;
+
+        public FixedTimeProvider(
+            DateTimeOffset utcNow)
+        {
+            _utcNow = utcNow;
+        }
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            return _utcNow;
+        }
     }
 }
