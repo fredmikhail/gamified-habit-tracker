@@ -87,6 +87,8 @@ builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.AddScoped<AuthService>();
 
+builder.Services.AddScoped<XpService>();
+
 builder.Services.AddScoped<HabitService>();
 
 builder.Services.AddScoped<CompletionService>();

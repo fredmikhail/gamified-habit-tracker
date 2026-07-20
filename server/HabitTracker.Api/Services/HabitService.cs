@@ -11,13 +11,16 @@ public sealed class HabitService
 {
     private readonly AppDbContext _dbContext;
     private readonly TimeProvider _timeProvider;
+    private readonly XpService _xpService;
 
     public HabitService(
         AppDbContext dbContext,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        XpService xpService)
     {
         _dbContext = dbContext;
         _timeProvider = timeProvider;
+        _xpService = xpService;
     }
 
     public async Task<HabitResponse> CreateHabitAsync(
@@ -60,6 +63,8 @@ public sealed class HabitService
             CreatedAtUtc = createdAtUtc,
             UpdatedAtUtc = createdAtUtc
         };
+
+        SynchronizeAttributeRewards(habit);
 
         _dbContext.Habits.Add(habit);
 
@@ -129,8 +134,10 @@ public sealed class HabitService
         CancellationToken cancellationToken = default)
     {
         var habit =
-            await _dbContext.Habits
-                .SingleOrDefaultAsync(
+    await _dbContext.Habits
+        .Include(habit =>
+            habit.HabitAttributeRewards)
+        .SingleOrDefaultAsync(
                     habit =>
                         habit.Id == habitId
                         && habit.UserId == userId,
@@ -169,6 +176,8 @@ public sealed class HabitService
         habit.TargetCount = targetCount;
         habit.Difficulty = difficulty;
         habit.UpdatedAtUtc = DateTime.UtcNow;
+
+        SynchronizeAttributeRewards(habit);
 
         await _dbContext.SaveChangesAsync(
             cancellationToken);
@@ -309,6 +318,52 @@ public sealed class HabitService
         if (!isValid)
         {
             throw new InvalidHabitTargetCountException();
+        }
+    }
+
+    private void SynchronizeAttributeRewards(
+    Habit habit)
+    {
+        var calculatedRewards =
+            _xpService.CalculateRewards(
+                habit.Category,
+                habit.Difficulty);
+
+        var obsoleteRewards =
+            habit.HabitAttributeRewards
+                .Where(reward =>
+                    !calculatedRewards.ContainsKey(
+                        reward.AttributeType))
+                .ToList();
+
+        _dbContext.HabitAttributeRewards.RemoveRange(
+            obsoleteRewards);
+
+        foreach (var calculatedReward in calculatedRewards)
+        {
+            var existingReward =
+                habit.HabitAttributeRewards
+                    .SingleOrDefault(reward =>
+                        reward.AttributeType
+                            == calculatedReward.Key);
+
+            if (existingReward is null)
+            {
+                habit.HabitAttributeRewards.Add(
+                    new HabitAttributeReward
+                    {
+                        HabitId = habit.Id,
+                        AttributeType =
+                            calculatedReward.Key,
+                        XpAmount =
+                            calculatedReward.Value
+                    });
+
+                continue;
+            }
+
+            existingReward.XpAmount =
+                calculatedReward.Value;
         }
     }
 

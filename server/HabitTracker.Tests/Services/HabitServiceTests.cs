@@ -55,6 +55,24 @@ public sealed class HabitServiceTests
             savedHabit.Difficulty);
         Assert.True(savedHabit.IsActive);
 
+        var savedRewards =
+    dbContext.HabitAttributeRewards
+        .Where(reward =>
+            reward.HabitId == savedHabit.Id)
+        .ToDictionary(
+            reward => reward.AttributeType,
+            reward => reward.XpAmount);
+
+        Assert.Equal(2, savedRewards.Count);
+
+        Assert.Equal(
+            35,
+            savedRewards[AttributeType.Fitness]);
+
+        Assert.Equal(
+            15,
+            savedRewards[AttributeType.Discipline]);
+
         Assert.InRange(
             savedHabit.CreatedAtUtc,
             beforeCreationUtc,
@@ -594,6 +612,24 @@ public sealed class HabitServiceTests
     HabitCategory.GeneralGrowth;
         habit.UpdatedAtUtc = previousUpdatedAtUtc;
 
+        habit.HabitAttributeRewards.Add(
+    new HabitAttributeReward
+    {
+        HabitId = habit.Id,
+        AttributeType =
+            AttributeType.Discipline,
+        XpAmount = 14
+    });
+
+        habit.HabitAttributeRewards.Add(
+            new HabitAttributeReward
+            {
+                HabitId = habit.Id,
+                AttributeType =
+                    AttributeType.Mind,
+                XpAmount = 6
+            });
+
         dbContext.Habits.Add(habit);
         await dbContext.SaveChangesAsync();
 
@@ -651,6 +687,28 @@ public sealed class HabitServiceTests
         Assert.Equal(
             HabitDifficulty.Elite,
             savedHabit.Difficulty);
+
+        var savedRewards =
+dbContext.HabitAttributeRewards
+    .Where(reward =>
+        reward.HabitId == savedHabit.Id)
+    .ToDictionary(
+        reward => reward.AttributeType,
+        reward => reward.XpAmount);
+
+        Assert.Equal(2, savedRewards.Count);
+
+        Assert.Equal(
+            35,
+            savedRewards[AttributeType.Mind]);
+
+        Assert.Equal(
+            15,
+            savedRewards[AttributeType.Focus]);
+
+        Assert.DoesNotContain(
+            AttributeType.Discipline,
+            savedRewards.Keys);
 
         Assert.True(
             savedHabit.UpdatedAtUtc
@@ -1134,8 +1192,9 @@ public sealed class HabitServiceTests
                 TimeSpan.Zero);
 
         return new HabitService(
-            dbContext,
-            new FixedTimeProvider(utcNow));
+    dbContext,
+    new FixedTimeProvider(utcNow),
+    new XpService());
     }
 
     private static AppDbContext CreateDbContext()
