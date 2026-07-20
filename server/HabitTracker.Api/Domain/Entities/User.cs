@@ -20,11 +20,15 @@ public sealed class User
 
     public UserSettings UserSettings { get; set; } = null!;
 
-    public ICollection<Habit> Habits { get; set; } = new List<Habit>();
+    public ICollection<Habit> Habits { get; set; }
+        = new List<Habit>();
 
     public ICollection<HabitCompletion> HabitCompletions { get; set; }
         = new List<HabitCompletion>();
 
     public ICollection<UserAttribute> UserAttributes { get; set; }
         = new List<UserAttribute>();
+
+    public ICollection<XpTransaction> XpTransactions { get; set; }
+        = new List<XpTransaction>();
 }

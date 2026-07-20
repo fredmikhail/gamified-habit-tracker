@@ -25,6 +25,9 @@ public sealed class AppDbContext : DbContext
     public DbSet<HabitAttributeReward> HabitAttributeRewards =>
         Set<HabitAttributeReward>();
 
+    public DbSet<XpTransaction> XpTransactions =>
+        Set<XpTransaction>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

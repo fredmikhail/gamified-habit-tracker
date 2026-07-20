@@ -17,4 +17,7 @@ public sealed class HabitCompletion
     public User User { get; set; } = null!;
 
     public Habit Habit { get; set; } = null!;
+
+    public ICollection<XpTransaction> XpTransactions { get; set; }
+        = new List<XpTransaction>();
 }
