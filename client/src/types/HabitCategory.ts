@@ -1,0 +1,13 @@
+export type HabitCategory =
+  | 'fitnessAndMovement'
+  | 'healthAndRecovery'
+  | 'learningAndSkills'
+  | 'workAndCareer'
+  | 'dailyLifeAndOrganization'
+  | 'moneyAndFinance'
+  | 'relationshipsAndCommunity'
+  | 'emotionalWellBeing'
+  | 'spiritualityAndPurpose'
+  | 'creativityAndRecreation'
+  | 'selfControlAndBoundaries'
+  | 'generalGrowth'

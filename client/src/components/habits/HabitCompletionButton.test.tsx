@@ -1,7 +1,10 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { completeHabit, undoHabitCompletion } from '../../api/habitsApi'
+import {
+  completeHabit,
+  undoHabitCompletion,
+} from '../../api/habitsApi'
 import type { HabitResponse } from '../../types/HabitResponse'
 import { HabitCompletionButton } from './HabitCompletionButton'
 
@@ -11,13 +14,15 @@ vi.mock('../../api/habitsApi', () => ({
 }))
 
 const completeHabitMock = vi.mocked(completeHabit)
-const undoHabitCompletionMock = vi.mocked(undoHabitCompletion)
+const undoHabitCompletionMock = vi.mocked(
+  undoHabitCompletion,
+)
 
 const existingHabit: HabitResponse = {
   id: '019c0000-0000-7000-8000-000000000001',
   name: 'Read C# textbook',
   description: 'Read one chapter.',
-  category: 'Learning',
+  category: 'learningAndSkills',
   frequencyType: 'daily',
   targetCount: 1,
   difficulty: 'medium',
@@ -45,7 +50,10 @@ describe('HabitCompletionButton', () => {
       name: 'Mark complete',
     })
 
-    expect(button).toHaveAttribute('aria-pressed', 'false')
+    expect(button).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
   })
 
   it('completes the habit and reports the new status', async () => {
@@ -65,7 +73,9 @@ describe('HabitCompletionButton', () => {
     render(
       <HabitCompletionButton
         habit={existingHabit}
-        onCompletionStatusChanged={onCompletionStatusChanged}
+        onCompletionStatusChanged={
+          onCompletionStatusChanged
+        }
       />,
     )
 
@@ -77,13 +87,20 @@ describe('HabitCompletionButton', () => {
 
     expect(completeHabitMock).toHaveBeenCalledTimes(1)
 
-    expect(completeHabitMock).toHaveBeenCalledWith(existingHabit.id, {
-      notes: null,
-    })
+    expect(completeHabitMock).toHaveBeenCalledWith(
+      existingHabit.id,
+      {
+        notes: null,
+      },
+    )
 
-    expect(undoHabitCompletionMock).not.toHaveBeenCalled()
+    expect(
+      undoHabitCompletionMock,
+    ).not.toHaveBeenCalled()
 
-    expect(onCompletionStatusChanged).toHaveBeenCalledWith({
+    expect(
+      onCompletionStatusChanged,
+    ).toHaveBeenCalledWith({
       ...existingHabit,
       isCompletedToday: true,
     })
@@ -103,7 +120,9 @@ describe('HabitCompletionButton', () => {
     render(
       <HabitCompletionButton
         habit={completedHabit}
-        onCompletionStatusChanged={onCompletionStatusChanged}
+        onCompletionStatusChanged={
+          onCompletionStatusChanged
+        }
       />,
     )
 
@@ -111,17 +130,26 @@ describe('HabitCompletionButton', () => {
       name: 'Undo completion',
     })
 
-    expect(button).toHaveAttribute('aria-pressed', 'true')
+    expect(button).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
 
     await user.click(button)
 
-    expect(undoHabitCompletionMock).toHaveBeenCalledTimes(1)
+    expect(
+      undoHabitCompletionMock,
+    ).toHaveBeenCalledTimes(1)
 
-    expect(undoHabitCompletionMock).toHaveBeenCalledWith(completedHabit.id)
+    expect(
+      undoHabitCompletionMock,
+    ).toHaveBeenCalledWith(completedHabit.id)
 
     expect(completeHabitMock).not.toHaveBeenCalled()
 
-    expect(onCompletionStatusChanged).toHaveBeenCalledWith({
+    expect(
+      onCompletionStatusChanged,
+    ).toHaveBeenCalledWith({
       ...completedHabit,
       isCompletedToday: false,
     })
@@ -132,13 +160,17 @@ describe('HabitCompletionButton', () => {
     const onCompletionStatusChanged = vi.fn()
 
     completeHabitMock.mockRejectedValue(
-      new Error('This habit has already been completed for today.'),
+      new Error(
+        'This habit has already been completed for today.',
+      ),
     )
 
     render(
       <HabitCompletionButton
         habit={existingHabit}
-        onCompletionStatusChanged={onCompletionStatusChanged}
+        onCompletionStatusChanged={
+          onCompletionStatusChanged
+        }
       />,
     )
 
@@ -148,10 +180,14 @@ describe('HabitCompletionButton', () => {
       }),
     )
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
+    expect(
+      await screen.findByRole('alert'),
+    ).toHaveTextContent(
       'Habit completion error: This habit has already been completed for today.',
     )
 
-    expect(onCompletionStatusChanged).not.toHaveBeenCalled()
+    expect(
+      onCompletionStatusChanged,
+    ).not.toHaveBeenCalled()
   })
 })

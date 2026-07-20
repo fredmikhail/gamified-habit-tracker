@@ -33,7 +33,8 @@ public sealed class HabitJsonContractTests
             Id = Guid.CreateVersion7(),
             Name = "Go to gym",
             Description = "Complete a planned gym session.",
-            Category = "Fitness",
+            Category =
+    HabitCategory.FitnessAndMovement,
             FrequencyType = HabitFrequencyType.Weekly,
             TargetCount = 3,
             Difficulty = HabitDifficulty.Elite,
@@ -53,6 +54,10 @@ public sealed class HabitJsonContractTests
         var root = document.RootElement;
 
         Assert.Equal(
+   "fitnessAndMovement",
+   root.GetProperty("category").GetString());
+
+        Assert.Equal(
             "weekly",
             root.GetProperty("frequencyType").GetString());
 
@@ -69,7 +74,7 @@ public sealed class HabitJsonContractTests
             {
               "name": "Go to gym",
               "description": null,
-              "category": "Fitness",
+              "category": "fitnessAndMovement",
               "frequencyType": "weekly",
               "targetCount": 3,
               "difficulty": "elite"
@@ -82,6 +87,10 @@ public sealed class HabitJsonContractTests
                 _jsonOptions);
 
         Assert.NotNull(request);
+
+        Assert.Equal(
+            HabitCategory.FitnessAndMovement,
+            request.Category);
 
         Assert.Equal(
             HabitFrequencyType.Weekly,

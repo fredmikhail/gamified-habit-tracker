@@ -24,7 +24,9 @@ public sealed class HabitConfiguration : IEntityTypeConfiguration<Habit>
             .HasMaxLength(500);
 
         builder.Property(habit => habit.Category)
-            .HasMaxLength(50);
+    .HasConversion<string>()
+    .HasMaxLength(50)
+    .IsRequired();
 
         builder.Property(habit => habit.FrequencyType)
             .HasConversion<string>()

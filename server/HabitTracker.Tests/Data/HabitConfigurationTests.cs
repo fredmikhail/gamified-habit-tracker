@@ -42,8 +42,16 @@ public sealed class HabitConfigurationTests
         Assert.True(descriptionProperty.IsNullable);
         Assert.Equal(500, descriptionProperty.GetMaxLength());
 
-        Assert.True(categoryProperty.IsNullable);
+        Assert.False(categoryProperty.IsNullable);
         Assert.Equal(50, categoryProperty.GetMaxLength());
+
+        var categoryConverter =
+            categoryProperty.GetTypeMapping().Converter;
+
+        Assert.NotNull(categoryConverter);
+        Assert.Equal(
+            typeof(string),
+            categoryConverter.ProviderClrType);
 
         Assert.False(frequencyProperty.IsNullable);
         Assert.Equal(20, frequencyProperty.GetMaxLength());

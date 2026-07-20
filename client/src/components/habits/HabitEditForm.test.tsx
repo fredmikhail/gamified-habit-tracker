@@ -15,7 +15,7 @@ const existingHabit: HabitResponse = {
   id: '019c0000-0000-7000-8000-000000000001',
   name: 'Read C# textbook',
   description: 'Read one chapter.',
-  category: 'Learning',
+  category: 'learningAndSkills',
   frequencyType: 'weekly',
   targetCount: 3,
   difficulty: 'medium',
@@ -39,29 +39,41 @@ describe('HabitEditForm', () => {
       />,
     )
 
-    expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue(
-      'Read C# textbook',
-    )
-
-    expect(screen.getByRole('textbox', { name: 'Description' })).toHaveValue(
-      'Read one chapter.',
-    )
-
-    expect(screen.getByRole('textbox', { name: 'Category' })).toHaveValue(
-      'Learning',
-    )
-
-    expect(screen.getByRole('combobox', { name: 'Frequency' })).toHaveValue(
-      'weekly',
-    )
+    expect(
+      screen.getByRole('textbox', {
+        name: 'Name',
+      }),
+    ).toHaveValue('Read C# textbook')
 
     expect(
-      screen.getByRole('spinbutton', { name: 'Times per week' }),
+      screen.getByRole('textbox', {
+        name: 'Description',
+      }),
+    ).toHaveValue('Read one chapter.')
+
+    expect(
+      screen.getByRole('combobox', {
+        name: 'Category',
+      }),
+    ).toHaveValue('learningAndSkills')
+
+    expect(
+      screen.getByRole('combobox', {
+        name: 'Frequency',
+      }),
+    ).toHaveValue('weekly')
+
+    expect(
+      screen.getByRole('spinbutton', {
+        name: 'Times per week',
+      }),
     ).toHaveValue(3)
 
-    expect(screen.getByRole('combobox', { name: 'Difficulty' })).toHaveValue(
-      'medium',
-    )
+    expect(
+      screen.getByRole('combobox', {
+        name: 'Difficulty',
+      }),
+    ).toHaveValue('medium')
   })
 
   it('submits the changed values and reports the updated habit', async () => {
@@ -70,9 +82,9 @@ describe('HabitEditForm', () => {
 
     const updatedHabit: HabitResponse = {
       ...existingHabit,
-      name: 'Read TypeScript book',
+      name: 'Build TypeScript portfolio',
       description: null,
-      category: 'Programming',
+      category: 'workAndCareer',
       frequencyType: 'daily',
       targetCount: 1,
       difficulty: 'hard',
@@ -89,25 +101,40 @@ describe('HabitEditForm', () => {
       />,
     )
 
-    const nameInput = screen.getByRole('textbox', { name: 'Name' })
+    const nameInput = screen.getByRole('textbox', {
+      name: 'Name',
+    })
 
     await user.clear(nameInput)
-    await user.type(nameInput, 'Read TypeScript book')
+    await user.type(
+      nameInput,
+      'Build TypeScript portfolio',
+    )
 
-    await user.clear(screen.getByRole('textbox', { name: 'Description' }))
-
-    const categoryInput = screen.getByRole('textbox', { name: 'Category' })
-
-    await user.clear(categoryInput)
-    await user.type(categoryInput, 'Programming')
+    await user.clear(
+      screen.getByRole('textbox', {
+        name: 'Description',
+      }),
+    )
 
     await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Frequency' }),
+      screen.getByRole('combobox', {
+        name: 'Category',
+      }),
+      'workAndCareer',
+    )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', {
+        name: 'Frequency',
+      }),
       'daily',
     )
 
     await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Difficulty' }),
+      screen.getByRole('combobox', {
+        name: 'Difficulty',
+      }),
       'hard',
     )
 
@@ -119,23 +146,31 @@ describe('HabitEditForm', () => {
 
     expect(updateHabitMock).toHaveBeenCalledTimes(1)
 
-    expect(updateHabitMock).toHaveBeenCalledWith(existingHabit.id, {
-      name: 'Read TypeScript book',
-      description: null,
-      category: 'Programming',
-      frequencyType: 'daily',
-      targetCount: 1,
-      difficulty: 'hard',
-    })
+    expect(updateHabitMock).toHaveBeenCalledWith(
+      existingHabit.id,
+      {
+        name: 'Build TypeScript portfolio',
+        description: null,
+        category: 'workAndCareer',
+        frequencyType: 'daily',
+        targetCount: 1,
+        difficulty: 'hard',
+      },
+    )
 
-    expect(onHabitUpdated).toHaveBeenCalledWith(updatedHabit)
+    expect(onHabitUpdated).toHaveBeenCalledWith(
+      updatedHabit,
+    )
   })
 
   it('shows the pending state while the update is running', async () => {
     const user = userEvent.setup()
 
     updateHabitMock.mockImplementation(
-      () => new Promise<HabitResponse>(() => undefined),
+      () =>
+        new Promise<HabitResponse>(
+          () => undefined,
+        ),
     )
 
     render(
@@ -169,7 +204,9 @@ describe('HabitEditForm', () => {
     const user = userEvent.setup()
 
     updateHabitMock.mockRejectedValue(
-      new Error('Daily habits must have a target count of 1.'),
+      new Error(
+        'Daily habits must have a target count of 1.',
+      ),
     )
 
     render(
@@ -186,7 +223,9 @@ describe('HabitEditForm', () => {
       }),
     )
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
+    expect(
+      await screen.findByRole('alert'),
+    ).toHaveTextContent(
       'Habit update error: Daily habits must have a target count of 1.',
     )
   })

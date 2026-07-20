@@ -85,7 +85,8 @@ public sealed class HabitsControllerTests
                 Name = "  Go to gym  ",
                 Description =
                     "  Complete a planned gym session.  ",
-                Category = "  Fitness  ",
+                Category =
+    HabitCategory.FitnessAndMovement,
                 FrequencyType =
                     HabitFrequencyType.Weekly,
                 TargetCount = 3,
@@ -135,7 +136,7 @@ public sealed class HabitsControllerTests
             responseBody.Description);
 
         Assert.Equal(
-            "Fitness",
+            HabitCategory.FitnessAndMovement,
             responseBody.Category);
 
         Assert.Equal(
@@ -715,7 +716,8 @@ public sealed class HabitsControllerTests
                 Name = "  Updated habit name  ",
                 Description =
                     "  Updated description  ",
-                Category = "  Fitness  ",
+                Category =
+    HabitCategory.FitnessAndMovement,
                 FrequencyType =
                     HabitFrequencyType.Weekly,
                 TargetCount = 4,
@@ -749,7 +751,7 @@ public sealed class HabitsControllerTests
             "Updated description",
             responseBody.Description);
         Assert.Equal(
-            "Fitness",
+            HabitCategory.FitnessAndMovement,
             responseBody.Category);
         Assert.Equal(
             HabitFrequencyType.Weekly,
@@ -1393,6 +1395,8 @@ public sealed class HabitsControllerTests
         {
             UserId = userId,
             Name = name,
+            Category =
+        HabitCategory.GeneralGrowth,
             FrequencyType =
                 HabitFrequencyType.Daily,
             TargetCount = 1,
@@ -1438,7 +1442,8 @@ public sealed class HabitsControllerTests
         {
             Name = "Read C# textbook",
             Description = "Read one chapter.",
-            Category = "Learning",
+            Category =
+    HabitCategory.LearningAndSkills,
             FrequencyType =
                 HabitFrequencyType.Daily,
             TargetCount = 1,
@@ -1453,7 +1458,8 @@ public sealed class HabitsControllerTests
         {
             Name = "Updated habit",
             Description = "Updated description",
-            Category = "Learning",
+            Category =
+                HabitCategory.LearningAndSkills,
             FrequencyType =
                 HabitFrequencyType.Weekly,
             TargetCount = 3,

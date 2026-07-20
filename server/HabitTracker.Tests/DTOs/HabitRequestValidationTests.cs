@@ -39,6 +39,10 @@ public sealed class HabitRequestValidationTests
 
         AssertHasValidationErrorFor(
             validationResults,
+            nameof(CreateHabitRequest.Category));
+
+        AssertHasValidationErrorFor(
+            validationResults,
             nameof(CreateHabitRequest.FrequencyType));
 
         AssertHasValidationErrorFor(
@@ -57,7 +61,6 @@ public sealed class HabitRequestValidationTests
 
         request.Name = new string('n', 101);
         request.Description = new string('d', 501);
-        request.Category = new string('c', 51);
 
         var validationResults = Validate(request);
 
@@ -69,9 +72,6 @@ public sealed class HabitRequestValidationTests
             validationResults,
             nameof(CreateHabitRequest.Description));
 
-        AssertHasValidationErrorFor(
-            validationResults,
-            nameof(CreateHabitRequest.Category));
     }
 
     [Theory]
@@ -99,6 +99,9 @@ public sealed class HabitRequestValidationTests
         request.FrequencyType =
             (HabitFrequencyType)999;
 
+        request.Category =
+            (HabitCategory)999;
+
         request.Difficulty =
             (HabitDifficulty)999;
 
@@ -107,6 +110,10 @@ public sealed class HabitRequestValidationTests
         AssertHasValidationErrorFor(
             validationResults,
             nameof(CreateHabitRequest.FrequencyType));
+
+        AssertHasValidationErrorFor(
+            validationResults,
+            nameof(CreateHabitRequest.Category));
 
         AssertHasValidationErrorFor(
             validationResults,
@@ -120,7 +127,7 @@ public sealed class HabitRequestValidationTests
         {
             Name = string.Empty,
             Description = new string('d', 501),
-            Category = new string('c', 51),
+            Category = (HabitCategory)999,
             FrequencyType = (HabitFrequencyType)999,
             TargetCount = 8,
             Difficulty = (HabitDifficulty)999
@@ -159,7 +166,7 @@ public sealed class HabitRequestValidationTests
         {
             Name = "Read C# textbook",
             Description = "Read one chapter.",
-            Category = "Learning",
+            Category = HabitCategory.LearningAndSkills,
             FrequencyType = HabitFrequencyType.Daily,
             TargetCount = 1,
             Difficulty = HabitDifficulty.Medium
@@ -172,7 +179,7 @@ public sealed class HabitRequestValidationTests
         {
             Name = "Read C# textbook",
             Description = "Read two sections.",
-            Category = "Learning",
+            Category = HabitCategory.LearningAndSkills,
             FrequencyType = HabitFrequencyType.Weekly,
             TargetCount = 4,
             Difficulty = HabitDifficulty.Hard

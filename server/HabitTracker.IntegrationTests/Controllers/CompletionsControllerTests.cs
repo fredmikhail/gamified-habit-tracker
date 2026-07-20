@@ -925,7 +925,8 @@ public sealed class CompletionsControllerTests
         {
             UserId = userId,
             Name = "Go to gym",
-            Category = "Fitness",
+            Category =
+                HabitCategory.FitnessAndMovement,
             FrequencyType =
                 HabitFrequencyType.Daily,
             TargetCount = 1,

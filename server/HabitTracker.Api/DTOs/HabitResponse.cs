@@ -10,7 +10,7 @@ public sealed class HabitResponse
 
     public string? Description { get; set; }
 
-    public string? Category { get; set; }
+    public HabitCategory Category { get; set; }
 
     public HabitFrequencyType FrequencyType { get; set; }
 

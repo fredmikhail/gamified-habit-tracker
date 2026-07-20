@@ -24,7 +24,7 @@ describe('habitsApi', () => {
         id: '019c0000-0000-7000-8000-000000000001',
         name: 'Read C# textbook',
         description: 'Read one chapter.',
-        category: 'Learning',
+        category: 'learningAndSkills',
         frequencyType: 'daily',
         targetCount: 1,
         difficulty: 'medium',
@@ -116,7 +116,7 @@ describe('habitsApi', () => {
     const createRequest: CreateHabitRequest = {
       name: 'Read C# textbook',
       description: 'Read one chapter.',
-      category: 'Learning',
+      category: 'learningAndSkills',
       frequencyType: 'daily',
       targetCount: 1,
       difficulty: 'medium',
@@ -199,7 +199,7 @@ describe('habitsApi', () => {
     const createRequest: CreateHabitRequest = {
       name: 'Read C# textbook',
       description: null,
-      category: null,
+      category: 'learningAndSkills',
       frequencyType: 'daily',
       targetCount: 2,
       difficulty: 'medium',
@@ -250,7 +250,7 @@ describe('habitsApi', () => {
     const updateRequest: UpdateHabitRequest = {
       name: 'Updated reading habit',
       description: 'Read two chapters.',
-      category: 'Learning',
+      category: 'learningAndSkills',
       frequencyType: 'weekly',
       targetCount: 3,
       difficulty: 'hard',
@@ -335,7 +335,7 @@ describe('habitsApi', () => {
     const updateRequest: UpdateHabitRequest = {
       name: 'Updated habit',
       description: null,
-      category: null,
+      category: 'learningAndSkills',
       frequencyType: 'daily',
       targetCount: 2,
       difficulty: 'medium',
@@ -387,7 +387,7 @@ describe('habitsApi', () => {
       id: habitId,
       name: 'Read C# textbook',
       description: 'Read one chapter.',
-      category: 'Learning',
+      category: 'learningAndSkills',
       frequencyType: 'daily',
       targetCount: 1,
       difficulty: 'medium',

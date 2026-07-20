@@ -52,7 +52,7 @@ public sealed class CompletionServiceTests
             Id = habitId,
             UserId = userId,
             Name = "Go to gym",
-            Category = "Fitness",
+            Category = HabitCategory.FitnessAndMovement,
             FrequencyType = HabitFrequencyType.Daily,
             TargetCount = 1,
             Difficulty = HabitDifficulty.Medium,

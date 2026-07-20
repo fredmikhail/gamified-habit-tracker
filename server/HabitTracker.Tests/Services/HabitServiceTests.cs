@@ -23,7 +23,7 @@ public sealed class HabitServiceTests
         {
             Name = "  Go to gym  ",
             Description = "  Complete a planned workout.  ",
-            Category = "  Fitness  ",
+            Category = HabitCategory.FitnessAndMovement,
             FrequencyType = HabitFrequencyType.Weekly,
             TargetCount = 3,
             Difficulty = HabitDifficulty.Elite
@@ -43,7 +43,9 @@ public sealed class HabitServiceTests
         Assert.Equal(
             "Complete a planned workout.",
             savedHabit.Description);
-        Assert.Equal("Fitness", savedHabit.Category);
+        Assert.Equal(
+    HabitCategory.FitnessAndMovement,
+    savedHabit.Category);
         Assert.Equal(
             HabitFrequencyType.Weekly,
             savedHabit.FrequencyType);
@@ -88,7 +90,7 @@ public sealed class HabitServiceTests
     }
 
     [Fact]
-    public async Task CreateHabitAsync_WhenOptionalTextIsBlank_StoresNull()
+    public async Task CreateHabitAsync_WhenDescriptionIsBlank_StoresNull()
     {
         await using var dbContext = CreateDbContext();
 
@@ -97,7 +99,6 @@ public sealed class HabitServiceTests
         var request = CreateValidRequest();
 
         request.Description = "   ";
-        request.Category = string.Empty;
 
         var response =
             await habitService.CreateHabitAsync(
@@ -108,9 +109,7 @@ public sealed class HabitServiceTests
             Assert.Single(dbContext.Habits);
 
         Assert.Null(savedHabit.Description);
-        Assert.Null(savedHabit.Category);
         Assert.Null(response.Description);
-        Assert.Null(response.Category);
     }
 
     [Fact]
@@ -556,7 +555,7 @@ public sealed class HabitServiceTests
                 {
                     Name = "Updated habit",
                     Description = null,
-                    Category = "Learning",
+                    Category = HabitCategory.LearningAndSkills,
                     FrequencyType =
                         HabitFrequencyType.Daily,
                     TargetCount = 1,
@@ -591,7 +590,8 @@ public sealed class HabitServiceTests
                 isActive: false);
 
         habit.Description = "Old description";
-        habit.Category = "Old category";
+        habit.Category =
+    HabitCategory.GeneralGrowth;
         habit.UpdatedAtUtc = previousUpdatedAtUtc;
 
         dbContext.Habits.Add(habit);
@@ -608,7 +608,8 @@ public sealed class HabitServiceTests
         {
             Name = "  Updated habit  ",
             Description = "  Updated description  ",
-            Category = "  Updated category  ",
+            Category =
+    HabitCategory.LearningAndSkills,
             FrequencyType =
                 HabitFrequencyType.Weekly,
             TargetCount = 4,
@@ -641,8 +642,8 @@ public sealed class HabitServiceTests
             "Updated description",
             savedHabit.Description);
         Assert.Equal(
-            "Updated category",
-            savedHabit.Category);
+    HabitCategory.LearningAndSkills,
+    savedHabit.Category);
         Assert.Equal(
             HabitFrequencyType.Weekly,
             savedHabit.FrequencyType);
@@ -680,7 +681,7 @@ public sealed class HabitServiceTests
     }
 
     [Fact]
-    public async Task UpdateHabitAsync_WhenOptionalTextIsBlank_StoresNull()
+    public async Task UpdateHabitAsync_WhenDescriptionIsBlank_StoresNull()
     {
         await using var dbContext = CreateDbContext();
 
@@ -698,7 +699,8 @@ public sealed class HabitServiceTests
                 isActive: true);
 
         habit.Description = "Existing description";
-        habit.Category = "Existing category";
+        habit.Category =
+    HabitCategory.GeneralGrowth;
 
         dbContext.Habits.Add(habit);
         await dbContext.SaveChangesAsync();
@@ -709,7 +711,8 @@ public sealed class HabitServiceTests
         {
             Name = "Existing habit",
             Description = "   ",
-            Category = string.Empty,
+            Category =
+    HabitCategory.GeneralGrowth,
             FrequencyType =
                 HabitFrequencyType.Daily,
             TargetCount = 1,
@@ -725,9 +728,7 @@ public sealed class HabitServiceTests
 
         Assert.NotNull(response);
         Assert.Null(habit.Description);
-        Assert.Null(habit.Category);
         Assert.Null(response.Description);
-        Assert.Null(response.Category);
     }
 
     [Fact]
@@ -1211,6 +1212,8 @@ public sealed class HabitServiceTests
         {
             UserId = userId,
             Name = name,
+            Category =
+    HabitCategory.GeneralGrowth,
             FrequencyType =
                 HabitFrequencyType.Daily,
             TargetCount = 1,
@@ -1228,7 +1231,8 @@ public sealed class HabitServiceTests
         {
             Name = "Read C# textbook",
             Description = "Read one chapter.",
-            Category = "Learning",
+            Category =
+    HabitCategory.LearningAndSkills,
             FrequencyType = HabitFrequencyType.Daily,
             TargetCount = 1,
             Difficulty = HabitDifficulty.Medium
@@ -1241,7 +1245,8 @@ public sealed class HabitServiceTests
         {
             Name = "Updated habit",
             Description = "Updated description",
-            Category = "Updated category",
+            Category =
+    HabitCategory.LearningAndSkills,
             FrequencyType =
                 HabitFrequencyType.Weekly,
             TargetCount = 3,

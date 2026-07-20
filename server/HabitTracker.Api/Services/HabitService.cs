@@ -53,8 +53,7 @@ public sealed class HabitService
             Name = name,
             Description =
                 NormalizeOptionalText(request.Description),
-            Category =
-                NormalizeOptionalText(request.Category),
+            Category = request.Category!.Value,
             FrequencyType = frequencyType,
             TargetCount = targetCount,
             Difficulty = difficulty,
@@ -165,8 +164,7 @@ public sealed class HabitService
         habit.Name = name;
         habit.Description =
             NormalizeOptionalText(request.Description);
-        habit.Category =
-            NormalizeOptionalText(request.Category);
+        habit.Category = request.Category!.Value;
         habit.FrequencyType = frequencyType;
         habit.TargetCount = targetCount;
         habit.Difficulty = difficulty;

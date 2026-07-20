@@ -12,8 +12,9 @@ public sealed class CreateHabitRequest
     [MaxLength(500)]
     public string? Description { get; set; }
 
-    [MaxLength(50)]
-    public string? Category { get; set; }
+    [Required]
+    [EnumDataType(typeof(HabitCategory))]
+    public HabitCategory? Category { get; set; }
 
     [Required]
     [EnumDataType(typeof(HabitFrequencyType))]

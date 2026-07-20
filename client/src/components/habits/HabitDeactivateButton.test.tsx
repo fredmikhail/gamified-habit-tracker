@@ -15,7 +15,7 @@ const existingHabit: HabitResponse = {
   id: '019c0000-0000-7000-8000-000000000001',
   name: 'Read C# textbook',
   description: 'Read one chapter.',
-  category: 'Learning',
+  category: 'learningAndSkills',
   frequencyType: 'daily',
   targetCount: 1,
   difficulty: 'medium',
@@ -129,10 +129,14 @@ describe('HabitDeactivateButton', () => {
     )
 
     expect(deactivateHabitMock).toHaveBeenCalledTimes(1)
-    expect(deactivateHabitMock).toHaveBeenCalledWith(existingHabit.id)
+    expect(deactivateHabitMock).toHaveBeenCalledWith(
+      existingHabit.id,
+    )
 
     expect(onHabitDeactivated).toHaveBeenCalledTimes(1)
-    expect(onHabitDeactivated).toHaveBeenCalledWith(deactivatedHabit)
+    expect(onHabitDeactivated).toHaveBeenCalledWith(
+      deactivatedHabit,
+    )
   })
 
   it('shows the pending state while deactivation is running', async () => {

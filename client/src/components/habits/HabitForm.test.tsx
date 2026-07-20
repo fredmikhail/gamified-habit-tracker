@@ -24,7 +24,7 @@ describe('HabitForm', () => {
       id: '019c0000-0000-7000-8000-000000000001',
       name: 'Go to gym',
       description: 'Complete a planned workout.',
-      category: 'Fitness',
+      category: 'fitnessAndMovement',
       frequencyType: 'weekly',
       targetCount: 3,
       difficulty: 'elite',
@@ -36,34 +36,52 @@ describe('HabitForm', () => {
 
     createHabitMock.mockResolvedValue(createdHabit)
 
-    render(<HabitForm onHabitCreated={onHabitCreated} />)
-
-    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Go to gym')
+    render(
+      <HabitForm onHabitCreated={onHabitCreated} />,
+    )
 
     await user.type(
-      screen.getByRole('textbox', { name: 'Description' }),
+      screen.getByRole('textbox', {
+        name: 'Name',
+      }),
+      'Go to gym',
+    )
+
+    await user.type(
+      screen.getByRole('textbox', {
+        name: 'Description',
+      }),
       'Complete a planned workout.',
     )
 
-    await user.type(
-      screen.getByRole('textbox', { name: 'Category' }),
-      'Fitness',
+    await user.selectOptions(
+      screen.getByRole('combobox', {
+        name: 'Category',
+      }),
+      'fitnessAndMovement',
     )
 
     await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Frequency' }),
+      screen.getByRole('combobox', {
+        name: 'Frequency',
+      }),
       'weekly',
     )
 
-    const targetCountInput = screen.getByRole('spinbutton', {
-      name: 'Times per week',
-    })
+    const targetCountInput = screen.getByRole(
+      'spinbutton',
+      {
+        name: 'Times per week',
+      },
+    )
 
     await user.clear(targetCountInput)
     await user.type(targetCountInput, '3')
 
     await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Difficulty' }),
+      screen.getByRole('combobox', {
+        name: 'Difficulty',
+      }),
       'elite',
     )
 
@@ -78,17 +96,19 @@ describe('HabitForm', () => {
     expect(createHabitMock).toHaveBeenCalledWith({
       name: 'Go to gym',
       description: 'Complete a planned workout.',
-      category: 'Fitness',
+      category: 'fitnessAndMovement',
       frequencyType: 'weekly',
       targetCount: 3,
       difficulty: 'elite',
     })
 
     expect(onHabitCreated).toHaveBeenCalledTimes(1)
-    expect(onHabitCreated).toHaveBeenCalledWith(createdHabit)
+    expect(onHabitCreated).toHaveBeenCalledWith(
+      createdHabit,
+    )
   })
 
-  it('submits blank optional fields as null', async () => {
+  it('submits a blank optional description as null', async () => {
     const user = userEvent.setup()
     const onHabitCreated = vi.fn()
 
@@ -96,7 +116,7 @@ describe('HabitForm', () => {
       id: '019c0000-0000-7000-8000-000000000002',
       name: 'Read',
       description: null,
-      category: null,
+      category: 'learningAndSkills',
       frequencyType: 'daily',
       targetCount: 1,
       difficulty: 'medium',
@@ -108,9 +128,23 @@ describe('HabitForm', () => {
 
     createHabitMock.mockResolvedValue(createdHabit)
 
-    render(<HabitForm onHabitCreated={onHabitCreated} />)
+    render(
+      <HabitForm onHabitCreated={onHabitCreated} />,
+    )
 
-    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Read')
+    await user.type(
+      screen.getByRole('textbox', {
+        name: 'Name',
+      }),
+      'Read',
+    )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', {
+        name: 'Category',
+      }),
+      'learningAndSkills',
+    )
 
     await user.click(
       screen.getByRole('button', {
@@ -121,7 +155,7 @@ describe('HabitForm', () => {
     expect(createHabitMock).toHaveBeenCalledWith({
       name: 'Read',
       description: null,
-      category: null,
+      category: 'learningAndSkills',
       frequencyType: 'daily',
       targetCount: 1,
       difficulty: 'medium',
@@ -132,12 +166,29 @@ describe('HabitForm', () => {
     const user = userEvent.setup()
 
     createHabitMock.mockImplementation(
-      () => new Promise<HabitResponse>(() => undefined),
+      () =>
+        new Promise<HabitResponse>(
+          () => undefined,
+        ),
     )
 
-    render(<HabitForm onHabitCreated={vi.fn()} />)
+    render(
+      <HabitForm onHabitCreated={vi.fn()} />,
+    )
 
-    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Read')
+    await user.type(
+      screen.getByRole('textbox', {
+        name: 'Name',
+      }),
+      'Read',
+    )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', {
+        name: 'Category',
+      }),
+      'learningAndSkills',
+    )
 
     await user.click(
       screen.getByRole('button', {
@@ -156,12 +207,28 @@ describe('HabitForm', () => {
     const user = userEvent.setup()
 
     createHabitMock.mockRejectedValue(
-      new Error('Daily habits must have a target count of 1.'),
+      new Error(
+        'Daily habits must have a target count of 1.',
+      ),
     )
 
-    render(<HabitForm onHabitCreated={vi.fn()} />)
+    render(
+      <HabitForm onHabitCreated={vi.fn()} />,
+    )
 
-    await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Read')
+    await user.type(
+      screen.getByRole('textbox', {
+        name: 'Name',
+      }),
+      'Read',
+    )
+
+    await user.selectOptions(
+      screen.getByRole('combobox', {
+        name: 'Category',
+      }),
+      'learningAndSkills',
+    )
 
     await user.click(
       screen.getByRole('button', {
@@ -169,7 +236,9 @@ describe('HabitForm', () => {
       }),
     )
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
+    expect(
+      await screen.findByRole('alert'),
+    ).toHaveTextContent(
       'Habit creation error: Daily habits must have a target count of 1.',
     )
   })

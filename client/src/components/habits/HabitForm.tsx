@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { createHabit } from '../../api/habitsApi'
+import type { HabitCategory } from '../../types/HabitCategory'
 import type { HabitDifficulty } from '../../types/HabitDifficulty'
 import type { HabitFrequencyType } from '../../types/HabitFrequencyType'
 import type { HabitResponse } from '../../types/HabitResponse'
+import { habitCategoryOptions } from './habitCategoryOptions'
 
 type HabitFormProps = {
   onHabitCreated: (habit: HabitResponse) => void
@@ -17,7 +19,7 @@ function getHabitErrorMessage(error: unknown): string {
 export function HabitForm({ onHabitCreated }: HabitFormProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
+  const [category, setCategory] = useState<HabitCategory | ''>('')
   const [frequencyType, setFrequencyType] =
     useState<HabitFrequencyType>('daily')
   const [targetCount, setTargetCount] = useState(1)
@@ -46,6 +48,11 @@ export function HabitForm({ onHabitCreated }: HabitFormProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
+    if (category === '') {
+      setErrorMessage('Choose a category.')
+      return
+    }
+
     setIsSubmitting(true)
     setErrorMessage(null)
 
@@ -53,7 +60,7 @@ export function HabitForm({ onHabitCreated }: HabitFormProps) {
       const createdHabit = await createHabit({
         name,
         description: description === '' ? null : description,
-        category: category === '' ? null : category,
+        category,
         frequencyType,
         targetCount,
         difficulty,
@@ -114,14 +121,25 @@ export function HabitForm({ onHabitCreated }: HabitFormProps) {
             Category
           </label>
 
-          <input
+          <select
+            required
             className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
             id="habit-category"
-            maxLength={50}
-            type="text"
             value={category}
-            onChange={(event) => setCategory(event.target.value)}
-          />
+            onChange={(event) =>
+              setCategory(event.target.value as HabitCategory | '')
+            }
+          >
+            <option disabled value="">
+              Select a category
+            </option>
+
+            {habitCategoryOptions.map((categoryOption) => (
+              <option key={categoryOption.value} value={categoryOption.value}>
+                {categoryOption.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>

@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { updateHabit } from '../../api/habitsApi'
+import type { HabitCategory } from '../../types/HabitCategory'
 import type { HabitDifficulty } from '../../types/HabitDifficulty'
 import type { HabitFrequencyType } from '../../types/HabitFrequencyType'
 import type { HabitResponse } from '../../types/HabitResponse'
+import { habitCategoryOptions } from './habitCategoryOptions'
 
 type HabitEditFormProps = {
   habit: HabitResponse
@@ -23,7 +25,7 @@ export function HabitEditForm({
 }: HabitEditFormProps) {
   const [name, setName] = useState(habit.name)
   const [description, setDescription] = useState(habit.description ?? '')
-  const [category, setCategory] = useState(habit.category ?? '')
+  const [category, setCategory] = useState<HabitCategory>(habit.category)
   const [frequencyType, setFrequencyType] = useState<HabitFrequencyType>(
     habit.frequencyType,
   )
@@ -53,7 +55,7 @@ export function HabitEditForm({
       const updatedHabit = await updateHabit(habit.id, {
         name,
         description: description === '' ? null : description,
-        category: category === '' ? null : category,
+        category,
         frequencyType,
         targetCount,
         difficulty,
@@ -115,14 +117,19 @@ export function HabitEditForm({
           Category
         </label>
 
-        <input
+        <select
+          required
           className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
           id={`habit-category-${habit.id}`}
-          maxLength={50}
-          type="text"
           value={category}
-          onChange={(event) => setCategory(event.target.value)}
-        />
+          onChange={(event) => setCategory(event.target.value as HabitCategory)}
+        >
+          {habitCategoryOptions.map((categoryOption) => (
+            <option key={categoryOption.value} value={categoryOption.value}>
+              {categoryOption.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>
