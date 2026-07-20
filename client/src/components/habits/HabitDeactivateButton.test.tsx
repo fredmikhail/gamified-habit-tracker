@@ -129,14 +129,10 @@ describe('HabitDeactivateButton', () => {
     )
 
     expect(deactivateHabitMock).toHaveBeenCalledTimes(1)
-    expect(deactivateHabitMock).toHaveBeenCalledWith(
-      existingHabit.id,
-    )
+    expect(deactivateHabitMock).toHaveBeenCalledWith(existingHabit.id)
 
     expect(onHabitDeactivated).toHaveBeenCalledTimes(1)
-    expect(onHabitDeactivated).toHaveBeenCalledWith(
-      deactivatedHabit,
-    )
+    expect(onHabitDeactivated).toHaveBeenCalledWith(deactivatedHabit)
   })
 
   it('shows the pending state while deactivation is running', async () => {

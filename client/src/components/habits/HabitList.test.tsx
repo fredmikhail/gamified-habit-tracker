@@ -1,16 +1,6 @@
-import {
-  render,
-  screen,
-  waitFor,
-} from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import {
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   completeHabit,
   deactivateHabit,
@@ -28,8 +18,7 @@ vi.mock('../../api/habitsApi', () => ({
   updateHabit: vi.fn(),
 }))
 
-const deactivateHabitMock =
-  vi.mocked(deactivateHabit)
+const deactivateHabitMock = vi.mocked(deactivateHabit)
 const getHabitsMock = vi.mocked(getHabits)
 const updateHabitMock = vi.mocked(updateHabit)
 const completeHabitMock = vi.mocked(completeHabit)
@@ -89,9 +78,7 @@ describe('HabitList', () => {
       }),
     )
 
-    expect(
-      completeHabitMock,
-    ).toHaveBeenCalledWith(habit.id, {
+    expect(completeHabitMock).toHaveBeenCalledWith(habit.id, {
       notes: null,
     })
 
@@ -106,10 +93,7 @@ describe('HabitList', () => {
 
   it('shows a loading message while habits are being requested', () => {
     getHabitsMock.mockImplementation(
-      () =>
-        new Promise<HabitResponse[]>(
-          () => undefined,
-        ),
+      () => new Promise<HabitResponse[]>(() => undefined),
     )
 
     render(
@@ -120,16 +104,12 @@ describe('HabitList', () => {
       />,
     )
 
-    expect(
-      screen.getByText('Loading habits...'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Loading habits...')).toBeInTheDocument()
   })
 
   it('shows an error message when habits cannot be loaded', async () => {
     getHabitsMock.mockRejectedValue(
-      new Error(
-        'The habits could not be loaded.',
-      ),
+      new Error('The habits could not be loaded.'),
     )
 
     render(
@@ -159,9 +139,7 @@ describe('HabitList', () => {
     )
 
     expect(
-      await screen.findByText(
-        'You do not have any habits yet.',
-      ),
+      await screen.findByText('You do not have any habits yet.'),
     ).toBeInTheDocument()
 
     expect(getHabitsMock).toHaveBeenCalledTimes(1)
@@ -220,39 +198,19 @@ describe('HabitList', () => {
       }),
     ).toBeInTheDocument()
 
-    expect(
-      screen.getByText('Read one chapter.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Read one chapter.')).toBeInTheDocument()
 
-    expect(
-      screen.getByText('Frequency: Daily'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Frequency: Daily')).toBeInTheDocument()
 
-    expect(
-      screen.getByText(
-        'Frequency: 3 times per week',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Frequency: 3 times per week')).toBeInTheDocument()
 
-    expect(
-      screen.getByText(
-        'Category: Learning & Skills',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Category: Learning & Skills')).toBeInTheDocument()
 
-    expect(
-      screen.getByText(
-        'Category: Fitness & Movement',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Category: Fitness & Movement')).toBeInTheDocument()
 
-    expect(
-      screen.getByText('Medium'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Medium')).toBeInTheDocument()
 
-    expect(
-      screen.getByText('Elite'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Elite')).toBeInTheDocument()
   })
 
   it('reloads habits when the refresh key changes', async () => {
@@ -266,9 +224,7 @@ describe('HabitList', () => {
       />,
     )
 
-    await screen.findByText(
-      'You do not have any habits yet.',
-    )
+    await screen.findByText('You do not have any habits yet.')
 
     expect(getHabitsMock).toHaveBeenCalledTimes(1)
 
@@ -281,9 +237,7 @@ describe('HabitList', () => {
     )
 
     await waitFor(() => {
-      expect(
-        getHabitsMock,
-      ).toHaveBeenCalledTimes(2)
+      expect(getHabitsMock).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -313,9 +267,7 @@ describe('HabitList', () => {
     }
 
     getHabitsMock.mockResolvedValue([habit])
-    updateHabitMock.mockResolvedValue(
-      updatedHabit,
-    )
+    updateHabitMock.mockResolvedValue(updatedHabit)
 
     render(
       <HabitList
@@ -335,18 +287,12 @@ describe('HabitList', () => {
       }),
     )
 
-    const nameInput = screen.getByRole(
-      'textbox',
-      {
-        name: 'Name',
-      },
-    )
+    const nameInput = screen.getByRole('textbox', {
+      name: 'Name',
+    })
 
     await user.clear(nameInput)
-    await user.type(
-      nameInput,
-      'Read TypeScript book',
-    )
+    await user.type(nameInput, 'Read TypeScript book')
 
     await user.selectOptions(
       screen.getByRole('combobox', {
@@ -361,9 +307,7 @@ describe('HabitList', () => {
       }),
     )
 
-    expect(
-      updateHabitMock,
-    ).toHaveBeenCalledWith(habit.id, {
+    expect(updateHabitMock).toHaveBeenCalledWith(habit.id, {
       name: 'Read TypeScript book',
       description: 'Read one chapter.',
       category: 'learningAndSkills',
@@ -372,9 +316,7 @@ describe('HabitList', () => {
       difficulty: 'hard',
     })
 
-    expect(
-      onHabitUpdated,
-    ).toHaveBeenCalledWith(updatedHabit)
+    expect(onHabitUpdated).toHaveBeenCalledWith(updatedHabit)
 
     expect(
       screen.queryByRole('form', {
@@ -438,9 +380,7 @@ describe('HabitList', () => {
       }),
     ).not.toBeInTheDocument()
 
-    expect(
-      updateHabitMock,
-    ).not.toHaveBeenCalled()
+    expect(updateHabitMock).not.toHaveBeenCalled()
   })
 
   it('deactivates a habit and reports that the list should refresh', async () => {
@@ -470,16 +410,12 @@ describe('HabitList', () => {
 
     getHabitsMock.mockResolvedValue([habit])
 
-    deactivateHabitMock.mockResolvedValue(
-      deactivatedHabit,
-    )
+    deactivateHabitMock.mockResolvedValue(deactivatedHabit)
 
     render(
       <HabitList
         refreshKey={0}
-        onHabitDeactivated={
-          onHabitDeactivated
-        }
+        onHabitDeactivated={onHabitDeactivated}
         onHabitUpdated={vi.fn()}
       />,
     )
@@ -500,22 +436,12 @@ describe('HabitList', () => {
       }),
     )
 
-    expect(
-      deactivateHabitMock,
-    ).toHaveBeenCalledTimes(1)
+    expect(deactivateHabitMock).toHaveBeenCalledTimes(1)
 
-    expect(
-      deactivateHabitMock,
-    ).toHaveBeenCalledWith(habit.id)
+    expect(deactivateHabitMock).toHaveBeenCalledWith(habit.id)
 
-    expect(
-      onHabitDeactivated,
-    ).toHaveBeenCalledTimes(1)
+    expect(onHabitDeactivated).toHaveBeenCalledTimes(1)
 
-    expect(
-      onHabitDeactivated,
-    ).toHaveBeenCalledWith(
-      deactivatedHabit,
-    )
+    expect(onHabitDeactivated).toHaveBeenCalledWith(deactivatedHabit)
   })
 })

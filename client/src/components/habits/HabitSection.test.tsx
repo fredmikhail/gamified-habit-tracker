@@ -1,11 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  createHabit,
-  deactivateHabit,
-  getHabits,
-} from '../../api/habitsApi'
+import { createHabit, deactivateHabit, getHabits } from '../../api/habitsApi'
 import type { HabitResponse } from '../../types/HabitResponse'
 import { HabitSection } from './HabitSection'
 
@@ -54,9 +50,7 @@ describe('HabitSection', () => {
 
     render(<HabitSection />)
 
-    await screen.findByText(
-      'You do not have any habits yet.',
-    )
+    await screen.findByText('You do not have any habits yet.')
 
     await user.type(
       screen.getByRole('textbox', {
@@ -122,13 +116,9 @@ describe('HabitSection', () => {
       updatedAtUtc: '2026-07-20T12:00:00Z',
     }
 
-    getHabitsMock
-      .mockResolvedValueOnce([activeHabit])
-      .mockResolvedValueOnce([])
+    getHabitsMock.mockResolvedValueOnce([activeHabit]).mockResolvedValueOnce([])
 
-    deactivateHabitMock.mockResolvedValue(
-      deactivatedHabit,
-    )
+    deactivateHabitMock.mockResolvedValue(deactivatedHabit)
 
     render(<HabitSection />)
 
@@ -151,18 +141,12 @@ describe('HabitSection', () => {
     )
 
     expect(
-      await screen.findByText(
-        'You do not have any habits yet.',
-      ),
+      await screen.findByText('You do not have any habits yet.'),
     ).toBeInTheDocument()
 
-    expect(
-      deactivateHabitMock,
-    ).toHaveBeenCalledTimes(1)
+    expect(deactivateHabitMock).toHaveBeenCalledTimes(1)
 
-    expect(
-      deactivateHabitMock,
-    ).toHaveBeenCalledWith(activeHabit.id)
+    expect(deactivateHabitMock).toHaveBeenCalledWith(activeHabit.id)
 
     expect(getHabitsMock).toHaveBeenCalledTimes(2)
 

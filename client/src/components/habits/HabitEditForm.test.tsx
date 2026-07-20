@@ -106,10 +106,7 @@ describe('HabitEditForm', () => {
     })
 
     await user.clear(nameInput)
-    await user.type(
-      nameInput,
-      'Build TypeScript portfolio',
-    )
+    await user.type(nameInput, 'Build TypeScript portfolio')
 
     await user.clear(
       screen.getByRole('textbox', {
@@ -146,31 +143,23 @@ describe('HabitEditForm', () => {
 
     expect(updateHabitMock).toHaveBeenCalledTimes(1)
 
-    expect(updateHabitMock).toHaveBeenCalledWith(
-      existingHabit.id,
-      {
-        name: 'Build TypeScript portfolio',
-        description: null,
-        category: 'workAndCareer',
-        frequencyType: 'daily',
-        targetCount: 1,
-        difficulty: 'hard',
-      },
-    )
+    expect(updateHabitMock).toHaveBeenCalledWith(existingHabit.id, {
+      name: 'Build TypeScript portfolio',
+      description: null,
+      category: 'workAndCareer',
+      frequencyType: 'daily',
+      targetCount: 1,
+      difficulty: 'hard',
+    })
 
-    expect(onHabitUpdated).toHaveBeenCalledWith(
-      updatedHabit,
-    )
+    expect(onHabitUpdated).toHaveBeenCalledWith(updatedHabit)
   })
 
   it('shows the pending state while the update is running', async () => {
     const user = userEvent.setup()
 
     updateHabitMock.mockImplementation(
-      () =>
-        new Promise<HabitResponse>(
-          () => undefined,
-        ),
+      () => new Promise<HabitResponse>(() => undefined),
     )
 
     render(
@@ -204,9 +193,7 @@ describe('HabitEditForm', () => {
     const user = userEvent.setup()
 
     updateHabitMock.mockRejectedValue(
-      new Error(
-        'Daily habits must have a target count of 1.',
-      ),
+      new Error('Daily habits must have a target count of 1.'),
     )
 
     render(
@@ -223,9 +210,7 @@ describe('HabitEditForm', () => {
       }),
     )
 
-    expect(
-      await screen.findByRole('alert'),
-    ).toHaveTextContent(
+    expect(await screen.findByRole('alert')).toHaveTextContent(
       'Habit update error: Daily habits must have a target count of 1.',
     )
   })

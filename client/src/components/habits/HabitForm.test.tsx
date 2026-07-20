@@ -36,9 +36,7 @@ describe('HabitForm', () => {
 
     createHabitMock.mockResolvedValue(createdHabit)
 
-    render(
-      <HabitForm onHabitCreated={onHabitCreated} />,
-    )
+    render(<HabitForm onHabitCreated={onHabitCreated} />)
 
     await user.type(
       screen.getByRole('textbox', {
@@ -68,12 +66,9 @@ describe('HabitForm', () => {
       'weekly',
     )
 
-    const targetCountInput = screen.getByRole(
-      'spinbutton',
-      {
-        name: 'Times per week',
-      },
-    )
+    const targetCountInput = screen.getByRole('spinbutton', {
+      name: 'Times per week',
+    })
 
     await user.clear(targetCountInput)
     await user.type(targetCountInput, '3')
@@ -103,9 +98,7 @@ describe('HabitForm', () => {
     })
 
     expect(onHabitCreated).toHaveBeenCalledTimes(1)
-    expect(onHabitCreated).toHaveBeenCalledWith(
-      createdHabit,
-    )
+    expect(onHabitCreated).toHaveBeenCalledWith(createdHabit)
   })
 
   it('submits a blank optional description as null', async () => {
@@ -128,9 +121,7 @@ describe('HabitForm', () => {
 
     createHabitMock.mockResolvedValue(createdHabit)
 
-    render(
-      <HabitForm onHabitCreated={onHabitCreated} />,
-    )
+    render(<HabitForm onHabitCreated={onHabitCreated} />)
 
     await user.type(
       screen.getByRole('textbox', {
@@ -166,15 +157,10 @@ describe('HabitForm', () => {
     const user = userEvent.setup()
 
     createHabitMock.mockImplementation(
-      () =>
-        new Promise<HabitResponse>(
-          () => undefined,
-        ),
+      () => new Promise<HabitResponse>(() => undefined),
     )
 
-    render(
-      <HabitForm onHabitCreated={vi.fn()} />,
-    )
+    render(<HabitForm onHabitCreated={vi.fn()} />)
 
     await user.type(
       screen.getByRole('textbox', {
@@ -207,14 +193,10 @@ describe('HabitForm', () => {
     const user = userEvent.setup()
 
     createHabitMock.mockRejectedValue(
-      new Error(
-        'Daily habits must have a target count of 1.',
-      ),
+      new Error('Daily habits must have a target count of 1.'),
     )
 
-    render(
-      <HabitForm onHabitCreated={vi.fn()} />,
-    )
+    render(<HabitForm onHabitCreated={vi.fn()} />)
 
     await user.type(
       screen.getByRole('textbox', {
@@ -236,9 +218,7 @@ describe('HabitForm', () => {
       }),
     )
 
-    expect(
-      await screen.findByRole('alert'),
-    ).toHaveTextContent(
+    expect(await screen.findByRole('alert')).toHaveTextContent(
       'Habit creation error: Daily habits must have a target count of 1.',
     )
   })
