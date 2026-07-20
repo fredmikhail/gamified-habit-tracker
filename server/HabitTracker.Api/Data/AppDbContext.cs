@@ -22,6 +22,9 @@ public sealed class AppDbContext : DbContext
     public DbSet<UserAttribute> UserAttributes =>
         Set<UserAttribute>();
 
+    public DbSet<HabitAttributeReward> HabitAttributeRewards =>
+        Set<HabitAttributeReward>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

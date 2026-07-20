@@ -27,7 +27,10 @@ public sealed class Habit
     public DateTime UpdatedAtUtc { get; set; }
 
     public ICollection<HabitCompletion> HabitCompletions { get; set; }
-    = new List<HabitCompletion>();
+        = new List<HabitCompletion>();
+
+    public ICollection<HabitAttributeReward> HabitAttributeRewards { get; set; }
+        = new List<HabitAttributeReward>();
 
     public User User { get; set; } = null!;
 }
