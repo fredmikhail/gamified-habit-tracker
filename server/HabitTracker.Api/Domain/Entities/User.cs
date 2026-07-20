@@ -23,5 +23,8 @@ public sealed class User
     public ICollection<Habit> Habits { get; set; } = new List<Habit>();
 
     public ICollection<HabitCompletion> HabitCompletions { get; set; }
-    = new List<HabitCompletion>();
+        = new List<HabitCompletion>();
+
+    public ICollection<UserAttribute> UserAttributes { get; set; }
+        = new List<UserAttribute>();
 }

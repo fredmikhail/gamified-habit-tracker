@@ -17,7 +17,10 @@ public sealed class AppDbContext : DbContext
     public DbSet<Habit> Habits => Set<Habit>();
 
     public DbSet<HabitCompletion> HabitCompletions =>
-    Set<HabitCompletion>();
+        Set<HabitCompletion>();
+
+    public DbSet<UserAttribute> UserAttributes =>
+        Set<UserAttribute>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
