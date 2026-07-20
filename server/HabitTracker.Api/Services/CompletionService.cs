@@ -23,13 +23,15 @@ public sealed class CompletionService
     public async Task<CompleteHabitResponse?> CompleteHabitAsync(
         Guid userId,
         Guid habitId,
-        CompleteHabitRequest request)
+        CompleteHabitRequest request,
+        CancellationToken cancellationToken = default)
     {
         var habit =
             await _dbContext.Habits.SingleOrDefaultAsync(
                 habit =>
                     habit.Id == habitId
-                    && habit.UserId == userId);
+                    && habit.UserId == userId,
+                cancellationToken);
 
         if (habit is null)
         {
@@ -47,7 +49,7 @@ public sealed class CompletionService
                     settings.UserId == userId)
                 .Select(settings =>
                     settings.TimeZone)
-                .SingleAsync();
+                .SingleAsync(cancellationToken);
 
         var completedAtUtc =
             _timeProvider.GetUtcNow();
@@ -62,7 +64,8 @@ public sealed class CompletionService
                 completion =>
                     completion.HabitId == habitId
                     && completion.CompletedDate
-                        == completedDate);
+                        == completedDate,
+                cancellationToken);
 
         if (alreadyCompleted)
         {
@@ -88,7 +91,8 @@ public sealed class CompletionService
 
         try
         {
-            await _dbContext.SaveChangesAsync();
+            await _dbContext.SaveChangesAsync(
+                cancellationToken);
         }
         catch (DbUpdateException exception)
             when (

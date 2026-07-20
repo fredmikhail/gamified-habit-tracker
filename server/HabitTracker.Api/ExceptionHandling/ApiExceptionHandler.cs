@@ -77,6 +77,28 @@ public sealed class ApiExceptionHandler
                             exception.Message
                     },
 
+                InactiveHabitException =>
+                    new ProblemDetails
+                    {
+                        Status =
+                            StatusCodes.Status409Conflict,
+                        Title =
+                            "Inactive habit",
+                        Detail =
+                            exception.Message
+                    },
+
+                HabitAlreadyCompletedException =>
+                    new ProblemDetails
+                    {
+                        Status =
+                            StatusCodes.Status409Conflict,
+                        Title =
+                            "Habit already completed",
+                        Detail =
+                            exception.Message
+                    },
+
                 _ => null
             };
 
