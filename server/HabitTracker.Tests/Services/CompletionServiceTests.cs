@@ -71,7 +71,7 @@ public sealed class CompletionServiceTests
             new FixedTimeProvider(utcNow);
 
         var completionService =
-            new CompletionService(
+            CreateCompletionService(
                 dbContext,
                 timeProvider);
 
@@ -199,7 +199,7 @@ public sealed class CompletionServiceTests
         await dbContext.SaveChangesAsync();
 
         var completionService =
-            new CompletionService(
+            CreateCompletionService(
                 dbContext,
                 new FixedTimeProvider(utcNow));
 
@@ -263,7 +263,7 @@ public sealed class CompletionServiceTests
         await dbContext.SaveChangesAsync();
 
         var completionService =
-            new CompletionService(
+            CreateCompletionService(
                 dbContext,
                 new FixedTimeProvider(utcNow));
 
@@ -316,7 +316,7 @@ public sealed class CompletionServiceTests
         await dbContext.SaveChangesAsync();
 
         var completionService =
-            new CompletionService(
+            CreateCompletionService(
                 dbContext,
                 new FixedTimeProvider(utcNow));
 
@@ -393,7 +393,7 @@ public sealed class CompletionServiceTests
         await dbContext.SaveChangesAsync();
 
         var completionService =
-            new CompletionService(
+            CreateCompletionService(
                 dbContext,
                 new FixedTimeProvider(utcNow));
 
@@ -481,7 +481,7 @@ public sealed class CompletionServiceTests
         await dbContext.SaveChangesAsync();
 
         var completionService =
-            new CompletionService(
+            CreateCompletionService(
                 dbContext,
                 new FixedTimeProvider(utcNow));
 
@@ -569,7 +569,7 @@ public sealed class CompletionServiceTests
         await dbContext.SaveChangesAsync();
 
         var completionService =
-            new CompletionService(
+            CreateCompletionService(
                 dbContext,
                 new FixedTimeProvider(utcNow));
 
@@ -677,7 +677,7 @@ public sealed class CompletionServiceTests
         await dbContext.SaveChangesAsync();
 
         var completionService =
-            new CompletionService(
+            CreateCompletionService(
                 dbContext,
                 new FixedTimeProvider(utcNow));
 
@@ -777,7 +777,7 @@ public sealed class CompletionServiceTests
         await dbContext.SaveChangesAsync();
 
         var completionService =
-            new CompletionService(
+            CreateCompletionService(
                 dbContext,
                 new FixedTimeProvider(utcNow));
 
@@ -808,7 +808,7 @@ public sealed class CompletionServiceTests
         await using var dbContext = CreateDbContext();
 
         var completionService =
-            new CompletionService(
+            CreateCompletionService(
                 dbContext,
                 new FixedTimeProvider(
                     new DateTimeOffset(
@@ -893,7 +893,7 @@ public sealed class CompletionServiceTests
         await dbContext.SaveChangesAsync();
 
         var completionService =
-            new CompletionService(
+            CreateCompletionService(
                 dbContext,
                 new FixedTimeProvider(utcNow));
 
@@ -985,7 +985,7 @@ public sealed class CompletionServiceTests
         await dbContext.SaveChangesAsync();
 
         var completionService =
-            new CompletionService(
+            CreateCompletionService(
                 dbContext,
                 new FixedTimeProvider(utcNow));
 
@@ -1005,6 +1005,17 @@ public sealed class CompletionServiceTests
         Assert.Equal(
             new DateOnly(2026, 7, 18),
             remainingCompletion.CompletedDate);
+    }
+
+    private static CompletionService CreateCompletionService(
+    AppDbContext dbContext,
+    TimeProvider timeProvider)
+    {
+        return new CompletionService(
+            dbContext,
+            timeProvider,
+            new AttributeService(dbContext),
+            new XpService());
     }
 
     private static AppDbContext CreateDbContext()

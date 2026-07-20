@@ -11,13 +11,19 @@ public sealed class CompletionService
 {
     private readonly AppDbContext _dbContext;
     private readonly TimeProvider _timeProvider;
+    private readonly AttributeService _attributeService;
+    private readonly XpService _xpService;
 
     public CompletionService(
         AppDbContext dbContext,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        AttributeService attributeService,
+        XpService xpService)
     {
         _dbContext = dbContext;
         _timeProvider = timeProvider;
+        _attributeService = attributeService;
+        _xpService = xpService;
     }
 
     public async Task<CompleteHabitResponse?> CompleteHabitAsync(
@@ -27,11 +33,14 @@ public sealed class CompletionService
         CancellationToken cancellationToken = default)
     {
         var habit =
-            await _dbContext.Habits.SingleOrDefaultAsync(
-                habit =>
-                    habit.Id == habitId
-                    && habit.UserId == userId,
-                cancellationToken);
+            await _dbContext.Habits
+                .Include(habit =>
+                    habit.HabitAttributeRewards)
+                .SingleOrDefaultAsync(
+                    habit =>
+                        habit.Id == habitId
+                        && habit.UserId == userId,
+                    cancellationToken);
 
         if (habit is null)
         {
@@ -87,6 +96,16 @@ public sealed class CompletionService
             Notes = notes
         };
 
+        EnsureHabitAttributeRewards(habit);
+
+        await _attributeService
+            .ApplyCompletionRewardsAsync(
+                userId,
+                completion,
+                habit.HabitAttributeRewards,
+                completion.CompletedAtUtc,
+                cancellationToken);
+
         _dbContext.HabitCompletions.Add(completion);
 
         try
@@ -123,9 +142,9 @@ public sealed class CompletionService
     }
 
     public async Task<bool> UndoTodayAsync(
-    Guid userId,
-    Guid habitId,
-    CancellationToken cancellationToken = default)
+        Guid userId,
+        Guid habitId,
+        CancellationToken cancellationToken = default)
     {
         var habitExists =
             await _dbContext.Habits.AnyAsync(
@@ -147,9 +166,12 @@ public sealed class CompletionService
                     settings.TimeZone)
                 .SingleAsync(cancellationToken);
 
+        var currentUtc =
+            _timeProvider.GetUtcNow();
+
         var completedDate =
             LocalDateCalculator.GetLocalDate(
-                _timeProvider.GetUtcNow(),
+                currentUtc,
                 timeZoneId);
 
         var completion =
@@ -166,6 +188,13 @@ public sealed class CompletionService
             return false;
         }
 
+        await _attributeService
+            .ReverseCompletionRewardsAsync(
+                userId,
+                completion,
+                currentUtc.UtcDateTime,
+                cancellationToken);
+
         _dbContext.HabitCompletions.Remove(
             completion);
 
@@ -173,5 +202,43 @@ public sealed class CompletionService
             cancellationToken);
 
         return true;
+    }
+
+    private void EnsureHabitAttributeRewards(
+        Habit habit)
+    {
+        if (habit.HabitAttributeRewards.Count == 2)
+        {
+            return;
+        }
+
+        if (!Enum.IsDefined(habit.Category)
+            || !Enum.IsDefined(habit.Difficulty))
+        {
+            return;
+        }
+
+        _dbContext.HabitAttributeRewards.RemoveRange(
+            habit.HabitAttributeRewards);
+
+        habit.HabitAttributeRewards.Clear();
+
+        var calculatedRewards =
+            _xpService.CalculateRewards(
+                habit.Category,
+                habit.Difficulty);
+
+        foreach (var calculatedReward in calculatedRewards)
+        {
+            habit.HabitAttributeRewards.Add(
+                new HabitAttributeReward
+                {
+                    HabitId = habit.Id,
+                    AttributeType =
+                        calculatedReward.Key,
+                    XpAmount =
+                        calculatedReward.Value
+                });
+        }
     }
 }
