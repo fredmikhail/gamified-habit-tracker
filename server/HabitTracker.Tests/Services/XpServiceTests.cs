@@ -103,4 +103,102 @@ public sealed class XpServiceTests
                 (HabitCategory)999,
                 HabitDifficulty.Medium));
     }
+
+    [Theory]
+    [InlineData(0, 1, 0, 100)]
+    [InlineData(99, 1, 99, 100)]
+    [InlineData(100, 2, 0, 125)]
+    [InlineData(224, 2, 124, 125)]
+    [InlineData(225, 3, 0, 150)]
+    [InlineData(550, 5, 0, 200)]
+    [InlineData(700, 5, 150, 200)]
+    public void CalculateAttributeLevelProgress_ReturnsExpectedProgress(
+    int currentXp,
+    int expectedLevel,
+    int expectedXpIntoCurrentLevel,
+    int expectedXpNeededForNextLevel)
+    {
+        var progress =
+            _xpService.CalculateAttributeLevelProgress(
+                currentXp);
+
+        Assert.Equal(
+            expectedLevel,
+            progress.Level);
+
+        Assert.Equal(
+            expectedXpIntoCurrentLevel,
+            progress.XpIntoCurrentLevel);
+
+        Assert.Equal(
+            expectedXpNeededForNextLevel,
+            progress.XpNeededForNextLevel);
+    }
+
+    [Theory]
+    [InlineData(0, 1, 0, 200)]
+    [InlineData(199, 1, 199, 200)]
+    [InlineData(200, 2, 0, 250)]
+    [InlineData(449, 2, 249, 250)]
+    [InlineData(450, 3, 0, 300)]
+    [InlineData(1000, 4, 250, 350)]
+    [InlineData(1100, 5, 0, 400)]
+    public void CalculateOverallLevelProgress_ReturnsExpectedProgress(
+        int totalXp,
+        int expectedLevel,
+        int expectedXpIntoCurrentLevel,
+        int expectedXpNeededForNextLevel)
+    {
+        var progress =
+            _xpService.CalculateOverallLevelProgress(
+                totalXp);
+
+        Assert.Equal(
+            expectedLevel,
+            progress.Level);
+
+        Assert.Equal(
+            expectedXpIntoCurrentLevel,
+            progress.XpIntoCurrentLevel);
+
+        Assert.Equal(
+            expectedXpNeededForNextLevel,
+            progress.XpNeededForNextLevel);
+    }
+
+    [Fact]
+    public void ProgressionCurves_FocusedXpProducesIntuitiveSpecialization()
+    {
+        var overallProgress =
+            _xpService.CalculateOverallLevelProgress(
+                1000);
+
+        var primaryAttributeProgress =
+            _xpService.CalculateAttributeLevelProgress(
+                700);
+
+        var secondaryAttributeProgress =
+            _xpService.CalculateAttributeLevelProgress(
+                300);
+
+        Assert.Equal(4, overallProgress.Level);
+        Assert.Equal(5, primaryAttributeProgress.Level);
+        Assert.Equal(3, secondaryAttributeProgress.Level);
+    }
+
+    [Fact]
+    public void CalculateAttributeLevelProgress_NegativeXp_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            _xpService.CalculateAttributeLevelProgress(
+                -1));
+    }
+
+    [Fact]
+    public void CalculateOverallLevelProgress_NegativeXp_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            _xpService.CalculateOverallLevelProgress(
+                -1));
+    }
 }

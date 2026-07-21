@@ -1,10 +1,17 @@
 using HabitTracker.Api.Domain.Enums;
+using HabitTracker.Api.Domain.ValueObjects;
 
 namespace HabitTracker.Api.Services;
 
 public sealed class XpService
 {
     private const int PrimaryRewardPercentage = 70;
+
+    private const int AttributeBaseXp = 100;
+    private const int AttributeXpGrowthPerLevel = 25;
+
+    private const int OverallBaseXp = 200;
+    private const int OverallXpGrowthPerLevel = 50;
 
     public IReadOnlyDictionary<AttributeType, int> CalculateRewards(
         HabitCategory category,
@@ -26,6 +33,80 @@ public sealed class XpService
             [primaryAttribute] = primaryXp,
             [secondaryAttribute] = secondaryXp
         };
+    }
+
+    public LevelProgress CalculateAttributeLevelProgress(
+    int currentXp)
+    {
+        return CalculateLevelProgress(
+            currentXp,
+            AttributeBaseXp,
+            AttributeXpGrowthPerLevel);
+    }
+
+    public LevelProgress CalculateOverallLevelProgress(
+        int totalXp)
+    {
+        return CalculateLevelProgress(
+            totalXp,
+            OverallBaseXp,
+            OverallXpGrowthPerLevel);
+    }
+
+    private static LevelProgress CalculateLevelProgress(
+    int currentXp,
+    int baseXp,
+    int growthPerLevel)
+    {
+        if (currentXp < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(currentXp),
+                currentXp,
+                "XP cannot be negative.");
+        }
+
+        var level = 1;
+        var xpIntoCurrentLevel = currentXp;
+
+        var xpNeededForNextLevel =
+            GetXpNeededForNextLevel(
+                level,
+                baseXp,
+                growthPerLevel);
+
+        while (xpIntoCurrentLevel
+            >= xpNeededForNextLevel)
+        {
+            xpIntoCurrentLevel -=
+                xpNeededForNextLevel;
+
+            level++;
+
+            xpNeededForNextLevel =
+                GetXpNeededForNextLevel(
+                    level,
+                    baseXp,
+                    growthPerLevel);
+        }
+
+        return new LevelProgress(
+            Level: level,
+            XpIntoCurrentLevel:
+                xpIntoCurrentLevel,
+            XpNeededForNextLevel:
+                xpNeededForNextLevel);
+    }
+
+    private static int GetXpNeededForNextLevel(
+        int currentLevel,
+        int baseXp,
+        int growthPerLevel)
+    {
+        return checked(
+            baseXp
+            + growthPerLevel
+            * (currentLevel - 1));
     }
 
     private static int GetTotalXp(
