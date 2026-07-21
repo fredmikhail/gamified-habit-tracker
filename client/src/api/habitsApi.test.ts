@@ -515,6 +515,16 @@ describe('habitsApi', () => {
         completedAtUtc: '2026-07-20T01:30:00Z',
         notes: 'Completed after dinner.',
       },
+      rewards: [
+        {
+          attributeType: 'mind',
+          xpAmount: 14,
+        },
+        {
+          attributeType: 'focus',
+          xpAmount: 6,
+        },
+      ],
     }
 
     const fetchMock = vi.fn<typeof fetch>()

@@ -61,6 +61,16 @@ describe('HabitCompletionButton', () => {
         completedAtUtc: '2026-07-20T01:30:00Z',
         notes: null,
       },
+      rewards: [
+        {
+          attributeType: 'mind',
+          xpAmount: 14,
+        },
+        {
+          attributeType: 'focus',
+          xpAmount: 6,
+        },
+      ],
     })
 
     render(
@@ -91,6 +101,12 @@ describe('HabitCompletionButton', () => {
     })
 
     expect(onProgressChanged).toHaveBeenCalledTimes(1)
+
+    const rewardStatus = screen.getByRole('status')
+
+    expect(rewardStatus).toHaveTextContent('Habit completed!')
+    expect(rewardStatus).toHaveTextContent('+14 Mind XP')
+    expect(rewardStatus).toHaveTextContent('+6 Focus XP')
   })
 
   it('undoes the completion and reports the new status', async () => {

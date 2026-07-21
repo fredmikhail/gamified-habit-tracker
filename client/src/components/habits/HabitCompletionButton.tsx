@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { completeHabit, undoHabitCompletion } from '../../api/habitsApi'
+import type { AttributeType } from '../../types/AttributeType'
+import type { HabitAttributeRewardResponse } from '../../types/HabitAttributeRewardResponse'
 import type { HabitResponse } from '../../types/HabitResponse'
 
 type HabitCompletionButtonProps = {
@@ -14,6 +16,10 @@ function getHabitErrorMessage(error: unknown): string {
     : 'An unknown habit-completion error occurred.'
 }
 
+function getAttributeLabel(attributeType: AttributeType): string {
+  return attributeType.charAt(0).toUpperCase() + attributeType.slice(1)
+}
+
 export function HabitCompletionButton({
   habit,
   onCompletionStatusChanged,
@@ -21,6 +27,9 @@ export function HabitCompletionButton({
 }: HabitCompletionButtonProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [earnedRewards, setEarnedRewards] = useState<
+    HabitAttributeRewardResponse[] | null
+  >(null)
 
   async function handleCompletionToggle() {
     setIsSaving(true)
@@ -30,6 +39,8 @@ export function HabitCompletionButton({
       if (habit.isCompletedToday) {
         await undoHabitCompletion(habit.id)
 
+        setEarnedRewards(null)
+
         onCompletionStatusChanged({
           ...habit,
           isCompletedToday: false,
@@ -37,9 +48,11 @@ export function HabitCompletionButton({
 
         onProgressChanged?.()
       } else {
-        await completeHabit(habit.id, {
+        const response = await completeHabit(habit.id, {
           notes: null,
         })
+
+        setEarnedRewards(response.rewards)
 
         onCompletionStatusChanged({
           ...habit,
@@ -78,6 +91,23 @@ export function HabitCompletionButton({
       >
         {buttonText}
       </button>
+
+      {earnedRewards && (
+        <div
+          className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-green-900"
+          role="status"
+        >
+          <p className="font-semibold">Habit completed!</p>
+
+          <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            {earnedRewards.map((reward) => (
+              <li key={reward.attributeType}>
+                +{reward.xpAmount} {getAttributeLabel(reward.attributeType)} XP
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {errorMessage && (
         <p className="mt-3 text-red-700" role="alert">

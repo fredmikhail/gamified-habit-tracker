@@ -58,6 +58,16 @@ describe('HabitList', () => {
         completedAtUtc: '2026-07-20T01:30:00Z',
         notes: null,
       },
+      rewards: [
+        {
+          attributeType: 'mind',
+          xpAmount: 14,
+        },
+        {
+          attributeType: 'focus',
+          xpAmount: 6,
+        },
+      ],
     })
 
     render(
@@ -90,6 +100,8 @@ describe('HabitList', () => {
     ).toHaveAttribute('aria-pressed', 'true')
 
     expect(getHabitsMock).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('status')).toHaveTextContent('+14 Mind XP')
+    expect(screen.getByRole('status')).toHaveTextContent('+6 Focus XP')
   })
 
   it('shows a loading message while habits are being requested', () => {
