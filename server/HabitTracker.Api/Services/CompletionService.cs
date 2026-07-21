@@ -128,16 +128,19 @@ public sealed class CompletionService
         return new CompleteHabitResponse
         {
             Completion =
-                new HabitCompletionResponse
-                {
-                    Id = completion.Id,
-                    HabitId = completion.HabitId,
-                    CompletedDate =
-                        completion.CompletedDate,
-                    CompletedAtUtc =
-                        completion.CompletedAtUtc,
-                    Notes = completion.Notes
-                }
+        new HabitCompletionResponse
+        {
+            Id = completion.Id,
+            HabitId = completion.HabitId,
+            CompletedDate =
+                completion.CompletedDate,
+            CompletedAtUtc =
+                completion.CompletedAtUtc,
+            Notes = completion.Notes
+        },
+            Rewards =
+        CreateRewardResponses(
+            habit.HabitAttributeRewards)
         };
     }
 
@@ -202,6 +205,26 @@ public sealed class CompletionService
             cancellationToken);
 
         return true;
+    }
+
+    private static IReadOnlyList<
+    HabitAttributeRewardResponse>
+    CreateRewardResponses(
+        IEnumerable<HabitAttributeReward> rewards)
+    {
+        return rewards
+            .OrderByDescending(reward =>
+                reward.XpAmount)
+            .ThenBy(reward =>
+                reward.AttributeType)
+            .Select(reward =>
+                new HabitAttributeRewardResponse
+                {
+                    AttributeType =
+                        reward.AttributeType,
+                    XpAmount = reward.XpAmount
+                })
+            .ToList();
     }
 
     private void EnsureHabitAttributeRewards(

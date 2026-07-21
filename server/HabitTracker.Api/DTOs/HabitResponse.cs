@@ -18,6 +18,11 @@ public sealed class HabitResponse
 
     public HabitDifficulty Difficulty { get; set; }
 
+    public IReadOnlyList<HabitAttributeRewardResponse>
+    AttributeRewards
+    { get; set; }
+        = Array.Empty<HabitAttributeRewardResponse>();
+
     public bool IsActive { get; set; }
 
     public bool IsCompletedToday { get; set; }

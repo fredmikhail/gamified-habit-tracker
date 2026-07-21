@@ -452,6 +452,29 @@ public sealed class CompletionsControllerTests
 
         Assert.NotNull(responseBody);
 
+        Assert.Collection(
+    responseBody.Rewards,
+    primaryReward =>
+    {
+        Assert.Equal(
+            AttributeType.Fitness,
+            primaryReward.AttributeType);
+
+        Assert.Equal(
+            14,
+            primaryReward.XpAmount);
+    },
+    secondaryReward =>
+    {
+        Assert.Equal(
+            AttributeType.Discipline,
+            secondaryReward.AttributeType);
+
+        Assert.Equal(
+            6,
+            secondaryReward.XpAmount);
+    });
+
         Assert.NotEqual(
             Guid.Empty,
             responseBody.Completion.Id);

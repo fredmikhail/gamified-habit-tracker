@@ -82,9 +82,12 @@ public sealed class HabitService
         CancellationToken cancellationToken = default)
     {
         var query =
-            _dbContext.Habits
-                .AsNoTracking()
-                .Where(habit => habit.UserId == userId);
+    _dbContext.Habits
+        .AsNoTracking()
+        .Include(habit =>
+            habit.HabitAttributeRewards)
+        .Where(habit =>
+            habit.UserId == userId);
 
         if (!includeInactive)
         {
@@ -199,8 +202,10 @@ public sealed class HabitService
         CancellationToken cancellationToken = default)
     {
         var habit =
-            await _dbContext.Habits
-                .SingleOrDefaultAsync(
+    await _dbContext.Habits
+        .Include(habit =>
+            habit.HabitAttributeRewards)
+        .SingleOrDefaultAsync(
                     habit =>
                         habit.Id == habitId
                         && habit.UserId == userId,
@@ -237,9 +242,11 @@ public sealed class HabitService
         CancellationToken cancellationToken = default)
     {
         var habit =
-            await _dbContext.Habits
-                .AsNoTracking()
-                .SingleOrDefaultAsync(
+    await _dbContext.Habits
+        .AsNoTracking()
+        .Include(habit =>
+            habit.HabitAttributeRewards)
+        .SingleOrDefaultAsync(
                     habit =>
                         habit.Id == habitId
                         && habit.UserId == userId,
@@ -378,7 +385,45 @@ public sealed class HabitService
         return value.Trim();
     }
 
-    private static HabitResponse CreateHabitResponse(
+    private IReadOnlyList<HabitAttributeRewardResponse>
+    CreateAttributeRewardResponses(
+        Habit habit)
+    {
+        if (habit.HabitAttributeRewards.Count == 2)
+        {
+            return habit.HabitAttributeRewards
+                .OrderByDescending(reward =>
+                    reward.XpAmount)
+                .ThenBy(reward =>
+                    reward.AttributeType)
+                .Select(reward =>
+                    new HabitAttributeRewardResponse
+                    {
+                        AttributeType =
+                            reward.AttributeType,
+                        XpAmount = reward.XpAmount
+                    })
+                .ToList();
+        }
+
+        return _xpService
+            .CalculateRewards(
+                habit.Category,
+                habit.Difficulty)
+            .OrderByDescending(reward =>
+                reward.Value)
+            .ThenBy(reward =>
+                reward.Key)
+            .Select(reward =>
+                new HabitAttributeRewardResponse
+                {
+                    AttributeType = reward.Key,
+                    XpAmount = reward.Value
+                })
+            .ToList();
+    }
+
+    private HabitResponse CreateHabitResponse(
         Habit habit,
         bool isCompletedToday)
     {
@@ -391,6 +436,8 @@ public sealed class HabitService
             FrequencyType = habit.FrequencyType,
             TargetCount = habit.TargetCount,
             Difficulty = habit.Difficulty,
+            AttributeRewards =
+    CreateAttributeRewardResponses(habit),
             IsActive = habit.IsActive,
             IsCompletedToday = isCompletedToday,
             CreatedAtUtc = habit.CreatedAtUtc,

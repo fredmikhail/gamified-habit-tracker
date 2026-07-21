@@ -151,6 +151,29 @@ public sealed class HabitsControllerTests
             HabitDifficulty.Elite,
             responseBody.Difficulty);
 
+        Assert.Collection(
+responseBody.AttributeRewards,
+primaryReward =>
+{
+    Assert.Equal(
+        AttributeType.Fitness,
+        primaryReward.AttributeType);
+
+    Assert.Equal(
+        35,
+        primaryReward.XpAmount);
+},
+secondaryReward =>
+{
+    Assert.Equal(
+        AttributeType.Discipline,
+        secondaryReward.AttributeType);
+
+    Assert.Equal(
+        15,
+        secondaryReward.XpAmount);
+});
+
         Assert.True(responseBody.IsActive);
 
         Assert.False(responseBody.IsCompletedToday);

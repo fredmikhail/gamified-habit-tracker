@@ -84,6 +84,29 @@ public sealed class CompletionXpTests
 
         Assert.NotNull(response);
 
+        Assert.Collection(
+    response.Rewards,
+    primaryReward =>
+    {
+        Assert.Equal(
+            AttributeType.Fitness,
+            primaryReward.AttributeType);
+
+        Assert.Equal(
+            14,
+            primaryReward.XpAmount);
+    },
+    secondaryReward =>
+    {
+        Assert.Equal(
+            AttributeType.Discipline,
+            secondaryReward.AttributeType);
+
+        Assert.Equal(
+            6,
+            secondaryReward.XpAmount);
+    });
+
         var attributes =
             dbContext.UserAttributes
                 .Where(attribute =>

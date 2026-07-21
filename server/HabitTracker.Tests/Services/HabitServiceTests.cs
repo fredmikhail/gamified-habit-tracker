@@ -97,6 +97,28 @@ public sealed class HabitServiceTests
         Assert.Equal(
             savedHabit.Difficulty,
             response.Difficulty);
+        Assert.Collection(
+response.AttributeRewards,
+primaryReward =>
+{
+    Assert.Equal(
+        AttributeType.Fitness,
+        primaryReward.AttributeType);
+
+    Assert.Equal(
+        35,
+        primaryReward.XpAmount);
+},
+secondaryReward =>
+{
+    Assert.Equal(
+        AttributeType.Discipline,
+        secondaryReward.AttributeType);
+
+    Assert.Equal(
+        15,
+        secondaryReward.XpAmount);
+});
         Assert.Equal(savedHabit.IsActive, response.IsActive);
         Assert.False(response.IsCompletedToday);
         Assert.Equal(
