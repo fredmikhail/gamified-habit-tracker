@@ -1,18 +1,44 @@
-# API Contract
+# Gamified Habit Tracker — API Contract
 
-This document defines the current and planned HTTP API contract between the React frontend and the ASP.NET Core backend.
-
-Phase 2 authentication endpoints, Phase 3 habit-management endpoints, and Phase 4 habit-completion endpoints are implemented. Endpoints for later phases remain planned until their phase is completed.
-
-The contract establishes consistent routes, request shapes, response shapes, status codes, authentication behavior, and error behavior.
-
-The contract may evolve as features are implemented, but changes should be deliberate, tested, and documented.
+**Current implementation status:** Phase 5 complete
+**Next contract work:** Phase 6 — Dashboard and Streaks
+**Frontend:** React, TypeScript, Vite, Tailwind CSS
+**Backend:** ASP.NET Core Web API
+**Authentication:** Encrypted cookie authentication with antiforgery protection
+**Contract rule:** The backend returns authoritative values; the frontend displays them
 
 ---
 
-## Base Path
+## 1. Purpose
 
-All application API routes begin with:
+This document defines the HTTP contract between the React frontend and the ASP.NET Core backend.
+
+It records:
+
+- implemented routes,
+- authentication requirements,
+- request shapes,
+- response shapes,
+- enum values,
+- status codes,
+- ownership behavior,
+- validation behavior,
+- error behavior,
+- planned Phase 6 contract direction.
+
+The contract must distinguish clearly between:
+
+- implemented,
+- proposed next,
+- deferred.
+
+A field shown in a UI reference image is not part of the API contract unless its behavior is implemented, tested, and documented here.
+
+---
+
+## 2. Base Path
+
+Application API routes begin with:
 
 ```text
 /api
@@ -21,50 +47,56 @@ All application API routes begin with:
 Examples:
 
 ```text
+/api/health
 /api/auth/login
 /api/habits
-/api/dashboard/today
+/api/attributes
 ```
 
 ---
 
-## General Conventions
+## 3. General Conventions
 
-### Data Format
+### 3.1 Data format
 
 Requests and responses use JSON unless otherwise documented.
 
-JSON property names use camelCase.
-
-Enum values are serialized as camelCase strings.
+JSON properties use camel case.
 
 Examples:
 
-- `daily`
-- `weekly`
-- `medium`
-- `strength`
+```text
+createdAtUtc
+isCompletedToday
+attributeRewards
+xpNeededForNextLevel
+```
 
-Numeric enum values are not part of the public API contract.
+### 3.2 Enum serialization
 
-Example:
+Enums are serialized as camel-case strings.
+
+Numeric enum values are rejected and are not part of the public contract.
+
+Examples:
 
 ```json
 {
   "frequencyType": "weekly",
-  "targetCount": 3
+  "difficulty": "medium",
+  "category": "learningAndSkills"
 }
 ```
 
----
+### 3.3 Identifiers
 
-### Identifiers
+Identifiers are JSON strings containing `Guid` values.
 
-Entity identifiers are represented as JSON strings containing `Guid` values.
+Currently implemented entities use application-generated UUID version 7 identifiers.
 
-The backend generates identifiers using UUID version 7 for all currently implemented entities.
+Clients must treat identifiers as opaque values.
 
-API clients must still treat identifiers as opaque values. The frontend should not parse ordering information from them or generate business behavior from their format.
+The frontend must not derive ordering, dates, or business behavior from the identifier format.
 
 Example:
 
@@ -74,9 +106,7 @@ Example:
 }
 ```
 
----
-
-### Dates and Timestamps
+### 3.4 Dates
 
 Date-only values use:
 
@@ -87,133 +117,269 @@ YYYY-MM-DD
 Example:
 
 ```text
-2026-07-10
+2026-07-21
 ```
 
-UTC timestamps use ISO 8601 format.
+### 3.5 UTC timestamps
+
+UTC timestamps use ISO 8601.
 
 Example:
 
 ```text
-2026-07-10T21:42:10Z
+2026-07-21T03:33:20Z
 ```
 
-Properties containing UTC timestamps should end with `Utc`.
+Properties containing UTC timestamps end with `Utc`.
 
 Examples:
 
 - `createdAtUtc`
 - `updatedAtUtc`
 - `completedAtUtc`
-- `unlockedAtUtc`
+- `checkedAtUtc`
+
+### 3.6 Null values
+
+Optional text fields may return `null`.
+
+Blank optional text submitted by the client is normalized to `null` where documented.
+
+Example:
+
+```json
+{
+  "description": null,
+  "notes": null
+}
+```
 
 ---
 
-### Authentication
+## 4. Implemented Enum Contracts
+
+## 4.1 `HabitFrequencyType`
+
+Supported values:
+
+- `daily`
+- `weekly`
+
+Rules:
+
+- Daily habits require `targetCount` of `1`.
+- Weekly habits require `targetCount` from `1` through `7`.
+- A habit may be completed at most once per local date.
+
+---
+
+## 4.2 `HabitDifficulty`
+
+Supported values:
+
+- `easy`
+- `medium`
+- `hard`
+- `elite`
+
+Difficulty determines total XP:
+
+| Difficulty | Total XP |
+|---|---:|
+| Easy | 10 |
+| Medium | 20 |
+| Hard | 30 |
+| Elite | 50 |
+
+The client submits difficulty.
+
+The backend calculates rewards from difficulty and category.
+
+---
+
+## 4.3 `HabitCategory`
+
+Supported values:
+
+- `fitnessAndMovement`
+- `healthAndRecovery`
+- `learningAndSkills`
+- `workAndCareer`
+- `dailyLifeAndOrganization`
+- `moneyAndFinance`
+- `relationshipsAndCommunity`
+- `emotionalWellBeing`
+- `spiritualityAndPurpose`
+- `creativityAndRecreation`
+- `selfControlAndBoundaries`
+- `generalGrowth`
+
+Category is required.
+
+It is not free text.
+
+The backend uses category to select the primary and secondary attributes for automatic rewards.
+
+---
+
+## 4.4 `AttributeType`
+
+Supported values:
+
+- `discipline`
+- `fitness`
+- `vitality`
+- `focus`
+- `mind`
+- `resilience`
+- `social`
+- `purpose`
+
+These values are stable across:
+
+- habit reward responses,
+- completion reward responses,
+- user attribute responses,
+- XP transactions,
+- future dashboard responses.
+
+---
+
+## 5. Authentication and Browser Security
 
 Protected endpoints require an authenticated user.
 
-The browser application uses encrypted cookie-based authentication.
+The browser application uses encrypted cookie authentication.
 
-After successful registration or login, ASP.NET Core creates the authentication cookie. The browser sends this cookie automatically with later authenticated requests.
+The frontend does not:
 
-The authentication cookie:
+- receive an authentication token in JSON,
+- read the authentication cookie,
+- decode authentication credentials,
+- manually attach an authorization bearer token.
 
-- is named `HabitTracker.Auth`
-- is `HttpOnly` so frontend JavaScript cannot read it
-- is `Secure` outside the Development environment
-- uses `SameSite=Lax`
-- uses a fixed maximum ticket lifetime of 12 hours by default
-- is non-persistent by default
-- becomes persistent for a fixed maximum of 30 days only when the user explicitly selects `rememberMe` during login
-- does not use sliding expiration during the MVP
+After registration or login, ASP.NET Core creates the authentication cookie and the browser sends it automatically on later requests.
 
-Registration always creates the default non-persistent 12-hour session.
+### 5.1 Authentication cookie
 
-Frontend API requests use `credentials: "include"` so the browser can send and receive authentication and antiforgery cookies.
+The cookie:
 
-The web frontend and backend should be presented through the same public origin where practical.
+- is named `HabitTracker.Auth`,
+- is `HttpOnly`,
+- uses `SameSite=Lax`,
+- is secure outside Development,
+- expires after 12 hours by default,
+- is non-persistent by default,
+- may persist for 30 days when `rememberMe` is true,
+- does not use sliding expiration during MVP.
 
-During local development, the Vite development server proxies `/api` requests to the ASP.NET Core backend so browser authentication remains same-origin.
+Registration always creates the default non-persistent session.
 
-State-changing browser requests use antiforgery protection.
+### 5.2 Frontend credentials
 
-This applies to controller requests using:
+Frontend requests use:
+
+```javascript
+credentials: "include"
+```
+
+### 5.3 Antiforgery protection
+
+State-changing controller requests require antiforgery validation:
 
 - `POST`
 - `PUT`
 - `PATCH`
 - `DELETE`
 
-The antiforgery cookie is named:
+The antiforgery cookie is:
 
 ```text
 HabitTracker.Antiforgery
 ```
 
-The frontend obtains an antiforgery request token from the backend, caches it in memory, and sends it through:
+The antiforgery request header is:
 
 ```text
 X-CSRF-TOKEN
 ```
 
-After registration, login, or logout changes the authentication identity, the frontend clears its cached request token. A replacement is obtained lazily before the next state-changing request.
+The frontend:
 
-The backend determines the authenticated user's identity from the validated authentication context.
+1. requests a token from `GET /api/auth/csrf-token`,
+2. caches the request token in memory,
+3. attaches it to state-changing requests,
+4. clears the cached token after registration, login, or logout,
+5. obtains a replacement lazily when another state-changing request occurs.
 
-Request bodies must not accept a user-provided `userId` for user-owned operations.
+### 5.4 Local browser origin
 
-This prevents a user from attempting to access or modify another user's data by submitting a different identifier.
+During local development, the browser calls `/api` through the Vite development server.
 
----
+Vite proxies those requests to ASP.NET Core.
 
-### User Data Ownership
+This preserves separate frontend and backend applications while presenting same-origin browser requests.
 
-Every protected operation must verify that the requested data belongs to the authenticated user.
+### 5.5 Authenticated identity
 
-For example:
+The backend derives the current user identifier from the authenticated claims principal.
 
-- a user may only view their own habits
-- a user may only edit their own habits
-- a user may only complete their own habits
-- a user may only view their own dashboard
-- a user may only view their own XP and attributes
+User-owned request bodies must not accept `userId`.
 
-The frontend is not responsible for enforcing ownership security.
-
-The backend enforces it.
+The frontend cannot choose which user owns a resource.
 
 ---
 
-## Standard HTTP Status Codes
+## 6. Ownership and Privacy
 
-The API should use standard HTTP status codes consistently.
+Every protected operation must limit data to the authenticated user.
 
-- `200 OK` — Request succeeded.
-- `201 Created` — A resource was created.
-- `204 No Content` — Request succeeded and no response body is needed.
-- `400 Bad Request` — Request data is invalid.
-- `401 Unauthorized` — Authentication is missing or invalid.
-- `403 Forbidden` — The user is authenticated but cannot perform the action.
-- `404 Not Found` — The requested resource does not exist for the current user.
-- `409 Conflict` — The request conflicts with existing state.
-- `500 Internal Server Error` — An unexpected server error occurred.
+A user may only:
 
-A duplicate habit completion should normally return:
+- view their own habits,
+- edit their own habits,
+- deactivate their own habits,
+- complete their own habits,
+- undo their own completions,
+- view their own attributes,
+- view their own future dashboard.
+
+For user-owned resources, missing and foreign-owned identifiers are generally treated the same:
 
 ```text
-409 Conflict
+404 Not Found
 ```
 
-The request may be valid in shape, but it conflicts with an existing completion for the same habit and date.
+This avoids revealing whether another user’s resource exists.
+
+Ownership is enforced by backend queries and services, not by hiding UI controls.
 
 ---
 
-## Error Responses
+## 7. Standard Status Codes
 
-The API uses a consistent error format.
+- `200 OK` — Request succeeded and returns a response body.
+- `201 Created` — A resource or completion was created.
+- `204 No Content` — Request succeeded with no response body.
+- `400 Bad Request` — Request shape or domain input is invalid.
+- `401 Unauthorized` — Authentication is missing or invalid.
+- `403 Forbidden` — The user is authenticated but access is denied.
+- `404 Not Found` — The resource does not exist for the authenticated user.
+- `409 Conflict` — The request conflicts with current state.
+- `500 Internal Server Error` — An unexpected failure occurred.
 
-ASP.NET Core Problem Details is the implemented error response format for validation failures and expected application errors.
+Examples of `409 Conflict`:
+
+- duplicate normalized email,
+- duplicate normalized username,
+- completing an inactive habit,
+- completing a habit already completed for the same local date.
+
+---
+
+## 8. Error Responses
+
+Expected errors use ASP.NET Core Problem Details.
 
 Example:
 
@@ -227,64 +393,82 @@ Example:
 }
 ```
 
-Validation errors may include field-specific details.
+Validation errors may include field-specific messages.
 
 Example:
 
 ```json
 {
-  "title": "Validation failed",
+  "title": "One or more validation errors occurred.",
   "status": 400,
   "errors": {
-    "name": ["Habit name is required."],
-    "targetCount": ["Target count must be greater than zero."]
+    "name": [
+      "The Name field is required."
+    ]
   }
 }
 ```
 
-Internal exception details and stack traces must not be exposed to users in production responses.
+Production responses must not expose:
 
-Implemented authentication error mappings include:
+- stack traces,
+- database connection details,
+- SQL,
+- password hashes,
+- internal exception messages not intended for users.
 
-- invalid IANA time zone → `400 Bad Request`
-- invalid credentials → `401 Unauthorized`
-- normalized email or username conflict → `409 Conflict`
+Invalid login credentials use a generic response that does not reveal whether the email or password was incorrect.
 
-The invalid-credentials response is generic and must not reveal whether the submitted email or password was incorrect.
+---
+
+# Implemented Endpoints
+
+## 9. Health Endpoint
+
+## 9.1 Get API health
+
+```text
+GET /api/health
+```
+
+### Authentication required
+
+No.
+
+### Response
+
+`HealthResponse`
+
+```json
+{
+  "status": "Healthy",
+  "checkedAtUtc": "2026-07-21T03:33:20Z"
+}
+```
+
+### Status codes
+
+- `200 OK`
+
+This endpoint confirms that the API process is responding.
+
+Application startup already fails when the configured PostgreSQL database cannot be reached.
 
 ---
 
 # Authentication Endpoints
 
-Authentication endpoints were implemented during Phase 2.
-
-Successful registration or login creates an encrypted authentication cookie.
-
-The frontend does not receive, store, decode, or manually attach the authentication credential.
-
-The `user` property of `AuthResponse` uses the `CurrentUserResponse` shape.
-
-Registration, login, and logout use antiforgery protection because they change authentication state.
-
-After registration, login, or logout changes the authenticated identity, the frontend clears the cached antiforgery request token. A new token is requested only when the next state-changing request needs one.
-
----
-
-## Get Antiforgery Token
+## 10. Get antiforgery token
 
 ```text
 GET /api/auth/csrf-token
 ```
 
-Returns an antiforgery request token for browser requests.
-
-### Authentication Required
+### Authentication required
 
 No.
 
-The endpoint may be called before registration or login and again after the authenticated user changes.
-
-The backend also creates the corresponding antiforgery cookie when required.
+The endpoint may be called before or after authentication.
 
 ### Response
 
@@ -296,31 +480,25 @@ The backend also creates the corresponding antiforgery cookie when required.
 }
 ```
 
-The frontend sends `requestToken` through:
-
-```text
-X-CSRF-TOKEN
-```
-
-for state-changing browser requests.
-
-### Possible Status Codes
+### Status codes
 
 - `200 OK`
 
 ---
 
-## Register User
+## 11. Register user
 
 ```text
 POST /api/auth/register
 ```
 
-Creates a new user account.
-
-### Authentication Required
+### Authentication required
 
 No.
+
+### Antiforgery required
+
+Yes.
 
 ### Request
 
@@ -335,15 +513,25 @@ No.
 }
 ```
 
-`timeZone` is required and must contain a valid application-supported time-zone identifier.
+### Behavior
 
-Registration creates both the User and their default UserSettings.
+Registration:
 
-DisplayName initially defaults to Username.
+- trims email and username,
+- normalizes email and username for case-insensitive lookup,
+- validates the IANA time zone,
+- hashes the password,
+- creates `User`,
+- creates default `UserSettings`,
+- uses username as the initial display name,
+- saves user and settings together,
+- creates a temporary authenticated session.
+
+Password whitespace is preserved.
 
 ### Response
 
-Successful registration creates the authentication cookie and returns `AuthResponse`.
+`AuthResponse`
 
 ```json
 {
@@ -357,51 +545,36 @@ Successful registration creates the authentication cookie and returns `AuthRespo
 }
 ```
 
-The authentication credential is not included in the JSON response body.
+No authentication credential appears in the JSON body.
 
-The registration session is temporary by default.
+### Validation summary
 
-### Possible Status Codes
+- `email`: required, valid email shape, maximum 254 characters
+- `username`: required, 3–30 characters, letters/numbers/underscores
+- `password`: required, 15–128 characters
+- `timeZone`: required, maximum 100 characters, valid supported IANA identifier
+
+### Status codes
 
 - `201 Created`
 - `400 Bad Request`
 - `409 Conflict`
 
-`409 Conflict` may be returned when the email or username is already registered.
-
-### Validation Rules
-
-The backend validates:
-
-- `email` is required, has a valid email shape, and is at most 254 characters
-- `username` is required and contains between 3 and 30 characters
-- `username` contains only letters, numbers, and underscores
-- `password` is required and contains between 15 and 128 characters
-- `timeZone` is required, is at most 100 characters, and contains a valid IANA time-zone identifier
-
-Email and username comparisons are case-insensitive.
-
-Leading and trailing whitespace is removed from email and username before normalization.
-
-Password whitespace is preserved.
-
-Registration returns `409 Conflict` when the normalized email or normalized username is already registered.
-
-The conflict response should not reveal more account information than necessary.
-
 ---
 
-## Login User
+## 12. Login user
 
 ```text
 POST /api/auth/login
 ```
 
-Authenticates an existing user.
-
-### Authentication Required
+### Authentication required
 
 No.
+
+### Antiforgery required
+
+Yes.
 
 ### Request
 
@@ -415,15 +588,11 @@ No.
 }
 ```
 
-`rememberMe` is optional and defaults to `false`. It controls whether the authentication cookie persists after the browser session ends.
-
-When `rememberMe` is `false`, the authentication cookie is temporary.
-
-When `rememberMe` is `true`, the authentication cookie may persist for up to 30 days.
+`rememberMe` defaults to `false`.
 
 ### Response
 
-Successful login creates the authentication cookie and returns `AuthResponse`.
+`AuthResponse`
 
 ```json
 {
@@ -437,45 +606,29 @@ Successful login creates the authentication cookie and returns `AuthResponse`.
 }
 ```
 
-The authentication credential is not included in the JSON response body.
-
-### Possible Status Codes
+### Status codes
 
 - `200 OK`
 - `400 Bad Request`
 - `401 Unauthorized`
 
-### Validation Rules
-
-The backend validates:
-
-- `email` is required and is at most 254 characters
-- `password` is required and is at most 128 characters
-- `rememberMe` is optional and defaults to `false`
-
-The backend normalizes the submitted email before looking up the user.
-
-Incorrect credentials return `401 Unauthorized` with a generic error message.
-
-The response must not reveal whether the email address or password was incorrect.
-
 ---
 
-## Logout User
+## 13. Logout user
 
 ```text
 POST /api/auth/logout
 ```
 
-Signs out the authenticated user by removing the authentication cookie.
-
-### Authentication Required
+### Authentication required
 
 No.
 
-Logout is idempotent. The endpoint returns success even when no active authenticated session exists.
+Logout is idempotent.
 
-The request must include a valid antiforgery token.
+### Antiforgery required
+
+Yes.
 
 ### Request
 
@@ -485,23 +638,19 @@ No request body.
 
 No response body.
 
-After logout succeeds, the frontend clears its current user state and cached antiforgery request token. A new token is requested lazily before the next state-changing request.
-
-### Possible Status Codes
+### Status codes
 
 - `204 No Content`
 
 ---
 
-## Get Current User
+## 14. Get current user
 
 ```text
 GET /api/auth/me
 ```
 
-Returns basic information about the authenticated user.
-
-### Authentication Required
+### Authentication required
 
 Yes.
 
@@ -519,67 +668,83 @@ Yes.
 }
 ```
 
-### Possible Status Codes
+### Status codes
 
 - `200 OK`
 - `401 Unauthorized`
+
+When the authenticated user record no longer exists, the backend ends the invalid session and returns `401 Unauthorized`.
 
 ---
 
 # Habit Endpoints
 
-Habit endpoints were implemented during Phase 3.
+## 15. `HabitResponse`
+
+All implemented habit-returning endpoints use this response shape.
+
+```json
+{
+  "id": "habit-id",
+  "name": "Read C# textbook",
+  "description": "Read one chapter.",
+  "category": "learningAndSkills",
+  "frequencyType": "daily",
+  "targetCount": 1,
+  "difficulty": "medium",
+  "attributeRewards": [
+    {
+      "attributeType": "mind",
+      "xpAmount": 14
+    },
+    {
+      "attributeType": "focus",
+      "xpAmount": 6
+    }
+  ],
+  "isActive": true,
+  "isCompletedToday": false,
+  "createdAtUtc": "2026-07-19T12:00:00Z",
+  "updatedAtUtc": "2026-07-19T12:00:00Z"
+}
+```
+
+### `attributeRewards`
+
+`attributeRewards` is always backend-produced.
+
+The client does not submit this property during create or update.
+
+For a valid current habit, the response contains the two automatic rewards derived from category and difficulty.
+
+Rewards are returned in deterministic order:
+
+1. higher XP first,
+2. attribute enum order as the tie-breaker.
+
+### `isCompletedToday`
+
+The backend calculates `isCompletedToday` from:
+
+- stored `HabitCompletion` records,
+- the authenticated user’s stored time zone,
+- the current UTC time.
+
+The client does not submit this property.
 
 ---
 
-## Habit DTO Evolution by Phase
-
-Habit DTOs expand as later phases introduce new behavior.
-
-### Implemented — Phase 3
-
-`HabitResponse` introduced the basic habit fields:
-
-- id
-- name
-- description
-- category
-- frequencyType
-- targetCount
-- difficulty
-- isActive
-- createdAtUtc
-- updatedAtUtc
-
-### Implemented — Phase 4
-
-`HabitResponse` adds:
-
-- isCompletedToday
-
-`isCompletedToday` is calculated by the backend using the authenticated user's current local date and stored completion records.
-
-### Planned — Phase 5
-
-Habit request and response DTOs add:
-
-- attributeRewards
-
-Examples in implemented endpoint sections show the current contract shape. Examples for future phases are labeled as planned.
-
-## Get User Habits
+## 16. Get user habits
 
 ```text
 GET /api/habits
 ```
 
-Returns habits belonging to the authenticated user.
-
-### Authentication Required
+### Authentication required
 
 Yes.
 
-### Optional Query Parameter
+### Optional query
 
 ```text
 includeInactive=false
@@ -593,7 +758,7 @@ GET /api/habits?includeInactive=true
 
 ### Response
 
-An array of `HabitResponse`.
+Array of `HabitResponse`.
 
 ```json
 [
@@ -601,38 +766,49 @@ An array of `HabitResponse`.
     "id": "habit-id",
     "name": "Go to gym",
     "description": "Complete a planned gym session.",
-    "category": "Fitness",
+    "category": "fitnessAndMovement",
     "frequencyType": "weekly",
     "targetCount": 3,
-    "difficulty": "medium",
+    "difficulty": "hard",
+    "attributeRewards": [
+      {
+        "attributeType": "fitness",
+        "xpAmount": 21
+      },
+      {
+        "attributeType": "discipline",
+        "xpAmount": 9
+      }
+    ],
     "isActive": true,
     "isCompletedToday": false,
-    "createdAtUtc": "2026-07-10T15:00:00Z",
-    "updatedAtUtc": "2026-07-10T15:00:00Z"
+    "createdAtUtc": "2026-07-20T15:00:00Z",
+    "updatedAtUtc": "2026-07-20T15:00:00Z"
   }
 ]
 ```
 
-By default, only active habits are returned. When `includeInactive=true`, active and inactive habits are returned with active habits first. Within each active state, newer habits are returned first with a stable identifier tie-breaker.
+Default behavior:
 
-For every returned habit, `isCompletedToday` reflects whether a completion exists for the authenticated user's current local date.
+- inactive habits are excluded,
+- active habits are ordered before inactive habits when included,
+- newer habits appear first within each active state,
+- stable identifier ordering resolves timestamp ties.
 
-### Possible Status Codes
+### Status codes
 
 - `200 OK`
 - `401 Unauthorized`
 
 ---
 
-## Get Habit by ID
+## 17. Get habit by ID
 
 ```text
 GET /api/habits/{habitId}
 ```
 
-Returns one habit belonging to the authenticated user.
-
-### Authentication Required
+### Authentication required
 
 Yes.
 
@@ -640,27 +816,27 @@ Yes.
 
 `HabitResponse`
 
-### Possible Status Codes
+### Status codes
 
 - `200 OK`
 - `401 Unauthorized`
 - `404 Not Found`
 
-A habit owned by another user should not be returned.
-
-Returning `404 Not Found` avoids revealing whether another user's resource exists.
+Missing and foreign-owned habits return `404 Not Found`.
 
 ---
 
-## Create Habit
+## 18. Create habit
 
 ```text
 POST /api/habits
 ```
 
-Creates a habit for the authenticated user.
+### Authentication required
 
-### Authentication Required
+Yes.
+
+### Antiforgery required
 
 Yes.
 
@@ -672,76 +848,69 @@ Yes.
 {
   "name": "Go to gym",
   "description": "Complete a planned gym session.",
-  "category": "Fitness",
+  "category": "fitnessAndMovement",
   "frequencyType": "weekly",
   "targetCount": 3,
-  "difficulty": "medium"
+  "difficulty": "hard"
 }
 ```
 
-The backend assigns the authenticated user's identity.
+The request must not contain:
 
-The request does not include `userId`.
+- `userId`,
+- `attributeRewards`,
+- `isActive`,
+- `isCompletedToday`,
+- timestamps.
 
-During Phase 5, `CreateHabitRequest` adds:
+### Backend behavior
 
-```json
-{
-  "attributeRewards": [
-    {
-      "attributeType": "strength",
-      "xpAmount": 20
-    },
-    {
-      "attributeType": "discipline",
-      "xpAmount": 10
-    }
-  ]
-}
-```
+The backend:
+
+- derives the owner from claims,
+- trims `name`,
+- trims `description`,
+- converts blank description to `null`,
+- validates category,
+- validates frequency and target count together,
+- validates difficulty,
+- calculates the two automatic rewards,
+- stores the reward rows with the habit.
+
+### Validation summary
+
+- `name`: required after trimming, maximum 100 characters
+- `description`: optional, maximum 500 characters
+- `category`: required and supported
+- `frequencyType`: required and supported
+- `targetCount`: required, range 1–7
+- Daily requires `targetCount` 1
+- Weekly requires `targetCount` 1–7
+- `difficulty`: required and supported
 
 ### Response
 
 `HabitResponse`
 
-### Possible Status Codes
+### Status codes
 
 - `201 Created`
 - `400 Bad Request`
 - `401 Unauthorized`
 
-### Validation Notes
-
-The implemented Phase 3 backend validates:
-
-- habit name
-- supported frequency type
-- Daily habits use TargetCount of 1
-- Weekly TargetCount is between 1 and 7
-- supported difficulty: `easy`, `medium`, `hard`, or `elite`
-- `name` is required after trimming and is at most 100 characters
-- `description` is optional, trimmed, at most 500 characters, and blank input becomes `null`
-- `category` is optional, trimmed, at most 50 characters, and blank input becomes `null`
-
-During Phase 5, the backend should additionally validate:
-
-- supported attribute types
-- XP amounts greater than zero
-- duplicate attribute rewards within the same habit
-
-The exact maximum XP limits will be decided when XP rules are implemented.
-
 ---
 
-## Update Habit
+## 19. Update habit
 
 ```text
 PUT /api/habits/{habitId}
 ```
 
-Updates an existing habit belonging to the authenticated user.
+### Authentication required
 
-### Authentication Required
+Yes.
+
+### Antiforgery required
 
 Yes.
 
@@ -752,57 +921,48 @@ Yes.
 ```json
 {
   "name": "Go to gym",
-  "description": "Complete a full planned gym session.",
-  "category": "Fitness",
+  "description": "Complete the full planned session.",
+  "category": "fitnessAndMovement",
   "frequencyType": "weekly",
   "targetCount": 4,
-  "difficulty": "hard"
+  "difficulty": "elite"
 }
 ```
 
-Update requests use the same Phase 3 validation rules as habit creation.
+The request uses the same validation rules as creation.
 
-The request does not include `userId`.
+The request must not include `attributeRewards`.
 
-During Phase 5, `UpdateHabitRequest` adds:
-
-```json
-{
-  "attributeRewards": [
-    {
-      "attributeType": "strength",
-      "xpAmount": 20
-    },
-    {
-      "attributeType": "discipline",
-      "xpAmount": 10
-    }
-  ]
-}
-```
+When category or difficulty changes, the backend synchronizes the stored automatic rewards.
 
 ### Response
 
-`HabitResponse`
+Updated `HabitResponse`.
 
-### Possible Status Codes
+### Status codes
 
 - `200 OK`
 - `400 Bad Request`
 - `401 Unauthorized`
 - `404 Not Found`
 
+Owned active and inactive habits may be updated.
+
+Missing and foreign-owned habits return `404 Not Found`.
+
 ---
 
-## Deactivate Habit
+## 20. Deactivate habit
 
 ```text
 DELETE /api/habits/{habitId}
 ```
 
-Soft-deactivates a habit without deleting its database record or future related history.
+### Authentication required
 
-### Authentication Required
+Yes.
+
+### Antiforgery required
 
 Yes.
 
@@ -812,37 +972,45 @@ No request body.
 
 ### Response
 
-Updated `HabitResponse`.
+Updated `HabitResponse` with:
 
-### Possible Status Codes
+```json
+{
+  "isActive": false
+}
+```
+
+The actual response includes the full `HabitResponse` shape.
+
+### Status codes
 
 - `200 OK`
 - `401 Unauthorized`
 - `404 Not Found`
 
-The MVP does not permanently delete habits.
+### Behavior
 
-Deactivation is idempotent. Repeating the request for an already inactive owned habit returns the same inactive resource without changing `updatedAtUtc` again.
-
-A missing habit and a habit owned by another user both return `404 Not Found`.
-
----
-
-# Habit Completion Endpoints
-
-Habit completion endpoints were implemented during Phase 4.
+- The habit is soft-deactivated.
+- The row and history are preserved.
+- Repeating the request for an already inactive owned habit is successful.
+- Idempotent repeat deactivation does not update `updatedAtUtc` again.
+- Missing and foreign-owned habits return `404 Not Found`.
 
 ---
 
-## Complete Habit
+# Completion Endpoints
+
+## 21. Complete habit
 
 ```text
 POST /api/habits/{habitId}/completions
 ```
 
-Completes a habit for the authenticated user's current date.
+### Authentication required
 
-### Authentication Required
+Yes.
+
+### Antiforgery required
 
 Yes.
 
@@ -856,11 +1024,38 @@ Yes.
 }
 ```
 
-The MVP does not accept a client-selected completion date.
+The client may send:
 
-The backend determines `completedDate` by converting the current UTC timestamp into the authenticated user's local date using their stored time zone.
+```json
+{
+  "notes": null
+}
+```
 
-`notes` is optional, trimmed by the backend, limited to 500 characters, and stored as `null` when the supplied value is blank.
+The request must not contain:
+
+- `userId`,
+- `completedDate`,
+- `completedAtUtc`,
+- reward values,
+- XP amounts.
+
+### Backend behavior
+
+The backend:
+
+1. verifies ownership,
+2. verifies the habit is active,
+3. loads the user’s stored time zone,
+4. obtains current UTC time,
+5. calculates the user-local `completedDate`,
+6. rejects an existing completion for the same habit and local date,
+7. normalizes notes,
+8. ensures the automatic habit reward mapping exists,
+9. updates the corresponding user attributes,
+10. creates XP transactions,
+11. creates the completion,
+12. saves the changes together.
 
 ### Response
 
@@ -871,14 +1066,28 @@ The backend determines `completedDate` by converting the current UTC timestamp i
   "completion": {
     "id": "completion-id",
     "habitId": "habit-id",
-    "completedDate": "2026-07-10",
-    "completedAtUtc": "2026-07-10T21:42:10Z",
+    "completedDate": "2026-07-21",
+    "completedAtUtc": "2026-07-21T03:33:20Z",
     "notes": "Completed after work."
-  }
+  },
+  "rewards": [
+    {
+      "attributeType": "mind",
+      "xpAmount": 14
+    },
+    {
+      "attributeType": "focus",
+      "xpAmount": 6
+    }
+  ]
 }
 ```
 
-### Possible Status Codes
+`rewards` contains the exact backend-applied XP.
+
+The frontend displays these values and must not recalculate them.
+
+### Status codes
 
 - `201 Created`
 - `400 Bad Request`
@@ -886,25 +1095,29 @@ The backend determines `completedDate` by converting the current UTC timestamp i
 - `404 Not Found`
 - `409 Conflict`
 
-`404 Not Found` is returned when the habit does not exist or belongs to another user.
+`404 Not Found`:
 
-`409 Conflict` is returned when the habit is inactive or already completed for the same local date.
+- habit does not exist,
+- habit belongs to another user.
 
-The current Phase 4 `CompleteHabitResponse` contains only the `completion` property.
+`409 Conflict`:
 
-During Phase 5, the response will add a backend-calculated `rewards` property. The frontend will not calculate authoritative progression values.
+- habit is inactive,
+- habit is already completed for the current local date.
 
 ---
 
-## Undo Today's Habit Completion
+## 22. Undo today’s completion
 
 ```text
 DELETE /api/habits/{habitId}/completions/today
 ```
 
-Removes or reverses today's completion for the authenticated user.
+### Authentication required
 
-### Authentication Required
+Yes.
+
+### Antiforgery required
 
 Yes.
 
@@ -916,249 +1129,344 @@ No request body.
 
 No response body.
 
-### Possible Status Codes
+### Backend behavior
+
+The backend:
+
+1. verifies that the owned habit exists,
+2. calculates the authenticated user’s current local date,
+3. finds today’s completion,
+4. loads XP transactions linked to that completion,
+5. subtracts their values from the corresponding user attributes,
+6. removes the XP transactions,
+7. removes the completion,
+8. saves the changes together.
+
+Undo is permitted when the owned habit has since been deactivated.
+
+### Status codes
 
 - `204 No Content`
 - `401 Unauthorized`
 - `404 Not Found`
 
-The backend determines today's date from the authenticated user's stored time zone.
+`404 Not Found` is returned when:
 
-`404 Not Found` is returned when the habit does not exist, belongs to another user, or has no completion for the current local date.
+- the habit is missing,
+- the habit belongs to another user,
+- no completion exists for the current local date.
 
-Undoing today's completion is allowed even if the related habit has since been deactivated.
+The current MVP deletes the applied XP transactions during undo.
 
-The current Phase 4 implementation removes today's `HabitCompletion`.
-
-Once XP is introduced in Phase 5, undo performs the following changes:
-
-1. Find the XpTransactions linked to the HabitCompletion.
-2. Subtract their amounts from the corresponding UserAttributes.
-3. Remove the related XpTransactions.
-4. Remove the HabitCompletion.
-
-All changes must succeed or fail together in one database transaction.
-
-`204 No Content` is returned only after the transaction succeeds.
-
-Negative reversal transactions and immutable undo history are deferred until after the MVP.
+Immutable reversal history and negative reversal transactions are deferred.
 
 ---
 
 # Attribute Endpoints
 
-Attribute endpoints are planned for Phase 5 and are not implemented yet.
-
----
-
-## Get User Attributes
+## 23. Get user attributes
 
 ```text
 GET /api/attributes
 ```
 
-Returns the authenticated user's character attributes.
-
-### Authentication Required
+### Authentication required
 
 Yes.
 
 ### Response
 
-An array of `UserAttributeResponse`.
+Array of `UserAttributeResponse`.
 
 ```json
 [
   {
     "attributeType": "discipline",
-    "currentXp": 315,
-    "level": 4,
-    "xpRequiredForNextLevel": 500
+    "currentXp": 99,
+    "level": 1,
+    "xpIntoCurrentLevel": 99,
+    "xpNeededForNextLevel": 100
   },
   {
-    "attributeType": "strength",
-    "currentXp": 240,
+    "attributeType": "fitness",
+    "currentXp": 225,
     "level": 3,
-    "xpRequiredForNextLevel": 350
+    "xpIntoCurrentLevel": 0,
+    "xpNeededForNextLevel": 150
   }
 ]
 ```
 
-`currentXp` is the persisted current net XP balance for the attribute.
+### Behavior
 
-`level` and `xpRequiredForNextLevel` are calculated by the backend from `currentXp`.
+The response contains all eight supported attributes in enum order:
 
-They are returned through the response DTO but are not stored as separate UserAttribute database fields during the MVP.
+1. discipline
+2. fitness
+3. vitality
+4. focus
+5. mind
+6. resilience
+7. social
+8. purpose
 
-### Possible Status Codes
+When a `UserAttribute` row does not yet exist, the API returns a zero-XP response for that attribute.
+
+The backend calculates:
+
+- `level`,
+- `xpIntoCurrentLevel`,
+- `xpNeededForNextLevel`.
+
+Only `currentXp` is persisted on `UserAttribute`.
+
+The frontend may calculate a visual percentage from the returned progress values.
+
+The frontend must not implement the authoritative level curve.
+
+### Status codes
 
 - `200 OK`
 - `401 Unauthorized`
 
 ---
 
-# Dashboard Endpoints
+# Phase 6 Proposed Contract
 
-Dashboard endpoints are planned for Phase 6 and are not implemented yet.
+## 24. Status
+
+Dashboard and streak endpoints are not implemented yet.
+
+The following direction is approved for Phase 6, but exact DTO names and final response fields must be confirmed in the first Phase 6 contract slice before coding.
+
+The planned approach is one aggregated dashboard endpoint rather than forcing React to combine many unrelated requests.
 
 ---
 
-## Get Today's Dashboard
+## 25. Proposed dashboard endpoint
 
 ```text
-GET /api/dashboard/today
+GET /api/dashboard
 ```
 
-Returns the data needed to render the authenticated user's main dashboard.
-
-### Authentication Required
+### Authentication required
 
 Yes.
 
-### Response
+### Purpose
+
+Return the authoritative data needed by the main daily dashboard.
+
+### Proposed response direction
 
 `DashboardResponse`
 
 ```json
 {
-  "date": "2026-07-10",
-  "user": {
-    "displayName": "fred",
-    "level": 4,
+  "date": "2026-07-21",
+  "displayName": "fred",
+  "overallProgress": {
     "totalXp": 380,
-    "xpRequiredForNextLevel": 500
+    "level": 2,
+    "xpIntoCurrentLevel": 180,
+    "xpNeededForNextLevel": 250
   },
-  "habitSummary": {
+  "todaySummary": {
     "completedCount": 2,
-    "totalCount": 4
+    "remainingCount": 2,
+    "totalCount": 4,
+    "completionPercentage": 50,
+    "xpEarnedToday": 40
+  },
+  "streak": {
+    "currentStreak": 3,
+    "longestStreak": 8
   },
   "habits": [],
   "attributes": [],
-  "streaks": []
+  "recentActivity": [],
+  "weeklySummary": {
+    "weekStart": "2026-07-20",
+    "weekEnd": "2026-07-26",
+    "completedCount": 8,
+    "targetCount": 14,
+    "completionPercentage": 57,
+    "xpEarned": 120
+  }
 }
 ```
 
-`totalXp` is derived from the sum of the user's currently applied XpTransaction amounts.
+This example establishes product direction, not a frozen implementation contract.
 
-Overall `level` and `xpRequiredForNextLevel` are calculated by the backend from `totalXp`.
+Before implementation, Phase 6 must approve:
 
-These progression values are not authoritative frontend calculations.
+- exact streak meaning,
+- daily versus weekly habit treatment,
+- whether streak is overall, per-habit, or both,
+- today’s treatment when the day is still in progress,
+- exact weekly target calculation,
+- recent-activity shape,
+- whether existing `HabitResponse` and `UserAttributeResponse` are reused directly,
+- exact route and nested DTO names.
 
-The exact nested shapes will reuse documented response types where practical.
+### Backend ownership
 
-For example:
+The backend must calculate:
 
-- `habits` may contain `HabitResponse`
-- `attributes` may contain `UserAttributeResponse`
+- total XP,
+- overall level,
+- overall level progress,
+- completed and remaining counts,
+- completion percentage,
+- XP earned today,
+- current streak,
+- longest streak,
+- weekly totals,
+- weekly percentages.
 
-### Possible Status Codes
+React must not calculate authoritative dashboard business values from raw records.
+
+### Planned status codes
 
 - `200 OK`
 - `401 Unauthorized`
 
 ---
 
-## Get Weekly Dashboard Summary
+## 26. Dashboard contract guardrails
 
-```text
-GET /api/dashboard/week
-```
+Phase 6 must not add fields merely because a mockup displays them.
 
-Returns a basic weekly progress summary.
+Do not add unsupported:
 
-### Authentication Required
+- rank,
+- currency,
+- focus score,
+- notifications,
+- quests,
+- avatar state,
+- social comparison,
+- achievement claims.
 
-Yes.
+Dashboard DTOs should contain only implemented and tested behavior.
 
-The MVP endpoint returns the authenticated user's current week.
+A separate weekly endpoint should be introduced only when a real screen or performance need justifies it.
 
-The backend determines the current local date from the user's stored time zone.
-
-The MVP week begins on Monday and ends on Sunday.
-
-Selecting historical weeks is deferred until the data model can accurately preserve historical habit configuration and scheduling changes.
-
-### Response
-
-```json
-{
-  "weekStart": "2026-07-06",
-  "weekEnd": "2026-07-12",
-  "completedCount": 18,
-  "scheduledCount": 24,
-  "completionRate": 75,
-  "xpEarned": 240,
-  "topAttribute": "discipline"
-}
-```
-
-Response field meanings:
-
-- `weekStart` is the Monday of the user's current local week.
-- `weekEnd` is the following Sunday.
-- `completedCount` is the number of applicable HabitCompletions in that week.
-- `scheduledCount` is the total weekly completion target calculated by DashboardService.
-- `completionRate` is calculated by the backend from completedCount and scheduledCount.
-- `xpEarned` is the sum of currently applied XpTransactions linked to completions in the week.
-- `topAttribute` is the attribute that received the most XP in the week and may be `null` when no XP was earned.
-
-### Possible Status Codes
-
-- `200 OK`
-- `401 Unauthorized`
+The initial dashboard should prefer one aggregate response to avoid duplicated frontend orchestration.
 
 ---
 
-# Future API Extension Points
+# Deferred API Areas
 
-The following API areas are intentionally not part of the initial MVP contract:
+## 27. Post-MVP endpoints
 
-- advanced scheduling
-- sleep tracking
-- bad habit tracking
-- dashboard customization
-- gamification visibility settings
-- reminders
-- notifications
-- social features
-- leaderboards
-- public profiles
-- AI recommendations
-- milestones and achievements
-- historical weekly summaries
+The following are outside the current MVP contract:
 
-Possible future settings may include:
+- advanced scheduling,
+- sleep tracking,
+- bad-habit tracking,
+- journal entries,
+- reminders,
+- notifications,
+- social features,
+- leaderboards,
+- public profiles,
+- avatars,
+- quests,
+- inventory,
+- currencies,
+- AI recommendations,
+- milestone and achievement management,
+- historical weekly-review selection,
+- payments,
+- admin endpoints,
+- calendar integration.
 
-- enabling or disabling gamification UI
-- hiding XP or levels
-- selecting visible dashboard sections
-- changing dashboard widget order
-
-These should be added through deliberate contract updates rather than being embedded prematurely in the MVP endpoints.
-
----
-
-# Contract Change Rules
-
-When changing an existing API contract:
-
-1. Explain why the current contract is insufficient.
-2. Identify affected frontend and backend code.
-3. Identify affected DTOs.
-4. Identify affected tests.
-5. Update this document.
-6. Avoid breaking existing clients without a clear reason.
-7. Make the change in a focused commit.
-
-The frontend and backend must agree on request and response shapes.
-
-A contract change is not complete until both sides are updated and verified.
+These require explicit product and architecture decisions before contract design.
 
 ---
 
-# Endpoint Phase Summary
+# Contract Change Process
 
-## Implemented — Phase 2
+## 28. Required review
+
+When an existing response changes, review:
+
+- backend response DTO,
+- backend service mapping,
+- controller behavior,
+- unit tests,
+- HTTP integration tests,
+- JSON contract tests,
+- frontend TypeScript type,
+- frontend API parser,
+- frontend API tests,
+- component fixtures,
+- consuming components,
+- this document.
+
+### Example
+
+Adding `rewards` to `CompleteHabitResponse` requires all affected backend and frontend layers to change together.
+
+A backend-only response change is incomplete.
+
+---
+
+## 29. Contract design rules
+
+1. Backend responses are purpose-built DTOs.
+2. Database entities are never returned directly.
+3. User identifiers are derived from claims.
+4. User-owned request bodies do not accept `userId`.
+5. Enum values remain stable camel-case strings.
+6. Numeric enums are rejected.
+7. Business calculations remain authoritative on the server.
+8. The frontend may format and visualize returned values.
+9. Aggregate page responses are preferred when they reduce needless orchestration.
+10. Speculative fields are not added.
+11. Errors use consistent status codes and Problem Details.
+12. Contract changes require automated tests.
+13. Implemented and proposed contracts must remain clearly separated.
+
+---
+
+## 30. UI alignment
+
+The API exists to provide real data for the approved interface.
+
+It should support:
+
+- today’s dashboard,
+- habit management,
+- automatic reward previews,
+- attribute progression,
+- streaks,
+- weekly review,
+- recent activity.
+
+It must not force React to:
+
+- reconstruct domain aggregates,
+- calculate XP,
+- calculate levels,
+- calculate streaks,
+- infer ownership,
+- invent unsupported game systems.
+
+The UI visualizes the application system.
+
+The API defines the authoritative application system.
+
+---
+
+# Endpoint Summary
+
+## 31. Implemented — Phase 1
+
+- `GET /api/health`
+
+## 32. Implemented — Phase 2
 
 - `GET /api/auth/csrf-token`
 - `POST /api/auth/register`
@@ -1166,7 +1474,7 @@ A contract change is not complete until both sides are updated and verified.
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 
-## Implemented — Phase 3
+## 33. Implemented — Phase 3
 
 - `GET /api/habits`
 - `GET /api/habits/{habitId}`
@@ -1174,16 +1482,19 @@ A contract change is not complete until both sides are updated and verified.
 - `PUT /api/habits/{habitId}`
 - `DELETE /api/habits/{habitId}`
 
-## Implemented — Phase 4
+## 34. Implemented — Phase 4
 
 - `POST /api/habits/{habitId}/completions`
 - `DELETE /api/habits/{habitId}/completions/today`
 
-## Planned — Phase 5
+## 35. Implemented — Phase 5
 
 - `GET /api/attributes`
+- automatic `attributeRewards` in `HabitResponse`
+- applied `rewards` in `CompleteHabitResponse`
 
-## Planned — Phase 6
+## 36. Proposed — Phase 6
 
-- `GET /api/dashboard/today`
-- `GET /api/dashboard/week`
+- `GET /api/dashboard`
+
+The exact Phase 6 response contract must be approved before implementation.
