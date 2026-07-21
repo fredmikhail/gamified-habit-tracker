@@ -1,4 +1,5 @@
 using HabitTracker.Api.Domain.Entities;
+using HabitTracker.Api.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -22,6 +23,12 @@ public sealed class UserSettingsConfiguration
             .HasMaxLength(100)
             .IsRequired();
 
+        builder.Property(userSettings => userSettings.WeekStartsOn)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(WeekStartDay.Monday)
+            .IsRequired();
+
         builder.Property(userSettings => userSettings.CreatedAtUtc)
             .IsRequired();
 
@@ -37,5 +44,22 @@ public sealed class UserSettingsConfiguration
                 userSettings => userSettings.UserId)
             .OnDelete(DeleteBehavior.Cascade)
             .IsRequired();
+
+        builder.ToTable(tableBuilder =>
+        {
+            tableBuilder.HasCheckConstraint(
+                "ck_user_settings_week_starts_on",
+                """
+                "week_starts_on" IN (
+                    'Monday',
+                    'Tuesday',
+                    'Wednesday',
+                    'Thursday',
+                    'Friday',
+                    'Saturday',
+                    'Sunday'
+                )
+                """);
+        });
     }
 }

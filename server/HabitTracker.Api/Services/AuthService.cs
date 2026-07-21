@@ -1,5 +1,6 @@
 using HabitTracker.Api.Data;
 using HabitTracker.Api.Domain.Entities;
+using HabitTracker.Api.Domain.Enums;
 using HabitTracker.Api.DTOs;
 using HabitTracker.Api.Exceptions;
 using Microsoft.AspNetCore.Identity;
@@ -72,6 +73,7 @@ public sealed class AuthService
             UserId = user.Id,
             DisplayName = username,
             TimeZone = request.TimeZone,
+            WeekStartsOn = WeekStartDay.Monday,
             CreatedAtUtc = createdAtUtc,
             UpdatedAtUtc = createdAtUtc,
             User = user

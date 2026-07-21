@@ -1,5 +1,6 @@
 using HabitTracker.Api.Data;
 using HabitTracker.Api.Domain.Entities;
+using HabitTracker.Api.Domain.Enums;
 using HabitTracker.Api.DTOs;
 using HabitTracker.Api.Exceptions;
 using HabitTracker.Api.Services;
@@ -87,9 +88,11 @@ public sealed class AuthServiceTests
         Assert.Equal(savedUser.Id, savedSettings.UserId);
         Assert.Equal("Fred_95", savedSettings.DisplayName);
         Assert.Equal("America/Toronto", savedSettings.TimeZone);
+        Assert.Equal(
+            WeekStartDay.Monday,
+            savedSettings.WeekStartsOn);
         Assert.Equal(savedUser.CreatedAtUtc, savedSettings.CreatedAtUtc);
         Assert.Equal(savedSettings.CreatedAtUtc, savedSettings.UpdatedAtUtc);
-
         Assert.Equal(savedUser.Id, response.User.Id);
         Assert.Equal(savedUser.Email, response.User.Email);
         Assert.Equal(savedUser.Username, response.User.Username);
