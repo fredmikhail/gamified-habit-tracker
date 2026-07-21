@@ -1014,7 +1014,7 @@ public sealed class CompletionServiceTests
         return new CompletionService(
             dbContext,
             timeProvider,
-            new AttributeService(dbContext),
+            new AttributeService(dbContext, new XpService()),
             new XpService());
     }
 

@@ -278,7 +278,7 @@ public sealed class CompletionXpTests
         return new CompletionService(
             dbContext,
             new FixedTimeProvider(utcNow),
-            new AttributeService(dbContext),
+            new AttributeService(dbContext, new XpService()),
             new XpService());
     }
 

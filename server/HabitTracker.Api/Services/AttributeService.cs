@@ -1,5 +1,7 @@
 using HabitTracker.Api.Data;
 using HabitTracker.Api.Domain.Entities;
+using HabitTracker.Api.Domain.Enums;
+using HabitTracker.Api.DTOs;
 using Microsoft.EntityFrameworkCore;
 
 namespace HabitTracker.Api.Services;
@@ -10,10 +12,63 @@ public sealed class AttributeService
         "Habit completion";
 
     private readonly AppDbContext _dbContext;
+    private readonly XpService _xpService;
 
-    public AttributeService(AppDbContext dbContext)
+    public AttributeService(
+    AppDbContext dbContext,
+    XpService xpService)
     {
         _dbContext = dbContext;
+        _xpService = xpService;
+    }
+
+    public async Task<IReadOnlyList<UserAttributeResponse>>
+    GetUserAttributesAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var storedAttributes =
+            await _dbContext.UserAttributes
+                .AsNoTracking()
+                .Where(attribute =>
+                    attribute.UserId == userId)
+                .ToDictionaryAsync(
+                    attribute =>
+                        attribute.AttributeType,
+                    cancellationToken);
+
+        var responses =
+            new List<UserAttributeResponse>();
+
+        foreach (var attributeType
+            in Enum.GetValues<AttributeType>())
+        {
+            var currentXp =
+                storedAttributes.TryGetValue(
+                    attributeType,
+                    out var storedAttribute)
+                    ? storedAttribute.CurrentXp
+                    : 0;
+
+            var progress =
+                _xpService
+                    .CalculateAttributeLevelProgress(
+                        currentXp);
+
+            responses.Add(
+                new UserAttributeResponse
+                {
+                    AttributeType = attributeType,
+                    CurrentXp = currentXp,
+                    Level = progress.Level,
+                    XpIntoCurrentLevel =
+                        progress.XpIntoCurrentLevel,
+                    XpNeededForNextLevel =
+                        progress.XpNeededForNextLevel
+                });
+        }
+
+        return responses;
     }
 
     public async Task ApplyCompletionRewardsAsync(
