@@ -51,6 +51,7 @@ describe('HabitCompletionButton', () => {
   it('completes the habit and reports the new status', async () => {
     const user = userEvent.setup()
     const onCompletionStatusChanged = vi.fn()
+    const onProgressChanged = vi.fn()
 
     completeHabitMock.mockResolvedValue({
       completion: {
@@ -66,6 +67,7 @@ describe('HabitCompletionButton', () => {
       <HabitCompletionButton
         habit={existingHabit}
         onCompletionStatusChanged={onCompletionStatusChanged}
+        onProgressChanged={onProgressChanged}
       />,
     )
 
@@ -87,11 +89,14 @@ describe('HabitCompletionButton', () => {
       ...existingHabit,
       isCompletedToday: true,
     })
+
+    expect(onProgressChanged).toHaveBeenCalledTimes(1)
   })
 
   it('undoes the completion and reports the new status', async () => {
     const user = userEvent.setup()
     const onCompletionStatusChanged = vi.fn()
+    const onProgressChanged = vi.fn()
 
     const completedHabit: HabitResponse = {
       ...existingHabit,
@@ -104,6 +109,7 @@ describe('HabitCompletionButton', () => {
       <HabitCompletionButton
         habit={completedHabit}
         onCompletionStatusChanged={onCompletionStatusChanged}
+        onProgressChanged={onProgressChanged}
       />,
     )
 
@@ -125,11 +131,14 @@ describe('HabitCompletionButton', () => {
       ...completedHabit,
       isCompletedToday: false,
     })
+
+    expect(onProgressChanged).toHaveBeenCalledTimes(1)
   })
 
   it('shows the backend error when completion fails', async () => {
     const user = userEvent.setup()
     const onCompletionStatusChanged = vi.fn()
+    const onProgressChanged = vi.fn()
 
     completeHabitMock.mockRejectedValue(
       new Error('This habit has already been completed for today.'),
@@ -139,6 +148,7 @@ describe('HabitCompletionButton', () => {
       <HabitCompletionButton
         habit={existingHabit}
         onCompletionStatusChanged={onCompletionStatusChanged}
+        onProgressChanged={onProgressChanged}
       />,
     )
 
@@ -153,5 +163,6 @@ describe('HabitCompletionButton', () => {
     )
 
     expect(onCompletionStatusChanged).not.toHaveBeenCalled()
+    expect(onProgressChanged).not.toHaveBeenCalled()
   })
 })

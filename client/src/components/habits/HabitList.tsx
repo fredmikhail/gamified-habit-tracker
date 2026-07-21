@@ -10,6 +10,7 @@ type HabitListProps = {
   refreshKey: number
   onHabitUpdated: (habit: HabitResponse) => void
   onHabitDeactivated: (habit: HabitResponse) => void
+  onProgressChanged: () => void
 }
 
 function formatLabel(value: string): string {
@@ -34,6 +35,7 @@ export function HabitList({
   refreshKey,
   onHabitUpdated,
   onHabitDeactivated,
+  onProgressChanged,
 }: HabitListProps) {
   const [habits, setHabits] = useState<HabitResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -130,6 +132,7 @@ export function HabitList({
               <HabitCompletionButton
                 habit={habit}
                 onCompletionStatusChanged={handleCompletionStatusChanged}
+                onProgressChanged={onProgressChanged}
               />
 
               {editingHabitId === habit.id ? (

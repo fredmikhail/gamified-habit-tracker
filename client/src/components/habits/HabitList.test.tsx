@@ -65,6 +65,7 @@ describe('HabitList', () => {
         refreshKey={0}
         onHabitDeactivated={vi.fn()}
         onHabitUpdated={vi.fn()}
+        onProgressChanged={vi.fn()}
       />,
     )
 
@@ -101,6 +102,7 @@ describe('HabitList', () => {
         refreshKey={0}
         onHabitDeactivated={vi.fn()}
         onHabitUpdated={vi.fn()}
+        onProgressChanged={vi.fn()}
       />,
     )
 
@@ -117,6 +119,7 @@ describe('HabitList', () => {
         refreshKey={0}
         onHabitDeactivated={vi.fn()}
         onHabitUpdated={vi.fn()}
+        onProgressChanged={vi.fn()}
       />,
     )
 
@@ -135,6 +138,7 @@ describe('HabitList', () => {
         refreshKey={0}
         onHabitDeactivated={vi.fn()}
         onHabitUpdated={vi.fn()}
+        onProgressChanged={vi.fn()}
       />,
     )
 
@@ -183,6 +187,7 @@ describe('HabitList', () => {
         refreshKey={0}
         onHabitDeactivated={vi.fn()}
         onHabitUpdated={vi.fn()}
+        onProgressChanged={vi.fn()}
       />,
     )
 
@@ -221,6 +226,7 @@ describe('HabitList', () => {
         refreshKey={0}
         onHabitDeactivated={vi.fn()}
         onHabitUpdated={vi.fn()}
+        onProgressChanged={vi.fn()}
       />,
     )
 
@@ -233,6 +239,7 @@ describe('HabitList', () => {
         refreshKey={1}
         onHabitDeactivated={vi.fn()}
         onHabitUpdated={vi.fn()}
+        onProgressChanged={vi.fn()}
       />,
     )
 
@@ -274,6 +281,7 @@ describe('HabitList', () => {
         refreshKey={0}
         onHabitDeactivated={vi.fn()}
         onHabitUpdated={onHabitUpdated}
+        onProgressChanged={vi.fn()}
       />,
     )
 
@@ -349,6 +357,7 @@ describe('HabitList', () => {
         refreshKey={0}
         onHabitDeactivated={vi.fn()}
         onHabitUpdated={vi.fn()}
+        onProgressChanged={vi.fn()}
       />,
     )
 
@@ -417,6 +426,7 @@ describe('HabitList', () => {
         refreshKey={0}
         onHabitDeactivated={onHabitDeactivated}
         onHabitUpdated={vi.fn()}
+        onProgressChanged={vi.fn()}
       />,
     )
 

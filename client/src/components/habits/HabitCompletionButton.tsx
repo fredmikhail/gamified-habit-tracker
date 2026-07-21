@@ -4,6 +4,7 @@ import type { HabitResponse } from '../../types/HabitResponse'
 
 type HabitCompletionButtonProps = {
   habit: HabitResponse
+  onProgressChanged?: () => void
   onCompletionStatusChanged: (habit: HabitResponse) => void
 }
 
@@ -16,6 +17,7 @@ function getHabitErrorMessage(error: unknown): string {
 export function HabitCompletionButton({
   habit,
   onCompletionStatusChanged,
+  onProgressChanged,
 }: HabitCompletionButtonProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -32,6 +34,8 @@ export function HabitCompletionButton({
           ...habit,
           isCompletedToday: false,
         })
+
+        onProgressChanged?.()
       } else {
         await completeHabit(habit.id, {
           notes: null,
@@ -41,6 +45,8 @@ export function HabitCompletionButton({
           ...habit,
           isCompletedToday: true,
         })
+
+        onProgressChanged?.()
       }
     } catch (error) {
       setErrorMessage(getHabitErrorMessage(error))

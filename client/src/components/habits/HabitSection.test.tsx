@@ -1,9 +1,14 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getAttributes } from '../../api/attributesApi'
 import { createHabit, deactivateHabit, getHabits } from '../../api/habitsApi'
 import type { HabitResponse } from '../../types/HabitResponse'
 import { HabitSection } from './HabitSection'
+
+vi.mock('../../api/attributesApi', () => ({
+  getAttributes: vi.fn(),
+}))
 
 vi.mock('../../api/habitsApi', () => ({
   completeHabit: vi.fn(),
@@ -14,12 +19,15 @@ vi.mock('../../api/habitsApi', () => ({
   updateHabit: vi.fn(),
 }))
 
+const getAttributesMock = vi.mocked(getAttributes)
 const createHabitMock = vi.mocked(createHabit)
 const deactivateHabitMock = vi.mocked(deactivateHabit)
 const getHabitsMock = vi.mocked(getHabits)
 
 describe('HabitSection', () => {
   beforeEach(() => {
+    getAttributesMock.mockReset()
+    getAttributesMock.mockResolvedValue([])
     createHabitMock.mockReset()
     deactivateHabitMock.mockReset()
     getHabitsMock.mockReset()
