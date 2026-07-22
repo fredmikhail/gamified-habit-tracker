@@ -12,6 +12,27 @@ type HabitEditFormProps = {
   onCancel: () => void
 }
 
+const monthNames = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
+
+function formatDateOnly(value: string): string {
+  const [year, month, day] = value.split('-').map(Number)
+
+  return `${monthNames[month - 1]} ${day}, ${year}`
+}
+
 function getHabitErrorMessage(error: unknown): string {
   return error instanceof Error
     ? error.message
@@ -23,15 +44,21 @@ export function HabitEditForm({
   onHabitUpdated,
   onCancel,
 }: HabitEditFormProps) {
+  const editableConfiguration = habit.pendingConfiguration ?? habit
+
   const [name, setName] = useState(habit.name)
   const [description, setDescription] = useState(habit.description ?? '')
-  const [category, setCategory] = useState<HabitCategory>(habit.category)
-  const [frequencyType, setFrequencyType] = useState<HabitFrequencyType>(
-    habit.frequencyType,
+  const [category, setCategory] = useState<HabitCategory>(
+    editableConfiguration.category,
   )
-  const [targetCount, setTargetCount] = useState(habit.targetCount)
+  const [frequencyType, setFrequencyType] = useState<HabitFrequencyType>(
+    editableConfiguration.frequencyType,
+  )
+  const [targetCount, setTargetCount] = useState(
+    editableConfiguration.targetCount,
+  )
   const [difficulty, setDifficulty] = useState<HabitDifficulty>(
-    habit.difficulty,
+    editableConfiguration.difficulty,
   )
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -75,6 +102,21 @@ export function HabitEditForm({
       className="mt-4 space-y-4 rounded-lg border border-slate-300 bg-slate-50 p-4"
       onSubmit={handleSubmit}
     >
+      <div className="rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
+        <p>
+          Name and description update immediately. Category, frequency, target,
+          and difficulty changes begin at the next week boundary.
+        </p>
+
+        {habit.pendingConfiguration && (
+          <p className="mt-2 font-medium text-amber-800" role="status">
+            Scheduled rule changes take effect on{' '}
+            {formatDateOnly(habit.pendingConfiguration.effectiveFromDate)}. The
+            rule fields below show those scheduled values.
+          </p>
+        )}
+      </div>
+
       <div>
         <label className="block font-medium" htmlFor={`habit-name-${habit.id}`}>
           Name

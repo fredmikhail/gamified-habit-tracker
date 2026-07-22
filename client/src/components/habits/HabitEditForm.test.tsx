@@ -76,6 +76,61 @@ describe('HabitEditForm', () => {
     ).toHaveValue('medium')
   })
 
+  it('prefills rule fields from the pending configuration', () => {
+    const habitWithPendingConfiguration: HabitResponse = {
+      ...existingHabit,
+      pendingConfiguration: {
+        effectiveFromDate: '2026-07-27',
+        category: 'fitnessAndMovement',
+        frequencyType: 'weekly',
+        targetCount: 4,
+        difficulty: 'elite',
+      },
+    }
+
+    render(
+      <HabitEditForm
+        habit={habitWithPendingConfiguration}
+        onCancel={vi.fn()}
+        onHabitUpdated={vi.fn()}
+      />,
+    )
+
+    expect(
+      screen.getByRole('textbox', {
+        name: 'Name',
+      }),
+    ).toHaveValue('Read C# textbook')
+
+    expect(
+      screen.getByRole('combobox', {
+        name: 'Category',
+      }),
+    ).toHaveValue('fitnessAndMovement')
+
+    expect(
+      screen.getByRole('combobox', {
+        name: 'Frequency',
+      }),
+    ).toHaveValue('weekly')
+
+    expect(
+      screen.getByRole('spinbutton', {
+        name: 'Times per week',
+      }),
+    ).toHaveValue(4)
+
+    expect(
+      screen.getByRole('combobox', {
+        name: 'Difficulty',
+      }),
+    ).toHaveValue('elite')
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Scheduled rule changes take effect on July 27, 2026.',
+    )
+  })
+
   it('submits the changed values and reports the updated habit', async () => {
     const user = userEvent.setup()
     const onHabitUpdated = vi.fn()

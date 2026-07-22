@@ -260,7 +260,7 @@ describe('HabitList', () => {
     })
   })
 
-  it('updates a habit and reports that the list should refresh', async () => {
+  it('updates a habit and displays its scheduled rule changes', async () => {
     const user = userEvent.setup()
     const onHabitUpdated = vi.fn()
 
@@ -281,7 +281,13 @@ describe('HabitList', () => {
     const updatedHabit: HabitResponse = {
       ...habit,
       name: 'Read TypeScript book',
-      difficulty: 'hard',
+      pendingConfiguration: {
+        effectiveFromDate: '2026-07-27',
+        category: 'learningAndSkills',
+        frequencyType: 'daily',
+        targetCount: 1,
+        difficulty: 'hard',
+      },
       updatedAtUtc: '2026-07-20T12:00:00Z',
     }
 
@@ -343,6 +349,16 @@ describe('HabitList', () => {
         name: 'Edit Read C# textbook',
       }),
     ).not.toBeInTheDocument()
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Read TypeScript book',
+      }),
+    ).toBeInTheDocument()
+
+    expect(screen.getByText('Scheduled for July 27, 2026')).toBeInTheDocument()
+
+    expect(screen.getByText('Difficulty: Hard')).toBeInTheDocument()
   })
 
   it('closes the edit form without updating when canceled', async () => {

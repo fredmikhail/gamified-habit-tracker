@@ -13,16 +13,42 @@ type HabitListProps = {
   onProgressChanged: () => void
 }
 
+type FrequencyConfiguration = {
+  frequencyType: HabitResponse['frequencyType']
+  targetCount: number
+}
+
+const monthNames = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
+
 function formatLabel(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
-function getFrequencyLabel(habit: HabitResponse): string {
-  if (habit.frequencyType === 'daily') {
+function formatDateOnly(value: string): string {
+  const [year, month, day] = value.split('-').map(Number)
+
+  return `${monthNames[month - 1]} ${day}, ${year}`
+}
+
+function getFrequencyLabel(configuration: FrequencyConfiguration): string {
+  if (configuration.frequencyType === 'daily') {
     return 'Daily'
   }
 
-  return `${habit.targetCount} times per week`
+  return `${configuration.targetCount} times per week`
 }
 
 function getHabitErrorMessage(error: unknown): string {
@@ -73,6 +99,12 @@ export function HabitList({
   }, [refreshKey])
 
   function handleHabitUpdated(updatedHabit: HabitResponse) {
+    setHabits((currentHabits) =>
+      currentHabits.map((habit) =>
+        habit.id === updatedHabit.id ? updatedHabit : habit,
+      ),
+    )
+
     setEditingHabitId(null)
     onHabitUpdated(updatedHabit)
   }
@@ -128,6 +160,38 @@ export function HabitList({
 
                 <p>Category: {getHabitCategoryLabel(habit.category)}</p>
               </div>
+
+              {habit.pendingConfiguration && (
+                <section
+                  aria-label={`Scheduled changes for ${habit.name}`}
+                  className="mt-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
+                >
+                  <p className="font-semibold">
+                    Scheduled for{' '}
+                    {formatDateOnly(
+                      habit.pendingConfiguration.effectiveFromDate,
+                    )}
+                  </p>
+
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2">
+                    <p>
+                      Frequency: {getFrequencyLabel(habit.pendingConfiguration)}
+                    </p>
+
+                    <p>
+                      Category:{' '}
+                      {getHabitCategoryLabel(
+                        habit.pendingConfiguration.category,
+                      )}
+                    </p>
+
+                    <p>
+                      Difficulty:{' '}
+                      {formatLabel(habit.pendingConfiguration.difficulty)}
+                    </p>
+                  </div>
+                </section>
+              )}
 
               <HabitCompletionButton
                 habit={habit}
