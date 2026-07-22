@@ -28,6 +28,22 @@ function getProgressPercentage(dashboard: DashboardResponse): number {
   )
 }
 
+function getExecutionPercentage(dashboard: DashboardResponse): number {
+  const execution = dashboard.todayExecution
+
+  if (execution.totalDailyHabits <= 0) {
+    return 0
+  }
+
+  return Math.min(
+    100,
+    Math.max(
+      0,
+      (execution.completedDailyHabits / execution.totalDailyHabits) * 100,
+    ),
+  )
+}
+
 export function OverallProgressSection({
   refreshKey,
 }: OverallProgressSectionProps) {
@@ -68,6 +84,7 @@ export function OverallProgressSection({
   }, [refreshKey])
 
   const progressPercentage = dashboard ? getProgressPercentage(dashboard) : 0
+  const executionPercentage = dashboard ? getExecutionPercentage(dashboard) : 0
 
   return (
     <section
@@ -133,6 +150,68 @@ export function OverallProgressSection({
                 width: `${progressPercentage}%`,
               }}
             />
+          </div>
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <article className="rounded-lg border border-slate-200 p-4">
+              <p className="text-sm font-medium text-slate-600">
+                Today's activity
+              </p>
+
+              <p className="mt-2 text-2xl font-bold">
+                {dashboard.todayActivity.completions}{' '}
+                {dashboard.todayActivity.completions === 1
+                  ? 'completion'
+                  : 'completions'}
+              </p>
+
+              <p className="mt-1 text-sm text-slate-600">
+                {dashboard.todayActivity.xpEarned} XP earned
+              </p>
+
+              <p className="mt-3 text-xs text-slate-500">
+                Local date: {dashboard.todayActivity.localDate}
+              </p>
+            </article>
+
+            <article className="rounded-lg border border-slate-200 p-4">
+              <p className="text-sm font-medium text-slate-600">
+                Daily execution
+              </p>
+
+              {dashboard.todayExecution.totalDailyHabits === 0 ? (
+                <p className="mt-2 text-slate-600">No active daily habits.</p>
+              ) : (
+                <>
+                  <p className="mt-2 text-2xl font-bold">
+                    {dashboard.todayExecution.completedDailyHabits} of{' '}
+                    {dashboard.todayExecution.totalDailyHabits}
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-600">
+                    active daily habits completed
+                  </p>
+
+                  <div
+                    aria-label="Daily execution progress"
+                    aria-valuemax={dashboard.todayExecution.totalDailyHabits}
+                    aria-valuemin={0}
+                    aria-valuenow={
+                      dashboard.todayExecution.completedDailyHabits
+                    }
+                    className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200"
+                    role="progressbar"
+                  >
+                    <div
+                      className="h-full rounded-full bg-slate-700"
+                      style={{
+                        width: `${executionPercentage}%`,
+                      }}
+                    />
+                  </div>
+                </>
+              )}
+            </article>
           </div>
         </>
       )}

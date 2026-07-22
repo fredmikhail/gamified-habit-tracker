@@ -22,6 +22,15 @@ describe('OverallProgressSection', () => {
         xpIntoCurrentLevel: 100,
         xpNeededForNextLevel: 250,
       },
+      todayActivity: {
+        localDate: '2026-07-22',
+        completions: 2,
+        xpEarned: 30,
+      },
+      todayExecution: {
+        completedDailyHabits: 1,
+        totalDailyHabits: 2,
+      },
     })
 
     render(<OverallProgressSection refreshKey={0} />)
@@ -36,6 +45,17 @@ describe('OverallProgressSection', () => {
 
     expect(progressBar).toHaveAttribute('aria-valuenow', '100')
     expect(progressBar).toHaveAttribute('aria-valuemax', '250')
+
+    expect(screen.getByText('2 completions')).toBeInTheDocument()
+    expect(screen.getByText('30 XP earned')).toBeInTheDocument()
+    expect(screen.getByText('1 of 2')).toBeInTheDocument()
+
+    const executionProgressBar = screen.getByRole('progressbar', {
+      name: 'Daily execution progress',
+    })
+
+    expect(executionProgressBar).toHaveAttribute('aria-valuenow', '1')
+    expect(executionProgressBar).toHaveAttribute('aria-valuemax', '2')
   })
 
   it('reloads progress when the refresh key changes', async () => {
@@ -47,6 +67,15 @@ describe('OverallProgressSection', () => {
           xpIntoCurrentLevel: 0,
           xpNeededForNextLevel: 200,
         },
+        todayActivity: {
+          localDate: '2026-07-22',
+          completions: 0,
+          xpEarned: 0,
+        },
+        todayExecution: {
+          completedDailyHabits: 0,
+          totalDailyHabits: 0,
+        },
       })
       .mockResolvedValueOnce({
         overallProgress: {
@@ -54,6 +83,15 @@ describe('OverallProgressSection', () => {
           level: 1,
           xpIntoCurrentLevel: 20,
           xpNeededForNextLevel: 200,
+        },
+        todayActivity: {
+          localDate: '2026-07-22',
+          completions: 0,
+          xpEarned: 0,
+        },
+        todayExecution: {
+          completedDailyHabits: 0,
+          totalDailyHabits: 0,
         },
       })
 

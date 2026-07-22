@@ -16,6 +16,15 @@ describe('dashboardApi', () => {
         xpIntoCurrentLevel: 100,
         xpNeededForNextLevel: 250,
       },
+      todayActivity: {
+        localDate: '2026-07-22',
+        completions: 0,
+        xpEarned: 0,
+      },
+      todayExecution: {
+        completedDailyHabits: 0,
+        totalDailyHabits: 0,
+      },
     }
 
     const fetchMock = vi.fn<typeof fetch>()

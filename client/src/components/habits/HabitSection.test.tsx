@@ -41,6 +41,15 @@ describe('HabitSection', () => {
         xpIntoCurrentLevel: 0,
         xpNeededForNextLevel: 200,
       },
+      todayActivity: {
+        localDate: '2026-07-22',
+        completions: 0,
+        xpEarned: 0,
+      },
+      todayExecution: {
+        completedDailyHabits: 0,
+        totalDailyHabits: 0,
+      },
     })
     getAttributesMock.mockReset()
     getAttributesMock.mockResolvedValue([])
