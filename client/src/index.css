@@ -1,1 +1,330 @@
 @import 'tailwindcss';
+
+/*
+ * Canonical theme: Abyss
+ *
+ * The :root declaration ensures the application still has usable colors
+ * if the data-theme attribute is ever absent.
+ */
+:root,
+[data-theme='abyss'] {
+  --theme-canvas: #050914;
+  --theme-sidebar: #060d18;
+
+  --theme-surface: #091321;
+  --theme-surface-raised: #0d1929;
+  --theme-surface-muted: #101c2c;
+  --theme-surface-hover: #13243b;
+
+  --theme-border: #1a2a3e;
+  --theme-border-strong: #294463;
+
+  --theme-text-primary: #f3f7fc;
+  --theme-text-muted: #9aaac0;
+  --theme-text-subtle: #65758a;
+
+  --theme-accent-primary: #4a8cff;
+  --theme-accent-hover: #65a3ff;
+  --theme-accent-soft: rgb(59 130 246 / 0.14);
+
+  --theme-energy-cyan: #22d3ee;
+  --theme-energy-blue: #3b82f6;
+  --theme-energy-violet: #8b5cf6;
+
+  --theme-success: #2dd4bf;
+  --theme-warning: #fbbf24;
+  --theme-streak: #f59e0b;
+  --theme-danger: #fb7185;
+  --theme-focus-ring: #7dd3fc;
+
+  --theme-backdrop: rgb(1 5 14 / 0.78);
+
+  --theme-progress-gradient: linear-gradient(
+    90deg,
+    var(--theme-energy-cyan),
+    var(--theme-energy-blue) 48%,
+    var(--theme-energy-violet)
+  );
+
+  --theme-page-background:
+    radial-gradient(circle at 84% -8%, rgb(59 130 246 / 0.15), transparent 34%),
+    radial-gradient(
+      circle at 16% 110%,
+      rgb(139 92 246 / 0.11),
+      transparent 38%
+    ),
+    var(--theme-canvas);
+
+  --theme-panel-shadow:
+    0 18px 50px rgb(0 0 0 / 0.26), inset 0 1px 0 rgb(255 255 255 / 0.025);
+
+  --theme-energy-shadow:
+    0 0 24px rgb(59 130 246 / 0.2), 0 0 52px rgb(139 92 246 / 0.08);
+}
+
+/*
+ * Restrained dark alternative.
+ *
+ * Obsidian keeps the command-center character while reducing saturation,
+ * glow, and blue atmospheric lighting.
+ */
+[data-theme='obsidian'] {
+  --theme-canvas: #090b10;
+  --theme-sidebar: #0b0e14;
+
+  --theme-surface: #10141b;
+  --theme-surface-raised: #151a23;
+  --theme-surface-muted: #191f2a;
+  --theme-surface-hover: #202837;
+
+  --theme-border: #252d3a;
+  --theme-border-strong: #39465a;
+
+  --theme-text-primary: #f1f4f8;
+  --theme-text-muted: #a2acba;
+  --theme-text-subtle: #6f7a8a;
+
+  --theme-accent-primary: #5b8cff;
+  --theme-accent-hover: #78a2ff;
+  --theme-accent-soft: rgb(91 140 255 / 0.12);
+
+  --theme-energy-cyan: #64b5d8;
+  --theme-energy-blue: #5b8cff;
+  --theme-energy-violet: #8b78d7;
+
+  --theme-success: #4bc7ae;
+  --theme-warning: #e7b85d;
+  --theme-streak: #e8a83d;
+  --theme-danger: #e77c89;
+  --theme-focus-ring: #8db4ff;
+
+  --theme-backdrop: rgb(3 5 9 / 0.8);
+
+  --theme-progress-gradient: linear-gradient(
+    90deg,
+    var(--theme-energy-cyan),
+    var(--theme-energy-blue) 52%,
+    var(--theme-energy-violet)
+  );
+
+  --theme-page-background:
+    radial-gradient(
+      circle at 82% -10%,
+      rgb(91 140 255 / 0.08),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 14% 112%,
+      rgb(139 120 215 / 0.06),
+      transparent 36%
+    ),
+    var(--theme-canvas);
+
+  --theme-panel-shadow:
+    0 18px 48px rgb(0 0 0 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.02);
+
+  --theme-energy-shadow:
+    0 0 20px rgb(91 140 255 / 0.12), 0 0 44px rgb(139 120 215 / 0.05);
+}
+
+/*
+ * Premium light alternative.
+ *
+ * Lumen uses cool silver surfaces and crisp navy text rather than merely
+ * inverting the dark palette.
+ */
+[data-theme='lumen'] {
+  --theme-canvas: #eef3f8;
+  --theme-sidebar: #e6edf6;
+
+  --theme-surface: #f9fbfd;
+  --theme-surface-raised: #ffffff;
+  --theme-surface-muted: #eaf0f7;
+  --theme-surface-hover: #e2eaf4;
+
+  --theme-border: #ccd7e4;
+  --theme-border-strong: #aebdd0;
+
+  --theme-text-primary: #0b1524;
+  --theme-text-muted: #506176;
+  --theme-text-subtle: #748398;
+
+  --theme-accent-primary: #2563eb;
+  --theme-accent-hover: #1d4ed8;
+  --theme-accent-soft: rgb(37 99 235 / 0.1);
+
+  --theme-energy-cyan: #0891b2;
+  --theme-energy-blue: #2563eb;
+  --theme-energy-violet: #7c3aed;
+
+  --theme-success: #0f927e;
+  --theme-warning: #b77908;
+  --theme-streak: #c47b08;
+  --theme-danger: #d43f5e;
+  --theme-focus-ring: #2563eb;
+
+  --theme-backdrop: rgb(14 25 42 / 0.42);
+
+  --theme-progress-gradient: linear-gradient(
+    90deg,
+    var(--theme-energy-cyan),
+    var(--theme-energy-blue) 48%,
+    var(--theme-energy-violet)
+  );
+
+  --theme-page-background:
+    radial-gradient(circle at 84% -8%, rgb(37 99 235 / 0.09), transparent 34%),
+    radial-gradient(
+      circle at 16% 110%,
+      rgb(124 58 237 / 0.06),
+      transparent 38%
+    ),
+    var(--theme-canvas);
+
+  --theme-panel-shadow:
+    0 18px 50px rgb(37 57 82 / 0.1), inset 0 1px 0 rgb(255 255 255 / 0.8);
+
+  --theme-energy-shadow:
+    0 0 22px rgb(37 99 235 / 0.11), 0 0 46px rgb(124 58 237 / 0.05);
+}
+
+/*
+ * Tailwind semantic tokens.
+ *
+ * Components use these generated utility names instead of literal colors:
+ *
+ * bg-canvas
+ * bg-surface
+ * bg-surface-raised
+ * text-content
+ * text-content-muted
+ * border-line
+ * text-accent
+ */
+@theme inline {
+  --color-canvas: var(--theme-canvas);
+  --color-sidebar: var(--theme-sidebar);
+
+  --color-surface: var(--theme-surface);
+  --color-surface-raised: var(--theme-surface-raised);
+  --color-surface-muted: var(--theme-surface-muted);
+  --color-surface-hover: var(--theme-surface-hover);
+
+  --color-line: var(--theme-border);
+  --color-line-strong: var(--theme-border-strong);
+
+  --color-content: var(--theme-text-primary);
+  --color-content-muted: var(--theme-text-muted);
+  --color-content-subtle: var(--theme-text-subtle);
+
+  --color-accent: var(--theme-accent-primary);
+  --color-accent-hover: var(--theme-accent-hover);
+  --color-accent-soft: var(--theme-accent-soft);
+
+  --color-energy-cyan: var(--theme-energy-cyan);
+  --color-energy-blue: var(--theme-energy-blue);
+  --color-energy-violet: var(--theme-energy-violet);
+
+  --color-success: var(--theme-success);
+  --color-warning: var(--theme-warning);
+  --color-streak: var(--theme-streak);
+  --color-danger: var(--theme-danger);
+  --color-focus-ring: var(--theme-focus-ring);
+
+  --color-backdrop: var(--theme-backdrop);
+
+  --font-sans:
+    Inter, Geist, Manrope, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    min-width: 320px;
+    min-height: 100%;
+    background: var(--theme-canvas);
+  }
+
+  body {
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    background: var(--theme-page-background);
+    color: var(--theme-text-primary);
+    font-family:
+      Inter,
+      Geist,
+      Manrope,
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      sans-serif;
+    font-variant-numeric: tabular-nums;
+    text-rendering: optimizeLegibility;
+    transition:
+      background-color 180ms ease,
+      color 180ms ease;
+  }
+
+  #root {
+    min-height: 100vh;
+    isolation: isolate;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button,
+  [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  select,
+  textarea {
+    accent-color: var(--theme-accent-primary);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--theme-text-subtle);
+    opacity: 1;
+  }
+
+  a {
+    color: inherit;
+  }
+
+  ::selection {
+    background: var(--theme-accent-primary);
+    color: #ffffff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--theme-focus-ring);
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

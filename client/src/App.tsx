@@ -4,6 +4,7 @@ import { useAuth } from './auth/useAuth'
 import { LoginForm } from './components/auth/LoginForm'
 import { RegisterForm } from './components/auth/RegisterForm'
 import { HabitSection } from './components/habits/HabitSection'
+import { ThemeSelector } from './components/theme/ThemeSelector'
 import type { HealthResponse } from './types/HealthResponse'
 
 type AuthMode = 'login' | 'register'
@@ -61,6 +62,9 @@ function App() {
 
   return (
     <main className="min-h-screen bg-slate-100 px-6 py-12 text-slate-900">
+      <div className="fixed right-4 top-4 z-50">
+        <ThemeSelector />
+      </div>
       <div className="mx-auto max-w-3xl text-center">
         <h1 className="text-4xl font-bold">Gamified Habit Tracker</h1>
 
