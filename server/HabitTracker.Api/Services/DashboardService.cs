@@ -9,15 +9,18 @@ public sealed class DashboardService
 {
     private readonly AppDbContext _dbContext;
     private readonly XpService _xpService;
+    private readonly StreakService _streakService;
     private readonly TimeProvider _timeProvider;
 
     public DashboardService(
         AppDbContext dbContext,
         XpService xpService,
+        StreakService streakService,
         TimeProvider timeProvider)
     {
         _dbContext = dbContext;
         _xpService = xpService;
+        _streakService = streakService;
         _timeProvider = timeProvider;
     }
 
@@ -25,18 +28,22 @@ public sealed class DashboardService
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        var timeZoneId =
+        var settings =
             await _dbContext.UserSettings
                 .Where(settings =>
                     settings.UserId == userId)
                 .Select(settings =>
-                    settings.TimeZone)
+                    new
+                    {
+                        settings.TimeZone,
+                        settings.WeekStartsOn
+                    })
                 .SingleAsync(cancellationToken);
 
         var localDate =
             LocalDateCalculator.GetLocalDate(
                 _timeProvider.GetUtcNow(),
-                timeZoneId);
+                settings.TimeZone);
 
         var totalXp =
             await _dbContext.XpTransactions
@@ -54,9 +61,9 @@ public sealed class DashboardService
             await _dbContext.HabitCompletions
                 .AsNoTracking()
                 .Where(completion =>
-    completion.UserId == userId
-    && completion.CompletedDate == localDate
-    && completion.UndoneAtUtc == null)
+                    completion.UserId == userId
+                    && completion.CompletedDate == localDate
+                    && completion.UndoneAtUtc == null)
                 .Select(completion =>
                     new
                     {
@@ -73,8 +80,7 @@ public sealed class DashboardService
         var todayCompletedHabitIds =
             todayCompletions
                 .Select(completion => completion.HabitId)
-                .Distinct()
-                .ToList();
+                .ToHashSet();
 
         var xpEarnedToday =
             await _dbContext.XpTransactions
@@ -86,27 +92,65 @@ public sealed class DashboardService
                     transaction => transaction.Amount,
                     cancellationToken);
 
-        var totalDailyHabits =
+        var activeHabits =
             await _dbContext.Habits
-                .CountAsync(
-                    habit =>
-                        habit.UserId == userId
-                        && habit.IsActive
-                        && habit.FrequencyType
-                            == HabitFrequencyType.Daily,
-                    cancellationToken);
+                .AsNoTracking()
+                .Where(habit =>
+                    habit.UserId == userId
+                    && habit.IsActive)
+                .Include(habit =>
+                    habit.HabitConfigurationVersions)
+                .Include(habit =>
+                    habit.HabitCompletions)
+                .AsSplitQuery()
+                .OrderBy(habit => habit.Name)
+                .ThenBy(habit => habit.Id)
+                .ToListAsync(cancellationToken);
+
+        var habitStreakCalculations =
+            activeHabits
+                .Select(habit =>
+                    new
+                    {
+                        Habit = habit,
+                        Streak =
+                            _streakService.CalculateHabitStreak(
+                                localDate,
+                                settings.WeekStartsOn,
+                                habit.HabitConfigurationVersions
+                                    .ToList(),
+                                habit.HabitCompletions
+                                    .ToList())
+                    })
+                .ToList();
+
+        var totalDailyHabits =
+            habitStreakCalculations.Count(item =>
+                item.Streak.FrequencyType
+                    == HabitFrequencyType.Daily);
 
         var completedDailyHabits =
-            await _dbContext.Habits
-                .CountAsync(
-                    habit =>
-                        habit.UserId == userId
-                        && habit.IsActive
-                        && habit.FrequencyType
-                            == HabitFrequencyType.Daily
-                        && todayCompletedHabitIds.Contains(
-                            habit.Id),
-                    cancellationToken);
+            habitStreakCalculations.Count(item =>
+                item.Streak.FrequencyType
+                    == HabitFrequencyType.Daily
+                && todayCompletedHabitIds.Contains(
+                    item.Habit.Id));
+
+        var habitStreaks =
+            habitStreakCalculations
+                .Select(item =>
+                    new HabitStreakResponse
+                    {
+                        HabitId = item.Habit.Id,
+                        HabitName = item.Habit.Name,
+                        FrequencyType =
+                            item.Streak.FrequencyType,
+                        CurrentStreak =
+                            item.Streak.CurrentStreak,
+                        LongestStreak =
+                            item.Streak.LongestStreak
+                    })
+                .ToList();
 
         return new DashboardResponse
         {
@@ -134,7 +178,8 @@ public sealed class DashboardService
                         completedDailyHabits,
                     TotalDailyHabits =
                         totalDailyHabits
-                }
+                },
+            HabitStreaks = habitStreaks
         };
     }
 }

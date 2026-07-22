@@ -6,7 +6,7 @@ namespace HabitTracker.Api.Services;
 
 public sealed class StreakService
 {
-    public HabitStreakResult CalculateHabitStreak(
+    public HabitStreakSummary CalculateHabitStreak(
     DateOnly currentDate,
     WeekStartDay weekStartsOn,
     IReadOnlyCollection<HabitConfigurationVersion> configurationHistory,
@@ -22,7 +22,8 @@ public sealed class StreakService
 
         if (orderedConfigurations.Count == 0)
         {
-            return new HabitStreakResult(0, 0);
+            throw new InvalidOperationException(
+                "The habit does not have configuration history.");
         }
 
         var currentConfiguration =
@@ -82,33 +83,39 @@ public sealed class StreakService
                     completion.CompletedDate)
                 .ToList();
 
-        return currentConfiguration.FrequencyType switch
-        {
-            HabitFrequencyType.Daily =>
-                CalculateDailyStreak(
-                    frequencyEffectiveFromDate,
-                    currentDate,
-                    completedDates),
+        var streak =
+            currentConfiguration.FrequencyType switch
+            {
+                HabitFrequencyType.Daily =>
+                    CalculateDailyStreak(
+                        frequencyEffectiveFromDate,
+                        currentDate,
+                        completedDates),
 
-            HabitFrequencyType.Weekly =>
-                CalculateWeeklyStreak(
-                    currentDate,
-                    weekStartsOn,
-                    currentFrequencyConfigurations
-                        .Select(configuration =>
-                            new WeeklyStreakTarget(
-                                configuration.EffectiveFromDate,
-                                configuration
-                                    .EffectiveToDateExclusive,
-                                configuration.TargetCount))
-                        .ToList(),
-                    completedDates),
+                HabitFrequencyType.Weekly =>
+                    CalculateWeeklyStreak(
+                        currentDate,
+                        weekStartsOn,
+                        currentFrequencyConfigurations
+                            .Select(configuration =>
+                                new WeeklyStreakTarget(
+                                    configuration.EffectiveFromDate,
+                                    configuration
+                                        .EffectiveToDateExclusive,
+                                    configuration.TargetCount))
+                            .ToList(),
+                        completedDates),
 
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(currentConfiguration.FrequencyType),
-                currentConfiguration.FrequencyType,
-                "Habit frequency must be a defined value.")
-        };
+                _ => throw new ArgumentOutOfRangeException(
+                    nameof(currentConfiguration.FrequencyType),
+                    currentConfiguration.FrequencyType,
+                    "Habit frequency must be a defined value.")
+            };
+
+        return new HabitStreakSummary(
+            currentConfiguration.FrequencyType,
+            streak.CurrentStreak,
+            streak.LongestStreak);
     }
 
     public HabitStreakResult CalculateDailyStreak(

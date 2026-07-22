@@ -4,6 +4,7 @@ using HabitTracker.Api.Domain.Enums;
 using HabitTracker.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
+
 namespace HabitTracker.Tests.Services;
 
 public sealed class DashboardServiceTests
@@ -282,12 +283,76 @@ public sealed class DashboardServiceTests
                 .TotalDailyHabits);
     }
 
+    [Fact]
+    public async Task GetDashboardAsync_WhenHabitHasCompletions_ReturnsHabitStreak()
+    {
+        await using var dbContext =
+            CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
+        var habit =
+            CreateHabit(
+                userId,
+                HabitFrequencyType.Daily,
+                isActive: true);
+
+        dbContext.Habits.Add(habit);
+
+        dbContext.HabitCompletions.AddRange(
+            CreateCompletion(
+                userId,
+                habit.Id,
+                new DateOnly(2026, 7, 20)),
+            CreateCompletion(
+                userId,
+                habit.Id,
+                new DateOnly(2026, 7, 21)));
+
+        await dbContext.SaveChangesAsync();
+
+        var dashboardService =
+            CreateDashboardService(dbContext);
+
+        var response =
+            await dashboardService.GetDashboardAsync(
+                userId);
+
+        var habitStreak =
+            Assert.Single(response.HabitStreaks);
+
+        Assert.Equal(
+            habit.Id,
+            habitStreak.HabitId);
+
+        Assert.Equal(
+            habit.Name,
+            habitStreak.HabitName);
+
+        Assert.Equal(
+            HabitFrequencyType.Daily,
+            habitStreak.FrequencyType);
+
+        Assert.Equal(
+            2,
+            habitStreak.CurrentStreak);
+
+        Assert.Equal(
+            2,
+            habitStreak.LongestStreak);
+    }
+
     private static DashboardService CreateDashboardService(
-        AppDbContext dbContext)
+    AppDbContext dbContext)
     {
         return new DashboardService(
             dbContext,
             new XpService(),
+            new StreakService(),
             new FixedTimeProvider(FixedUtcNow));
     }
 
@@ -341,30 +406,47 @@ public sealed class DashboardServiceTests
     }
 
     private static Habit CreateHabit(
-        Guid userId,
-        HabitFrequencyType frequencyType,
-        bool isActive)
+    Guid userId,
+    HabitFrequencyType frequencyType,
+    bool isActive)
     {
         var createdAtUtc =
             FixedUtcNow.UtcDateTime.AddDays(-7);
 
-        return new Habit
-        {
-            UserId = userId,
-            Name = "Dashboard test habit",
-            Category =
-                HabitCategory.GeneralGrowth,
-            FrequencyType = frequencyType,
-            TargetCount =
-                frequencyType == HabitFrequencyType.Daily
-                    ? 1
-                    : 3,
-            Difficulty =
-                HabitDifficulty.Medium,
-            IsActive = isActive,
-            CreatedAtUtc = createdAtUtc,
-            UpdatedAtUtc = createdAtUtc
-        };
+        var habit =
+            new Habit
+            {
+                UserId = userId,
+                Name = "Dashboard test habit",
+                Category =
+                    HabitCategory.GeneralGrowth,
+                FrequencyType = frequencyType,
+                TargetCount =
+                    frequencyType == HabitFrequencyType.Daily
+                        ? 1
+                        : 3,
+                Difficulty =
+                    HabitDifficulty.Medium,
+                IsActive = isActive,
+                CreatedAtUtc = createdAtUtc,
+                UpdatedAtUtc = createdAtUtc
+            };
+
+        habit.HabitConfigurationVersions.Add(
+            new HabitConfigurationVersion
+            {
+                HabitId = habit.Id,
+                VersionNumber = 1,
+                Category = habit.Category,
+                FrequencyType = habit.FrequencyType,
+                TargetCount = habit.TargetCount,
+                Difficulty = habit.Difficulty,
+                EffectiveFromDate =
+                    new DateOnly(2026, 7, 15),
+                CreatedAtUtc = createdAtUtc
+            });
+
+        return habit;
     }
 
     private static HabitCompletion CreateCompletion(

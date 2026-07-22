@@ -175,6 +175,146 @@ public sealed class DashboardControllerTests
             });
     }
 
+    [Fact]
+    public async Task GetDashboard_WhenHabitHasCompletions_ReturnsHabitStreak()
+    {
+        using var client = CreateClient();
+
+        var registration =
+            await RegisterAsync(client);
+
+        var localDate =
+            LocalDateCalculator.GetLocalDate(
+                TimeProvider.System.GetUtcNow(),
+                "America/Toronto");
+
+        var habit =
+            await SeedDailyHabitStreakAsync(
+                registration.User.Id,
+                localDate);
+
+        var response =
+            await client.GetAsync(
+                "/api/dashboard");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            response.StatusCode);
+
+        var dashboard =
+            await response.Content
+                .ReadFromJsonAsync<DashboardResponse>(
+                    _jsonOptions);
+
+        Assert.NotNull(dashboard);
+
+        var habitStreak =
+            Assert.Single(
+                dashboard.HabitStreaks);
+
+        Assert.Equal(
+            habit.Id,
+            habitStreak.HabitId);
+
+        Assert.Equal(
+            habit.Name,
+            habitStreak.HabitName);
+
+        Assert.Equal(
+            HabitFrequencyType.Daily,
+            habitStreak.FrequencyType);
+
+        Assert.Equal(
+            2,
+            habitStreak.CurrentStreak);
+
+        Assert.Equal(
+            2,
+            habitStreak.LongestStreak);
+    }
+
+    private async Task<Habit> SeedDailyHabitStreakAsync(
+    Guid userId,
+    DateOnly localDate)
+    {
+        using var scope =
+            _factory.Services.CreateScope();
+
+        var dbContext =
+            scope.ServiceProvider
+                .GetRequiredService<AppDbContext>();
+
+        var createdAtUtc =
+            DateTime.UtcNow.AddDays(-7);
+
+        var habit =
+            new Habit
+            {
+                UserId = userId,
+                Name = "Daily streak habit",
+                Category =
+                    HabitCategory.GeneralGrowth,
+                FrequencyType =
+                    HabitFrequencyType.Daily,
+                TargetCount = 1,
+                Difficulty =
+                    HabitDifficulty.Medium,
+                IsActive = true,
+                CreatedAtUtc = createdAtUtc,
+                UpdatedAtUtc = createdAtUtc
+            };
+
+        var configuration =
+            new HabitConfigurationVersion
+            {
+                HabitId = habit.Id,
+                VersionNumber = 1,
+                Category = habit.Category,
+                FrequencyType =
+                    habit.FrequencyType,
+                TargetCount = habit.TargetCount,
+                Difficulty = habit.Difficulty,
+                EffectiveFromDate =
+                    localDate.AddDays(-2),
+                CreatedAtUtc = createdAtUtc
+            };
+
+        habit.HabitConfigurationVersions.Add(
+            configuration);
+
+        habit.HabitCompletions.Add(
+            new HabitCompletion
+            {
+                UserId = userId,
+                HabitId = habit.Id,
+                HabitConfigurationVersionId =
+                    configuration.Id,
+                CompletedDate =
+                    localDate.AddDays(-2),
+                CompletedAtUtc =
+                    DateTime.UtcNow.AddDays(-2)
+            });
+
+        habit.HabitCompletions.Add(
+            new HabitCompletion
+            {
+                UserId = userId,
+                HabitId = habit.Id,
+                HabitConfigurationVersionId =
+                    configuration.Id,
+                CompletedDate =
+                    localDate.AddDays(-1),
+                CompletedAtUtc =
+                    DateTime.UtcNow.AddDays(-1)
+            });
+
+        dbContext.Habits.Add(habit);
+
+        await dbContext.SaveChangesAsync();
+
+        return habit;
+    }
+
     private async Task SeedXpTransactionsAsync(
         Guid userId,
         Guid otherUserId)

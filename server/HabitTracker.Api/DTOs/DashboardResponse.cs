@@ -10,4 +10,7 @@ public sealed class DashboardResponse
 
     public TodayExecutionResponse TodayExecution { get; set; }
         = new();
+
+    public IReadOnlyList<HabitStreakResponse> HabitStreaks { get; set; }
+        = [];
 }

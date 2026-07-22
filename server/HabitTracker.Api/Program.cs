@@ -86,15 +86,11 @@ builder.Services.AddAuthorization();
 builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.AddScoped<AuthService>();
-
 builder.Services.AddScoped<XpService>();
-
 builder.Services.AddScoped<AttributeService>();
-
+builder.Services.AddScoped<StreakService>();
 builder.Services.AddScoped<DashboardService>();
-
 builder.Services.AddScoped<HabitService>();
-
 builder.Services.AddScoped<CompletionService>();
 
 builder.Services.AddScoped<
