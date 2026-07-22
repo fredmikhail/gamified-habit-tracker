@@ -10,130 +10,73 @@ namespace HabitTracker.Tests.Services;
 
 public sealed class CompletionServiceTests
 {
+    private static readonly DateTimeOffset UtcNow =
+        new(2026, 7, 20, 2, 30, 0, TimeSpan.Zero);
+
+    private static readonly DateOnly CurrentLocalDate =
+        new(2026, 7, 19);
+
     [Fact]
     public async Task CompleteHabitAsync_WhenRequestIsValid_CreatesCompletionUsingUserLocalDate()
     {
         await using var dbContext = CreateDbContext();
 
-        var utcNow = new DateTimeOffset(
-            2026,
-            7,
-            20,
-            2,
-            30,
-            0,
-            TimeSpan.Zero);
-
         var userId = Guid.CreateVersion7();
         var habitId = Guid.CreateVersion7();
 
-        var user = new User
-        {
-            Id = userId,
-            Email = "fred@example.com",
-            NormalizedEmail = "FRED@EXAMPLE.COM",
-            Username = "fred",
-            NormalizedUsername = "FRED",
-            PasswordHash = "test-password-hash",
-            CreatedAtUtc = utcNow.UtcDateTime.AddDays(-1)
-        };
+        AddUserWithSettings(dbContext, userId, UtcNow.UtcDateTime);
 
-        var userSettings = new UserSettings
-        {
-            UserId = userId,
-            DisplayName = "Fred",
-            TimeZone = "America/Toronto",
-            CreatedAtUtc = utcNow.UtcDateTime.AddDays(-1),
-            UpdatedAtUtc = utcNow.UtcDateTime.AddDays(-1)
-        };
+        var (habit, configuration) =
+            CreateHabitWithConfiguration(
+                userId,
+                habitId,
+                UtcNow.UtcDateTime.AddDays(-1),
+                isActive: true,
+                effectiveFromDate: CurrentLocalDate.AddDays(-1));
 
-        var habit = new Habit
-        {
-            Id = habitId,
-            UserId = userId,
-            Name = "Go to gym",
-            Category = HabitCategory.FitnessAndMovement,
-            FrequencyType = HabitFrequencyType.Daily,
-            TargetCount = 1,
-            Difficulty = HabitDifficulty.Medium,
-            IsActive = true,
-            CreatedAtUtc = utcNow.UtcDateTime.AddDays(-1),
-            UpdatedAtUtc = utcNow.UtcDateTime.AddDays(-1)
-        };
-
-        dbContext.Users.Add(user);
-        dbContext.UserSettings.Add(userSettings);
         dbContext.Habits.Add(habit);
-
         await dbContext.SaveChangesAsync();
-
-        var timeProvider =
-            new FixedTimeProvider(utcNow);
 
         var completionService =
             CreateCompletionService(
                 dbContext,
-                timeProvider);
-
-        var request = new CompleteHabitRequest
-        {
-            Notes = "  Strong workout today.  "
-        };
+                new FixedTimeProvider(UtcNow));
 
         var response =
             await completionService.CompleteHabitAsync(
                 userId,
                 habitId,
-                request);
+                new CompleteHabitRequest
+                {
+                    Notes = "  Strong workout today.  "
+                });
 
         Assert.NotNull(response);
 
         var savedCompletion =
             Assert.Single(dbContext.HabitCompletions);
 
-        Assert.NotEqual(
-            Guid.Empty,
-            savedCompletion.Id);
+        Assert.NotEqual(Guid.Empty, savedCompletion.Id);
+        Assert.Equal(userId, savedCompletion.UserId);
+        Assert.Equal(habitId, savedCompletion.HabitId);
 
         Assert.Equal(
-            userId,
-            savedCompletion.UserId);
+            configuration.Id,
+            savedCompletion.HabitConfigurationVersionId);
 
-        Assert.Equal(
-            habitId,
-            savedCompletion.HabitId);
+        Assert.Equal(CurrentLocalDate, savedCompletion.CompletedDate);
+        Assert.Equal(UtcNow.UtcDateTime, savedCompletion.CompletedAtUtc);
+        Assert.Equal("Strong workout today.", savedCompletion.Notes);
 
-        Assert.Equal(
-            new DateOnly(2026, 7, 19),
-            savedCompletion.CompletedDate);
-
-        Assert.Equal(
-            utcNow.UtcDateTime,
-            savedCompletion.CompletedAtUtc);
-
-        Assert.Equal(
-            "Strong workout today.",
-            savedCompletion.Notes);
-
-        Assert.Equal(
-            savedCompletion.Id,
-            response.Completion.Id);
-
-        Assert.Equal(
-            savedCompletion.HabitId,
-            response.Completion.HabitId);
-
+        Assert.Equal(savedCompletion.Id, response.Completion.Id);
+        Assert.Equal(savedCompletion.HabitId, response.Completion.HabitId);
         Assert.Equal(
             savedCompletion.CompletedDate,
             response.Completion.CompletedDate);
-
         Assert.Equal(
             savedCompletion.CompletedAtUtc,
             response.Completion.CompletedAtUtc);
-
-        Assert.Equal(
-            savedCompletion.Notes,
-            response.Completion.Notes);
+        Assert.Equal(savedCompletion.Notes, response.Completion.Notes);
     }
 
     [Fact]
@@ -141,67 +84,26 @@ public sealed class CompletionServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var utcNow = new DateTimeOffset(
-            2026,
-            7,
-            20,
-            2,
-            30,
-            0,
-            TimeSpan.Zero);
-
         var userId = Guid.CreateVersion7();
         var habitId = Guid.CreateVersion7();
 
-        dbContext.Users.Add(
-            new User
-            {
-                Id = userId,
-                Email = "fred@example.com",
-                NormalizedEmail = "FRED@EXAMPLE.COM",
-                Username = "fred",
-                NormalizedUsername = "FRED",
-                PasswordHash = "test-password-hash",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
+        AddUserWithSettings(dbContext, userId, UtcNow.UtcDateTime);
 
-        dbContext.UserSettings.Add(
-            new UserSettings
-            {
-                UserId = userId,
-                DisplayName = "Fred",
-                TimeZone = "America/Toronto",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
+        var (habit, _) =
+            CreateHabitWithConfiguration(
+                userId,
+                habitId,
+                UtcNow.UtcDateTime.AddDays(-1),
+                isActive: true,
+                effectiveFromDate: CurrentLocalDate.AddDays(-1));
 
-        dbContext.Habits.Add(
-            new Habit
-            {
-                Id = habitId,
-                UserId = userId,
-                Name = "Go to gym",
-                FrequencyType =
-                    HabitFrequencyType.Daily,
-                TargetCount = 1,
-                Difficulty =
-                    HabitDifficulty.Medium,
-                IsActive = true,
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
-
+        dbContext.Habits.Add(habit);
         await dbContext.SaveChangesAsync();
 
         var completionService =
             CreateCompletionService(
                 dbContext,
-                new FixedTimeProvider(utcNow));
+                new FixedTimeProvider(UtcNow));
 
         var response =
             await completionService.CompleteHabitAsync(
@@ -220,52 +122,114 @@ public sealed class CompletionServiceTests
     }
 
     [Fact]
-    public async Task CompleteHabitAsync_WhenHabitDoesNotExist_ReturnsNull()
+    public async Task CompleteHabitAsync_WhenConfigurationChanges_UsesVersionEffectiveOnCompletionDate()
     {
         await using var dbContext = CreateDbContext();
 
-        var utcNow = new DateTimeOffset(
-            2026,
-            7,
-            20,
-            2,
-            30,
-            0,
-            TimeSpan.Zero);
-
         var userId = Guid.CreateVersion7();
+        var habitId = Guid.CreateVersion7();
 
-        dbContext.Users.Add(
-            new User
+        AddUserWithSettings(dbContext, userId, UtcNow.UtcDateTime);
+
+        var habit = new Habit
+        {
+            Id = habitId,
+            UserId = userId,
+            Name = "Study",
+            Category = HabitCategory.GeneralGrowth,
+            FrequencyType = HabitFrequencyType.Daily,
+            TargetCount = 1,
+            Difficulty = HabitDifficulty.Easy,
+            IsActive = true,
+            CreatedAtUtc = UtcNow.UtcDateTime.AddDays(-30),
+            UpdatedAtUtc = UtcNow.UtcDateTime.AddDays(-1)
+        };
+
+        var previousConfiguration =
+            new HabitConfigurationVersion
             {
-                Id = userId,
-                Email = "fred@example.com",
-                NormalizedEmail = "FRED@EXAMPLE.COM",
-                Username = "fred",
-                NormalizedUsername = "FRED",
-                PasswordHash = "test-password-hash",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
+                HabitId = habitId,
+                VersionNumber = 1,
+                Category = HabitCategory.GeneralGrowth,
+                FrequencyType = HabitFrequencyType.Daily,
+                TargetCount = 1,
+                Difficulty = HabitDifficulty.Easy,
+                EffectiveFromDate = CurrentLocalDate.AddDays(-30),
+                EffectiveToDateExclusive = CurrentLocalDate,
+                CreatedAtUtc = UtcNow.UtcDateTime.AddDays(-30)
+            };
 
-        dbContext.UserSettings.Add(
-            new UserSettings
+        var effectiveConfiguration =
+            new HabitConfigurationVersion
             {
-                UserId = userId,
-                DisplayName = "Fred",
-                TimeZone = "America/Toronto",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
+                HabitId = habitId,
+                VersionNumber = 2,
+                Category = HabitCategory.LearningAndSkills,
+                FrequencyType = HabitFrequencyType.Daily,
+                TargetCount = 1,
+                Difficulty = HabitDifficulty.Elite,
+                EffectiveFromDate = CurrentLocalDate,
+                CreatedAtUtc = UtcNow.UtcDateTime.AddDays(-1)
+            };
 
+        habit.HabitConfigurationVersions.Add(previousConfiguration);
+        habit.HabitConfigurationVersions.Add(effectiveConfiguration);
+
+        dbContext.Habits.Add(habit);
         await dbContext.SaveChangesAsync();
 
         var completionService =
             CreateCompletionService(
                 dbContext,
-                new FixedTimeProvider(utcNow));
+                new FixedTimeProvider(UtcNow));
+
+        var response =
+            await completionService.CompleteHabitAsync(
+                userId,
+                habitId,
+                new CompleteHabitRequest());
+
+        Assert.NotNull(response);
+
+        var savedCompletion =
+            Assert.Single(dbContext.HabitCompletions);
+
+        Assert.Equal(
+            effectiveConfiguration.Id,
+            savedCompletion.HabitConfigurationVersionId);
+
+        Assert.Collection(
+            response.Rewards,
+            primaryReward =>
+            {
+                Assert.Equal(
+                    AttributeType.Mind,
+                    primaryReward.AttributeType);
+                Assert.Equal(35, primaryReward.XpAmount);
+            },
+            secondaryReward =>
+            {
+                Assert.Equal(
+                    AttributeType.Focus,
+                    secondaryReward.AttributeType);
+                Assert.Equal(15, secondaryReward.XpAmount);
+            });
+    }
+
+    [Fact]
+    public async Task CompleteHabitAsync_WhenHabitDoesNotExist_ReturnsNull()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+
+        AddUserWithSettings(dbContext, userId, UtcNow.UtcDateTime);
+        await dbContext.SaveChangesAsync();
+
+        var completionService =
+            CreateCompletionService(
+                dbContext,
+                new FixedTimeProvider(UtcNow));
 
         var response =
             await completionService.CompleteHabitAsync(
@@ -282,48 +246,29 @@ public sealed class CompletionServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var utcNow = new DateTimeOffset(
-            2026,
-            7,
-            20,
-            2,
-            30,
-            0,
-            TimeSpan.Zero);
-
         var ownerUserId = Guid.CreateVersion7();
         var requestingUserId = Guid.CreateVersion7();
-        var habitId = Guid.CreateVersion7();
 
-        dbContext.Habits.Add(
-            new Habit
-            {
-                Id = habitId,
-                UserId = ownerUserId,
-                Name = "Private habit",
-                FrequencyType =
-                    HabitFrequencyType.Daily,
-                TargetCount = 1,
-                Difficulty =
-                    HabitDifficulty.Medium,
-                IsActive = true,
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
+        var (habit, _) =
+            CreateHabitWithConfiguration(
+                ownerUserId,
+                Guid.CreateVersion7(),
+                UtcNow.UtcDateTime.AddDays(-1),
+                isActive: true,
+                effectiveFromDate: CurrentLocalDate.AddDays(-1));
 
+        dbContext.Habits.Add(habit);
         await dbContext.SaveChangesAsync();
 
         var completionService =
             CreateCompletionService(
                 dbContext,
-                new FixedTimeProvider(utcNow));
+                new FixedTimeProvider(UtcNow));
 
         var response =
             await completionService.CompleteHabitAsync(
                 requestingUserId,
-                habitId,
+                habit.Id,
                 new CompleteHabitRequest());
 
         Assert.Null(response);
@@ -335,73 +280,31 @@ public sealed class CompletionServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var utcNow = new DateTimeOffset(
-            2026,
-            7,
-            20,
-            2,
-            30,
-            0,
-            TimeSpan.Zero);
-
         var userId = Guid.CreateVersion7();
-        var habitId = Guid.CreateVersion7();
 
-        dbContext.Users.Add(
-            new User
-            {
-                Id = userId,
-                Email = "fred@example.com",
-                NormalizedEmail = "FRED@EXAMPLE.COM",
-                Username = "fred",
-                NormalizedUsername = "FRED",
-                PasswordHash = "test-password-hash",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
+        AddUserWithSettings(dbContext, userId, UtcNow.UtcDateTime);
 
-        dbContext.UserSettings.Add(
-            new UserSettings
-            {
-                UserId = userId,
-                DisplayName = "Fred",
-                TimeZone = "America/Toronto",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
+        var (habit, _) =
+            CreateHabitWithConfiguration(
+                userId,
+                Guid.CreateVersion7(),
+                UtcNow.UtcDateTime.AddDays(-1),
+                isActive: false,
+                effectiveFromDate: CurrentLocalDate.AddDays(-1));
 
-        dbContext.Habits.Add(
-            new Habit
-            {
-                Id = habitId,
-                UserId = userId,
-                Name = "Archived gym habit",
-                FrequencyType =
-                    HabitFrequencyType.Daily,
-                TargetCount = 1,
-                Difficulty =
-                    HabitDifficulty.Medium,
-                IsActive = false,
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
-
+        dbContext.Habits.Add(habit);
         await dbContext.SaveChangesAsync();
 
         var completionService =
             CreateCompletionService(
                 dbContext,
-                new FixedTimeProvider(utcNow));
+                new FixedTimeProvider(UtcNow));
 
         await Assert.ThrowsAsync<InactiveHabitException>(
             () =>
                 completionService.CompleteHabitAsync(
                     userId,
-                    habitId,
+                    habit.Id,
                     new CompleteHabitRequest()));
 
         Assert.Empty(dbContext.HabitCompletions);
@@ -412,84 +315,40 @@ public sealed class CompletionServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var utcNow = new DateTimeOffset(
-            2026,
-            7,
-            20,
-            2,
-            30,
-            0,
-            TimeSpan.Zero);
-
         var userId = Guid.CreateVersion7();
-        var habitId = Guid.CreateVersion7();
 
-        dbContext.Users.Add(
-            new User
-            {
-                Id = userId,
-                Email = "fred@example.com",
-                NormalizedEmail = "FRED@EXAMPLE.COM",
-                Username = "fred",
-                NormalizedUsername = "FRED",
-                PasswordHash = "test-password-hash",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
+        AddUserWithSettings(dbContext, userId, UtcNow.UtcDateTime);
 
-        dbContext.UserSettings.Add(
-            new UserSettings
-            {
-                UserId = userId,
-                DisplayName = "Fred",
-                TimeZone = "America/Toronto",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
+        var (habit, configuration) =
+            CreateHabitWithConfiguration(
+                userId,
+                Guid.CreateVersion7(),
+                UtcNow.UtcDateTime.AddDays(-1),
+                isActive: true,
+                effectiveFromDate: CurrentLocalDate.AddDays(-1));
 
-        dbContext.Habits.Add(
-            new Habit
-            {
-                Id = habitId,
-                UserId = userId,
-                Name = "Go to gym",
-                FrequencyType =
-                    HabitFrequencyType.Daily,
-                TargetCount = 1,
-                Difficulty =
-                    HabitDifficulty.Medium,
-                IsActive = true,
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
+        dbContext.Habits.Add(habit);
 
         dbContext.HabitCompletions.Add(
-            new HabitCompletion
-            {
-                UserId = userId,
-                HabitId = habitId,
-                CompletedDate =
-                    new DateOnly(2026, 7, 19),
-                CompletedAtUtc =
-                    utcNow.UtcDateTime.AddHours(-1)
-            });
+            CreateCompletion(
+                userId,
+                habit,
+                configuration,
+                CurrentLocalDate,
+                UtcNow.UtcDateTime.AddHours(-1)));
 
         await dbContext.SaveChangesAsync();
 
         var completionService =
             CreateCompletionService(
                 dbContext,
-                new FixedTimeProvider(utcNow));
+                new FixedTimeProvider(UtcNow));
 
         await Assert.ThrowsAsync<HabitAlreadyCompletedException>(
             () =>
                 completionService.CompleteHabitAsync(
                     userId,
-                    habitId,
+                    habit.Id,
                     new CompleteHabitRequest()));
 
         Assert.Single(dbContext.HabitCompletions);
@@ -500,89 +359,44 @@ public sealed class CompletionServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var utcNow = new DateTimeOffset(
-            2026,
-            7,
-            20,
-            2,
-            30,
-            0,
-            TimeSpan.Zero);
-
         var userId = Guid.CreateVersion7();
-        var habitId = Guid.CreateVersion7();
 
-        dbContext.Users.Add(
-            new User
-            {
-                Id = userId,
-                Email = "fred@example.com",
-                NormalizedEmail = "FRED@EXAMPLE.COM",
-                Username = "fred",
-                NormalizedUsername = "FRED",
-                PasswordHash = "test-password-hash",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2)
-            });
+        AddUserWithSettings(dbContext, userId, UtcNow.UtcDateTime);
 
-        dbContext.UserSettings.Add(
-            new UserSettings
-            {
-                UserId = userId,
-                DisplayName = "Fred",
-                TimeZone = "America/Toronto",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2)
-            });
+        var (habit, configuration) =
+            CreateHabitWithConfiguration(
+                userId,
+                Guid.CreateVersion7(),
+                UtcNow.UtcDateTime.AddDays(-2),
+                isActive: true,
+                effectiveFromDate: CurrentLocalDate.AddDays(-2));
 
-        dbContext.Habits.Add(
-            new Habit
-            {
-                Id = habitId,
-                UserId = userId,
-                Name = "Go to gym",
-                FrequencyType =
-                    HabitFrequencyType.Daily,
-                TargetCount = 1,
-                Difficulty =
-                    HabitDifficulty.Medium,
-                IsActive = true,
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2)
-            });
+        dbContext.Habits.Add(habit);
 
         dbContext.HabitCompletions.Add(
-            new HabitCompletion
-            {
-                UserId = userId,
-                HabitId = habitId,
-                CompletedDate =
-                    new DateOnly(2026, 7, 18),
-                CompletedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
+            CreateCompletion(
+                userId,
+                habit,
+                configuration,
+                CurrentLocalDate.AddDays(-1),
+                UtcNow.UtcDateTime.AddDays(-1)));
 
         await dbContext.SaveChangesAsync();
 
         var completionService =
             CreateCompletionService(
                 dbContext,
-                new FixedTimeProvider(utcNow));
+                new FixedTimeProvider(UtcNow));
 
         var response =
             await completionService.CompleteHabitAsync(
                 userId,
-                habitId,
+                habit.Id,
                 new CompleteHabitRequest());
 
         Assert.NotNull(response);
-
         Assert.Equal(
-            new DateOnly(2026, 7, 19),
+            CurrentLocalDate,
             response.Completion.CompletedDate);
 
         Assert.Equal(
@@ -593,13 +407,13 @@ public sealed class CompletionServiceTests
             dbContext.HabitCompletions,
             completion =>
                 completion.CompletedDate
-                    == new DateOnly(2026, 7, 18));
+                    == CurrentLocalDate.AddDays(-1));
 
         Assert.Contains(
             dbContext.HabitCompletions,
             completion =>
                 completion.CompletedDate
-                    == new DateOnly(2026, 7, 19));
+                    == CurrentLocalDate);
     }
 
     [Fact]
@@ -607,97 +421,52 @@ public sealed class CompletionServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var utcNow =
-            new DateTimeOffset(
-                2026,
-                7,
-                20,
-                2,
-                30,
-                0,
-                TimeSpan.Zero);
-
         var userId = Guid.CreateVersion7();
-        var habitId = Guid.CreateVersion7();
 
-        dbContext.Users.Add(
-            new User
-            {
-                Id = userId,
-                Email = "fred@example.com",
-                NormalizedEmail = "FRED@EXAMPLE.COM",
-                Username = "fred",
-                NormalizedUsername = "FRED",
-                PasswordHash = "test-password-hash",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2)
-            });
+        AddUserWithSettings(dbContext, userId, UtcNow.UtcDateTime);
 
-        dbContext.UserSettings.Add(
-            new UserSettings
-            {
-                UserId = userId,
-                DisplayName = "Fred",
-                TimeZone = "America/Toronto",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2)
-            });
+        var (habit, configuration) =
+            CreateHabitWithConfiguration(
+                userId,
+                Guid.CreateVersion7(),
+                UtcNow.UtcDateTime.AddDays(-2),
+                isActive: true,
+                effectiveFromDate: CurrentLocalDate.AddDays(-2));
 
-        dbContext.Habits.Add(
-            new Habit
-            {
-                Id = habitId,
-                UserId = userId,
-                Name = "Go to gym",
-                FrequencyType =
-                    HabitFrequencyType.Daily,
-                TargetCount = 1,
-                Difficulty =
-                    HabitDifficulty.Medium,
-                IsActive = true,
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2)
-            });
+        dbContext.Habits.Add(habit);
 
         dbContext.HabitCompletions.Add(
-            new HabitCompletion
-            {
-                UserId = userId,
-                HabitId = habitId,
-                CompletedDate =
-                    new DateOnly(2026, 7, 19),
-                CompletedAtUtc =
-                    utcNow.UtcDateTime.AddHours(-1)
-            });
+            CreateCompletion(
+                userId,
+                habit,
+                configuration,
+                CurrentLocalDate,
+                UtcNow.UtcDateTime.AddHours(-1)));
 
         await dbContext.SaveChangesAsync();
 
         var completionService =
             CreateCompletionService(
                 dbContext,
-                new FixedTimeProvider(utcNow));
+                new FixedTimeProvider(UtcNow));
 
         var wasRemoved =
             await completionService.UndoTodayAsync(
                 userId,
-                habitId);
+                habit.Id);
 
         Assert.True(wasRemoved);
 
         Assert.DoesNotContain(
             dbContext.HabitCompletions,
             completion =>
-                completion.HabitId == habitId);
+                completion.HabitId == habit.Id);
 
         var savedHabit =
             Assert.Single(
                 dbContext.Habits,
-                habit =>
-                    habit.Id == habitId);
+                candidate =>
+                    candidate.Id == habit.Id);
 
         Assert.True(savedHabit.IsActive);
     }
@@ -707,97 +476,52 @@ public sealed class CompletionServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var utcNow =
-            new DateTimeOffset(
-                2026,
-                7,
-                20,
-                2,
-                30,
-                0,
-                TimeSpan.Zero);
-
         var userId = Guid.CreateVersion7();
-        var habitId = Guid.CreateVersion7();
 
-        dbContext.Users.Add(
-            new User
-            {
-                Id = userId,
-                Email = "fred@example.com",
-                NormalizedEmail = "FRED@EXAMPLE.COM",
-                Username = "fred",
-                NormalizedUsername = "FRED",
-                PasswordHash = "test-password-hash",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2)
-            });
+        AddUserWithSettings(dbContext, userId, UtcNow.UtcDateTime);
 
-        dbContext.UserSettings.Add(
-            new UserSettings
-            {
-                UserId = userId,
-                DisplayName = "Fred",
-                TimeZone = "America/Toronto",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2)
-            });
+        var (habit, configuration) =
+            CreateHabitWithConfiguration(
+                userId,
+                Guid.CreateVersion7(),
+                UtcNow.UtcDateTime.AddDays(-2),
+                isActive: false,
+                effectiveFromDate: CurrentLocalDate.AddDays(-2));
 
-        dbContext.Habits.Add(
-            new Habit
-            {
-                Id = habitId,
-                UserId = userId,
-                Name = "Go to gym",
-                FrequencyType =
-                    HabitFrequencyType.Daily,
-                TargetCount = 1,
-                Difficulty =
-                    HabitDifficulty.Medium,
-                IsActive = false,
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
+        dbContext.Habits.Add(habit);
 
         dbContext.HabitCompletions.Add(
-            new HabitCompletion
-            {
-                UserId = userId,
-                HabitId = habitId,
-                CompletedDate =
-                    new DateOnly(2026, 7, 19),
-                CompletedAtUtc =
-                    utcNow.UtcDateTime.AddHours(-1)
-            });
+            CreateCompletion(
+                userId,
+                habit,
+                configuration,
+                CurrentLocalDate,
+                UtcNow.UtcDateTime.AddHours(-1)));
 
         await dbContext.SaveChangesAsync();
 
         var completionService =
             CreateCompletionService(
                 dbContext,
-                new FixedTimeProvider(utcNow));
+                new FixedTimeProvider(UtcNow));
 
         var wasRemoved =
             await completionService.UndoTodayAsync(
                 userId,
-                habitId);
+                habit.Id);
 
         Assert.True(wasRemoved);
 
         Assert.DoesNotContain(
             dbContext.HabitCompletions,
             completion =>
-                completion.HabitId == habitId);
+                completion.HabitId == habit.Id);
 
         var savedHabit =
             Assert.Single(
                 dbContext.Habits,
-                habit =>
-                    habit.Id == habitId);
+                candidate =>
+                    candidate.Id == habit.Id);
 
         Assert.False(savedHabit.IsActive);
     }
@@ -810,15 +534,7 @@ public sealed class CompletionServiceTests
         var completionService =
             CreateCompletionService(
                 dbContext,
-                new FixedTimeProvider(
-                    new DateTimeOffset(
-                        2026,
-                        7,
-                        20,
-                        2,
-                        30,
-                        0,
-                        TimeSpan.Zero)));
+                new FixedTimeProvider(UtcNow));
 
         var wasRemoved =
             await completionService.UndoTodayAsync(
@@ -834,80 +550,45 @@ public sealed class CompletionServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var utcNow =
-            new DateTimeOffset(
-                2026,
-                7,
-                20,
-                2,
-                30,
-                0,
-                TimeSpan.Zero);
-
         var ownerId = Guid.CreateVersion7();
         var requestingUserId = Guid.CreateVersion7();
-        var habitId = Guid.CreateVersion7();
 
-        dbContext.Users.Add(
-            new User
-            {
-                Id = ownerId,
-                Email = "owner@example.com",
-                NormalizedEmail = "OWNER@EXAMPLE.COM",
-                Username = "owner",
-                NormalizedUsername = "OWNER",
-                PasswordHash = "test-password-hash",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2)
-            });
+        var (habit, configuration) =
+            CreateHabitWithConfiguration(
+                ownerId,
+                Guid.CreateVersion7(),
+                UtcNow.UtcDateTime.AddDays(-2),
+                isActive: true,
+                effectiveFromDate: CurrentLocalDate.AddDays(-2));
 
-        dbContext.Habits.Add(
-            new Habit
-            {
-                Id = habitId,
-                UserId = ownerId,
-                Name = "Private habit",
-                FrequencyType =
-                    HabitFrequencyType.Daily,
-                TargetCount = 1,
-                Difficulty =
-                    HabitDifficulty.Medium,
-                IsActive = true,
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2)
-            });
+        dbContext.Habits.Add(habit);
 
         dbContext.HabitCompletions.Add(
-            new HabitCompletion
-            {
-                UserId = ownerId,
-                HabitId = habitId,
-                CompletedDate =
-                    new DateOnly(2026, 7, 19),
-                CompletedAtUtc =
-                    utcNow.UtcDateTime.AddHours(-1)
-            });
+            CreateCompletion(
+                ownerId,
+                habit,
+                configuration,
+                CurrentLocalDate,
+                UtcNow.UtcDateTime.AddHours(-1)));
 
         await dbContext.SaveChangesAsync();
 
         var completionService =
             CreateCompletionService(
                 dbContext,
-                new FixedTimeProvider(utcNow));
+                new FixedTimeProvider(UtcNow));
 
         var wasRemoved =
             await completionService.UndoTodayAsync(
                 requestingUserId,
-                habitId);
+                habit.Id);
 
         Assert.False(wasRemoved);
 
         Assert.Single(
             dbContext.HabitCompletions,
             completion =>
-                completion.HabitId == habitId);
+                completion.HabitId == habit.Id);
     }
 
     [Fact]
@@ -915,84 +596,39 @@ public sealed class CompletionServiceTests
     {
         await using var dbContext = CreateDbContext();
 
-        var utcNow =
-            new DateTimeOffset(
-                2026,
-                7,
-                20,
-                2,
-                30,
-                0,
-                TimeSpan.Zero);
-
         var userId = Guid.CreateVersion7();
-        var habitId = Guid.CreateVersion7();
 
-        dbContext.Users.Add(
-            new User
-            {
-                Id = userId,
-                Email = "fred@example.com",
-                NormalizedEmail = "FRED@EXAMPLE.COM",
-                Username = "fred",
-                NormalizedUsername = "FRED",
-                PasswordHash = "test-password-hash",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2)
-            });
+        AddUserWithSettings(dbContext, userId, UtcNow.UtcDateTime);
 
-        dbContext.UserSettings.Add(
-            new UserSettings
-            {
-                UserId = userId,
-                DisplayName = "Fred",
-                TimeZone = "America/Toronto",
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2)
-            });
+        var (habit, configuration) =
+            CreateHabitWithConfiguration(
+                userId,
+                Guid.CreateVersion7(),
+                UtcNow.UtcDateTime.AddDays(-2),
+                isActive: true,
+                effectiveFromDate: CurrentLocalDate.AddDays(-2));
 
-        dbContext.Habits.Add(
-            new Habit
-            {
-                Id = habitId,
-                UserId = userId,
-                Name = "Go to gym",
-                FrequencyType =
-                    HabitFrequencyType.Daily,
-                TargetCount = 1,
-                Difficulty =
-                    HabitDifficulty.Medium,
-                IsActive = true,
-                CreatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2),
-                UpdatedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-2)
-            });
+        dbContext.Habits.Add(habit);
 
         dbContext.HabitCompletions.Add(
-            new HabitCompletion
-            {
-                UserId = userId,
-                HabitId = habitId,
-                CompletedDate =
-                    new DateOnly(2026, 7, 18),
-                CompletedAtUtc =
-                    utcNow.UtcDateTime.AddDays(-1)
-            });
+            CreateCompletion(
+                userId,
+                habit,
+                configuration,
+                CurrentLocalDate.AddDays(-1),
+                UtcNow.UtcDateTime.AddDays(-1)));
 
         await dbContext.SaveChangesAsync();
 
         var completionService =
             CreateCompletionService(
                 dbContext,
-                new FixedTimeProvider(utcNow));
+                new FixedTimeProvider(UtcNow));
 
         var wasRemoved =
             await completionService.UndoTodayAsync(
                 userId,
-                habitId);
+                habit.Id);
 
         Assert.False(wasRemoved);
 
@@ -1000,22 +636,128 @@ public sealed class CompletionServiceTests
             Assert.Single(
                 dbContext.HabitCompletions,
                 completion =>
-                    completion.HabitId == habitId);
+                    completion.HabitId == habit.Id);
 
         Assert.Equal(
-            new DateOnly(2026, 7, 18),
+            CurrentLocalDate.AddDays(-1),
             remainingCompletion.CompletedDate);
     }
 
     private static CompletionService CreateCompletionService(
-    AppDbContext dbContext,
-    TimeProvider timeProvider)
+        AppDbContext dbContext,
+        TimeProvider timeProvider)
     {
+        var xpService = new XpService();
+
         return new CompletionService(
             dbContext,
             timeProvider,
-            new AttributeService(dbContext, new XpService()),
-            new XpService());
+            new AttributeService(
+                dbContext,
+                xpService),
+            xpService);
+    }
+
+    private static void AddUserWithSettings(
+        AppDbContext dbContext,
+        Guid userId,
+        DateTime timestampUtc)
+    {
+        var uniqueSuffix = userId.ToString("N");
+
+        var user = new User
+        {
+            Id = userId,
+            Email = $"user_{uniqueSuffix}@example.com",
+            NormalizedEmail =
+                $"USER_{uniqueSuffix}@EXAMPLE.COM",
+            Username = $"user_{uniqueSuffix[..8]}",
+            NormalizedUsername =
+                $"USER_{uniqueSuffix[..8]}",
+            PasswordHash = "test-password-hash",
+            CreatedAtUtc = timestampUtc.AddDays(-1)
+        };
+
+        var settings = new UserSettings
+        {
+            UserId = userId,
+            DisplayName = "Test User",
+            TimeZone = "America/Toronto",
+            CreatedAtUtc = timestampUtc.AddDays(-1),
+            UpdatedAtUtc = timestampUtc.AddDays(-1),
+            User = user
+        };
+
+        user.UserSettings = settings;
+        dbContext.Users.Add(user);
+    }
+
+    private static (
+        Habit Habit,
+        HabitConfigurationVersion Configuration)
+        CreateHabitWithConfiguration(
+            Guid userId,
+            Guid habitId,
+            DateTime timestampUtc,
+            bool isActive,
+            DateOnly effectiveFromDate,
+            HabitCategory category =
+                HabitCategory.FitnessAndMovement,
+            HabitDifficulty difficulty =
+                HabitDifficulty.Medium)
+    {
+        var habit = new Habit
+        {
+            Id = habitId,
+            UserId = userId,
+            Name = "Go to gym",
+            Category = category,
+            FrequencyType = HabitFrequencyType.Daily,
+            TargetCount = 1,
+            Difficulty = difficulty,
+            IsActive = isActive,
+            CreatedAtUtc = timestampUtc,
+            UpdatedAtUtc = timestampUtc
+        };
+
+        var configuration =
+            new HabitConfigurationVersion
+            {
+                HabitId = habitId,
+                VersionNumber = 1,
+                Category = category,
+                FrequencyType =
+                    HabitFrequencyType.Daily,
+                TargetCount = 1,
+                Difficulty = difficulty,
+                EffectiveFromDate = effectiveFromDate,
+                CreatedAtUtc = timestampUtc
+            };
+
+        habit.HabitConfigurationVersions.Add(configuration);
+
+        return (habit, configuration);
+    }
+
+    private static HabitCompletion CreateCompletion(
+        Guid userId,
+        Habit habit,
+        HabitConfigurationVersion configuration,
+        DateOnly completedDate,
+        DateTime completedAtUtc)
+    {
+        return new HabitCompletion
+        {
+            UserId = userId,
+            HabitId = habit.Id,
+            Habit = habit,
+            HabitConfigurationVersionId =
+                configuration.Id,
+            HabitConfigurationVersion =
+                configuration,
+            CompletedDate = completedDate,
+            CompletedAtUtc = completedAtUtc
+        };
     }
 
     private static AppDbContext CreateDbContext()
@@ -1029,7 +771,8 @@ public sealed class CompletionServiceTests
         return new AppDbContext(options);
     }
 
-    private sealed class FixedTimeProvider : TimeProvider
+    private sealed class FixedTimeProvider
+        : TimeProvider
     {
         private readonly DateTimeOffset _utcNow;
 

@@ -8,6 +8,8 @@ public sealed class HabitCompletion
 
     public Guid HabitId { get; set; }
 
+    public Guid HabitConfigurationVersionId { get; set; }
+
     public DateOnly CompletedDate { get; set; }
 
     public DateTime CompletedAtUtc { get; set; }
@@ -17,6 +19,9 @@ public sealed class HabitCompletion
     public User User { get; set; } = null!;
 
     public Habit Habit { get; set; } = null!;
+
+    public HabitConfigurationVersion HabitConfigurationVersion { get; set; }
+        = null!;
 
     public ICollection<XpTransaction> XpTransactions { get; set; }
         = new List<XpTransaction>();

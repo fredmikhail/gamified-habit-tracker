@@ -14,6 +14,10 @@ public sealed class HabitCompletionConfiguration
         builder.Property(completion => completion.Id)
             .ValueGeneratedNever();
 
+        builder.Property(completion =>
+                completion.HabitConfigurationVersionId)
+            .IsRequired();
+
         builder.Property(completion => completion.Notes)
             .HasMaxLength(500);
 
@@ -30,6 +34,9 @@ public sealed class HabitCompletionConfiguration
             completion.CompletedDate,
         });
 
+        builder.HasIndex(completion =>
+            completion.HabitConfigurationVersionId);
+
         builder.HasOne(completion => completion.User)
             .WithMany(user => user.HabitCompletions)
             .HasForeignKey(completion => completion.UserId)
@@ -39,5 +46,13 @@ public sealed class HabitCompletionConfiguration
             .WithMany(habit => habit.HabitCompletions)
             .HasForeignKey(completion => completion.HabitId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(completion =>
+                completion.HabitConfigurationVersion)
+            .WithMany(configuration =>
+                configuration.HabitCompletions)
+            .HasForeignKey(completion =>
+                completion.HabitConfigurationVersionId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

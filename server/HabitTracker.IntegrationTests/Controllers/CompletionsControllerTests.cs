@@ -9,6 +9,7 @@ using HabitTracker.Api.Services;
 using HabitTracker.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -534,6 +535,18 @@ public sealed class CompletionsControllerTests
         Assert.Equal(
             "Strong workout today.",
             savedCompletion.Notes);
+
+        var savedConfiguration =
+ await dbContext
+     .HabitConfigurationVersions
+     .SingleAsync(configuration =>
+         configuration.HabitId
+             == habit.Id);
+
+        Assert.Equal(
+            savedConfiguration.Id,
+            savedCompletion
+                .HabitConfigurationVersionId);
     }
 
     [Fact]
@@ -931,8 +944,8 @@ public sealed class CompletionsControllerTests
     }
 
     private async Task<Habit> SeedHabitAsync(
-        Guid userId,
-        bool isActive)
+    Guid userId,
+    bool isActive)
     {
         using var scope =
             _factory.Services.CreateScope();
@@ -941,8 +954,27 @@ public sealed class CompletionsControllerTests
             scope.ServiceProvider
                 .GetRequiredService<AppDbContext>();
 
+        var timeZoneId =
+            await dbContext.UserSettings
+                .Where(settings =>
+                    settings.UserId == userId)
+                .Select(settings =>
+                    settings.TimeZone)
+                .SingleAsync();
+
         var timestampUtc =
             DateTime.UtcNow.AddDays(-1);
+
+        var timestampOffset =
+            new DateTimeOffset(
+                DateTime.SpecifyKind(
+                    timestampUtc,
+                    DateTimeKind.Utc));
+
+        var effectiveFromDate =
+            LocalDateCalculator.GetLocalDate(
+                timestampOffset,
+                timeZoneId);
 
         var habit = new Habit
         {
@@ -959,6 +991,24 @@ public sealed class CompletionsControllerTests
             CreatedAtUtc = timestampUtc,
             UpdatedAtUtc = timestampUtc
         };
+
+        habit.HabitConfigurationVersions.Add(
+            new HabitConfigurationVersion
+            {
+                HabitId = habit.Id,
+                VersionNumber = 1,
+                Category = habit.Category,
+                FrequencyType =
+                    habit.FrequencyType,
+                TargetCount =
+                    habit.TargetCount,
+                Difficulty =
+                    habit.Difficulty,
+                EffectiveFromDate =
+                    effectiveFromDate,
+                CreatedAtUtc =
+                    timestampUtc
+            });
 
         dbContext.Habits.Add(habit);
 

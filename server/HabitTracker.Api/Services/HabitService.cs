@@ -596,29 +596,12 @@ public sealed class HabitService
 
     private IReadOnlyList<HabitAttributeRewardResponse>
     CreateAttributeRewardResponses(
-        Habit habit)
+        HabitConfigurationVersion configuration)
     {
-        if (habit.HabitAttributeRewards.Count == 2)
-        {
-            return habit.HabitAttributeRewards
-                .OrderByDescending(reward =>
-                    reward.XpAmount)
-                .ThenBy(reward =>
-                    reward.AttributeType)
-                .Select(reward =>
-                    new HabitAttributeRewardResponse
-                    {
-                        AttributeType =
-                            reward.AttributeType,
-                        XpAmount = reward.XpAmount
-                    })
-                .ToList();
-        }
-
         return _xpService
             .CalculateRewards(
-                habit.Category,
-                habit.Difficulty)
+                configuration.Category,
+                configuration.Difficulty)
             .OrderByDescending(reward =>
                 reward.Value)
             .ThenBy(reward =>
@@ -637,6 +620,11 @@ public sealed class HabitService
     bool isCompletedToday,
     DateOnly localDate)
     {
+        var effectiveConfiguration =
+            GetEffectiveConfiguration(
+                habit,
+                localDate);
+
         var pendingConfiguration =
             habit.HabitConfigurationVersions
                 .SingleOrDefault(configuration =>
@@ -648,10 +636,14 @@ public sealed class HabitService
             Id = habit.Id,
             Name = habit.Name,
             Description = habit.Description,
-            Category = habit.Category,
-            FrequencyType = habit.FrequencyType,
-            TargetCount = habit.TargetCount,
-            Difficulty = habit.Difficulty,
+            Category =
+                effectiveConfiguration.Category,
+            FrequencyType =
+                effectiveConfiguration.FrequencyType,
+            TargetCount =
+                effectiveConfiguration.TargetCount,
+            Difficulty =
+                effectiveConfiguration.Difficulty,
             PendingConfiguration =
                 pendingConfiguration is null
                     ? null
@@ -671,7 +663,8 @@ public sealed class HabitService
                             pendingConfiguration.Difficulty
                     },
             AttributeRewards =
-                CreateAttributeRewardResponses(habit),
+                CreateAttributeRewardResponses(
+                    effectiveConfiguration),
             IsActive = habit.IsActive,
             IsCompletedToday = isCompletedToday,
             CreatedAtUtc = habit.CreatedAtUtc,

@@ -34,8 +34,6 @@ public sealed class CompletionService
     {
         var habit =
             await _dbContext.Habits
-                .Include(habit =>
-                    habit.HabitAttributeRewards)
                 .SingleOrDefaultAsync(
                     habit =>
                         habit.Id == habitId
@@ -81,6 +79,23 @@ public sealed class CompletionService
             throw new HabitAlreadyCompletedException();
         }
 
+        var configuration =
+            await _dbContext.HabitConfigurationVersions
+                .SingleOrDefaultAsync(
+                    configuration =>
+                        configuration.HabitId == habitId
+                        && configuration.EffectiveFromDate
+                            <= completedDate
+                        && (
+                            configuration
+                                .EffectiveToDateExclusive == null
+                            || completedDate
+                                < configuration
+                                    .EffectiveToDateExclusive),
+                    cancellationToken)
+            ?? throw new InvalidOperationException(
+                "The habit does not have a configuration effective on the completion date.");
+
         var notes =
             string.IsNullOrWhiteSpace(request.Notes)
                 ? null
@@ -90,19 +105,24 @@ public sealed class CompletionService
         {
             UserId = userId,
             HabitId = habitId,
+            HabitConfigurationVersionId =
+                configuration.Id,
+            HabitConfigurationVersion =
+                configuration,
             CompletedDate = completedDate,
             CompletedAtUtc =
                 completedAtUtc.UtcDateTime,
             Notes = notes
         };
 
-        EnsureHabitAttributeRewards(habit);
+        var rewards =
+            CreateRewards(configuration);
 
         await _attributeService
             .ApplyCompletionRewardsAsync(
                 userId,
                 completion,
-                habit.HabitAttributeRewards,
+                rewards,
                 completion.CompletedAtUtc,
                 cancellationToken);
 
@@ -128,19 +148,18 @@ public sealed class CompletionService
         return new CompleteHabitResponse
         {
             Completion =
-        new HabitCompletionResponse
-        {
-            Id = completion.Id,
-            HabitId = completion.HabitId,
-            CompletedDate =
-                completion.CompletedDate,
-            CompletedAtUtc =
-                completion.CompletedAtUtc,
-            Notes = completion.Notes
-        },
+                new HabitCompletionResponse
+                {
+                    Id = completion.Id,
+                    HabitId = completion.HabitId,
+                    CompletedDate =
+                        completion.CompletedDate,
+                    CompletedAtUtc =
+                        completion.CompletedAtUtc,
+                    Notes = completion.Notes
+                },
             Rewards =
-        CreateRewardResponses(
-            habit.HabitAttributeRewards)
+                CreateRewardResponses(rewards)
         };
     }
 
@@ -207,10 +226,27 @@ public sealed class CompletionService
         return true;
     }
 
+    private List<HabitAttributeReward> CreateRewards(
+        HabitConfigurationVersion configuration)
+    {
+        return _xpService
+            .CalculateRewards(
+                configuration.Category,
+                configuration.Difficulty)
+            .Select(reward =>
+                new HabitAttributeReward
+                {
+                    HabitId = configuration.HabitId,
+                    AttributeType = reward.Key,
+                    XpAmount = reward.Value
+                })
+            .ToList();
+    }
+
     private static IReadOnlyList<
-    HabitAttributeRewardResponse>
-    CreateRewardResponses(
-        IEnumerable<HabitAttributeReward> rewards)
+        HabitAttributeRewardResponse>
+        CreateRewardResponses(
+            IEnumerable<HabitAttributeReward> rewards)
     {
         return rewards
             .OrderByDescending(reward =>
@@ -225,43 +261,5 @@ public sealed class CompletionService
                     XpAmount = reward.XpAmount
                 })
             .ToList();
-    }
-
-    private void EnsureHabitAttributeRewards(
-        Habit habit)
-    {
-        if (habit.HabitAttributeRewards.Count == 2)
-        {
-            return;
-        }
-
-        if (!Enum.IsDefined(habit.Category)
-            || !Enum.IsDefined(habit.Difficulty))
-        {
-            return;
-        }
-
-        _dbContext.HabitAttributeRewards.RemoveRange(
-            habit.HabitAttributeRewards);
-
-        habit.HabitAttributeRewards.Clear();
-
-        var calculatedRewards =
-            _xpService.CalculateRewards(
-                habit.Category,
-                habit.Difficulty);
-
-        foreach (var calculatedReward in calculatedRewards)
-        {
-            habit.HabitAttributeRewards.Add(
-                new HabitAttributeReward
-                {
-                    HabitId = habit.Id,
-                    AttributeType =
-                        calculatedReward.Key,
-                    XpAmount =
-                        calculatedReward.Value
-                });
-        }
     }
 }

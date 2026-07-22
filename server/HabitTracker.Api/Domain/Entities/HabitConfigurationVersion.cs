@@ -25,4 +25,7 @@ public sealed class HabitConfigurationVersion
     public DateTime CreatedAtUtc { get; set; }
 
     public Habit Habit { get; set; } = null!;
+
+    public ICollection<HabitCompletion> HabitCompletions { get; set; }
+        = new List<HabitCompletion>();
 }
