@@ -22,6 +22,10 @@ type NavigationItem = {
   Icon: LucideIcon
 }
 
+type NavigationLinkProps = NavigationItem & {
+  compact?: boolean
+}
+
 const navigationItems: readonly NavigationItem[] = [
   {
     to: '/dashboard',
@@ -98,12 +102,20 @@ function BrandMark() {
   )
 }
 
-function NavigationLink({ to, label, Icon }: NavigationItem) {
+function NavigationLink({
+  to,
+  label,
+  Icon,
+  compact = false,
+}: NavigationLinkProps) {
   return (
     <NavLink
       className={({ isActive }) =>
         [
-          'group flex min-h-11 items-center gap-3 rounded-xl border px-3.5 py-2.5 text-sm font-medium transition-colors',
+          'group flex min-h-11 w-full min-w-0 items-center rounded-xl border font-medium transition-colors',
+          compact
+            ? 'justify-center gap-2 px-2 py-2.5 text-xs min-[390px]:justify-start min-[390px]:px-3 min-[390px]:text-sm'
+            : 'gap-3 px-3.5 py-2.5 text-sm',
           isActive
             ? 'border-accent/40 bg-accent-soft text-content shadow-[var(--theme-energy-shadow)]'
             : 'border-transparent text-content-muted hover:border-line hover:bg-surface-hover hover:text-content',
@@ -118,7 +130,11 @@ function NavigationLink({ to, label, Icon }: NavigationItem) {
         strokeWidth={1.7}
       />
 
-      <span>{label}</span>
+      <span
+        className={compact ? 'hidden truncate min-[390px]:inline' : 'truncate'}
+      >
+        {label}
+      </span>
     </NavLink>
   )
 }
@@ -132,9 +148,12 @@ export function AppShell({
   const currentPage = getPageDetails(location.pathname)
 
   return (
-    <div className="min-h-screen bg-canvas text-content">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-line bg-sidebar lg:flex">
-        <div className="flex items-center gap-3 border-b border-line px-6 py-5">
+    <div
+      className="app-viewport grid min-h-0 min-w-0 bg-canvas text-content lg:grid-cols-[18rem_minmax(0,1fr)]"
+      data-testid="app-shell"
+    >
+      <aside className="hidden h-full min-h-0 flex-col overflow-hidden border-r border-line bg-sidebar lg:flex">
+        <div className="flex shrink-0 items-center gap-3 border-b border-line px-6 py-5">
           <BrandMark />
 
           <div className="min-w-0">
@@ -148,19 +167,22 @@ export function AppShell({
           </div>
         </div>
 
-        <div className="px-6 pt-6">
+        <div className="shrink-0 px-6 pt-6">
           <p className="text-[11px] font-semibold tracking-[0.2em] text-content-subtle uppercase">
             Navigation
           </p>
         </div>
 
-        <nav aria-label="Primary navigation" className="mt-3 space-y-1.5 px-4">
+        <nav
+          aria-label="Primary navigation"
+          className="mt-3 shrink-0 space-y-1.5 px-4"
+        >
           {navigationItems.map((item) => (
             <NavigationLink key={item.to} {...item} />
           ))}
         </nav>
 
-        <div className="relative mt-auto overflow-hidden border-t border-line p-4">
+        <div className="relative mt-auto shrink-0 overflow-hidden border-t border-line p-4">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-[radial-gradient(circle_at_50%_100%,var(--theme-accent-soft),transparent_68%)]"
@@ -190,15 +212,15 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="min-h-screen lg:pl-72">
-        <header className="sticky top-0 z-30 border-b border-line bg-canvas shadow-[0_10px_35px_rgb(0_0_0/0.12)]">
-          <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
+        <header className="z-30 shrink-0 border-b border-line bg-canvas shadow-[0_10px_35px_rgb(0_0_0/0.12)]">
+          <div className="mx-auto flex min-h-[72px] max-w-[1600px] items-center justify-between gap-3 px-3 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <div className="lg:hidden">
                 <BrandMark />
               </div>
 
-              <div className="min-w-0">
+              <div className="hidden min-w-0 min-[430px]:block">
                 <p className="text-[10px] font-semibold tracking-[0.2em] text-accent uppercase">
                   {currentPage.eyebrow}
                 </p>
@@ -214,7 +236,7 @@ export function AppShell({
 
               <button
                 aria-label="Sign out"
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface-raised px-3.5 py-2.5 text-sm font-semibold text-content transition-colors hover:border-danger/50 hover:bg-surface-hover hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface-raised px-3 py-2.5 text-sm font-semibold text-content transition-colors hover:border-danger/50 hover:bg-surface-hover hover:text-danger disabled:cursor-not-allowed disabled:opacity-50 sm:px-3.5"
                 disabled={isLogoutPending}
                 type="button"
                 onClick={onLogout}
@@ -230,24 +252,33 @@ export function AppShell({
 
           <nav
             aria-label="Mobile navigation"
-            className="flex gap-2 overflow-x-auto border-t border-line px-4 py-3 lg:hidden"
+            className="grid grid-cols-3 gap-2 border-t border-line px-3 py-2.5 lg:hidden"
           >
             {navigationItems.map((item) => (
-              <NavigationLink key={item.to} {...item} />
+              <NavigationLink compact key={item.to} {...item} />
             ))}
           </nav>
         </header>
 
-        <main className="mx-auto w-full max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-          <div className="mb-6">
-            <p className="max-w-2xl text-sm leading-6 text-content-muted">
-              {currentPage.description}
-            </p>
-          </div>
+        <main className="min-h-0 min-w-0 overflow-hidden">
+          <div className="mx-auto grid h-full min-h-0 w-full max-w-[1600px] grid-rows-[auto_minmax(0,1fr)] px-4 pt-4 sm:px-6 sm:pt-5 lg:px-8 lg:pt-6">
+            <div className="shrink-0 pb-4 lg:pb-5">
+              <p className="max-w-2xl text-sm leading-6 text-content-muted">
+                {currentPage.description}
+              </p>
+            </div>
 
-          <Outlet />
+            <div
+              className="app-route-scroll min-h-0 min-w-0"
+              data-testid="route-content-region"
+            >
+              <div className="min-w-0 pb-5 pr-1 lg:pb-7">
+                <Outlet />
+              </div>
+            </div>
+          </div>
         </main>
-      </div>
+      </section>
     </div>
   )
 }
