@@ -50,6 +50,7 @@ describe('HabitSection', () => {
         completedDailyHabits: 0,
         totalDailyHabits: 0,
       },
+      habitStreaks: [],
     })
     getAttributesMock.mockReset()
     getAttributesMock.mockResolvedValue([])

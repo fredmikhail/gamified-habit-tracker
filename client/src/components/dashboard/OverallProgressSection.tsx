@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getDashboard } from '../../api/dashboardApi'
 import type { DashboardResponse } from '../../types/DashboardResponse'
+import { HabitStreakSection } from './HabitStreakSection'
 
 type OverallProgressSectionProps = {
   refreshKey: number
@@ -84,6 +85,7 @@ export function OverallProgressSection({
   }, [refreshKey])
 
   const progressPercentage = dashboard ? getProgressPercentage(dashboard) : 0
+
   const executionPercentage = dashboard ? getExecutionPercentage(dashboard) : 0
 
   return (
@@ -213,6 +215,8 @@ export function OverallProgressSection({
               )}
             </article>
           </div>
+
+          <HabitStreakSection habitStreaks={dashboard.habitStreaks} />
         </>
       )}
     </section>

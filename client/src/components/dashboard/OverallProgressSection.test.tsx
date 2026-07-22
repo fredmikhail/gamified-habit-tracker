@@ -31,6 +31,15 @@ describe('OverallProgressSection', () => {
         completedDailyHabits: 1,
         totalDailyHabits: 2,
       },
+      habitStreaks: [
+        {
+          habitId: '019c0000-0000-7000-8000-000000000001',
+          habitName: 'Read C# textbook',
+          frequencyType: 'daily',
+          currentStreak: 2,
+          longestStreak: 5,
+        },
+      ],
     })
 
     render(<OverallProgressSection refreshKey={0} />)
@@ -56,6 +65,15 @@ describe('OverallProgressSection', () => {
 
     expect(executionProgressBar).toHaveAttribute('aria-valuenow', '1')
     expect(executionProgressBar).toHaveAttribute('aria-valuemax', '2')
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Read C# textbook',
+      }),
+    ).toBeInTheDocument()
+
+    expect(screen.getByText('2 days')).toBeInTheDocument()
+    expect(screen.getByText('5 days')).toBeInTheDocument()
   })
 
   it('reloads progress when the refresh key changes', async () => {
@@ -76,6 +94,7 @@ describe('OverallProgressSection', () => {
           completedDailyHabits: 0,
           totalDailyHabits: 0,
         },
+        habitStreaks: [],
       })
       .mockResolvedValueOnce({
         overallProgress: {
@@ -93,6 +112,7 @@ describe('OverallProgressSection', () => {
           completedDailyHabits: 0,
           totalDailyHabits: 0,
         },
+        habitStreaks: [],
       })
 
     const { rerender } = render(<OverallProgressSection refreshKey={0} />)
@@ -102,6 +122,7 @@ describe('OverallProgressSection', () => {
     rerender(<OverallProgressSection refreshKey={1} />)
 
     expect(await screen.findByText('20 / 200 XP')).toBeInTheDocument()
+
     expect(getDashboardMock).toHaveBeenCalledTimes(2)
   })
 

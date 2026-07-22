@@ -25,6 +25,15 @@ describe('dashboardApi', () => {
         completedDailyHabits: 0,
         totalDailyHabits: 0,
       },
+      habitStreaks: [
+        {
+          habitId: '019c0000-0000-7000-8000-000000000001',
+          habitName: 'Read C# textbook',
+          frequencyType: 'daily',
+          currentStreak: 2,
+          longestStreak: 5,
+        },
+      ],
     }
 
     const fetchMock = vi.fn<typeof fetch>()
