@@ -91,6 +91,8 @@ builder.Services.AddScoped<XpService>();
 
 builder.Services.AddScoped<AttributeService>();
 
+builder.Services.AddScoped<DashboardService>();
+
 builder.Services.AddScoped<HabitService>();
 
 builder.Services.AddScoped<CompletionService>();
