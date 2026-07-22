@@ -715,7 +715,7 @@ secondaryReward =>
             response.StatusCode);
     }
     [Fact]
-    public async Task UpdateHabit_WhenHabitBelongsToUser_UpdatesAndReturnsHabit()
+    public async Task UpdateHabit_WhenHabitBelongsToUser_UpdatesImmediateFieldsAndReturnsPendingRules()
     {
         using var client = CreateClient();
 
@@ -742,7 +742,7 @@ secondaryReward =>
                 Description =
                     "  Updated description  ",
                 Category =
-    HabitCategory.FitnessAndMovement,
+                    HabitCategory.FitnessAndMovement,
                 FrequencyType =
                     HabitFrequencyType.Weekly,
                 TargetCount = 4,
@@ -768,25 +768,58 @@ secondaryReward =>
 
         Assert.NotNull(responseBody);
 
-        Assert.Equal(habit.Id, responseBody.Id);
+        Assert.Equal(
+            habit.Id,
+            responseBody.Id);
+
         Assert.Equal(
             "Updated habit name",
             responseBody.Name);
+
         Assert.Equal(
             "Updated description",
             responseBody.Description);
+
         Assert.Equal(
-            HabitCategory.FitnessAndMovement,
+            HabitCategory.GeneralGrowth,
             responseBody.Category);
+
         Assert.Equal(
-            HabitFrequencyType.Weekly,
+            HabitFrequencyType.Daily,
             responseBody.FrequencyType);
-        Assert.Equal(4, responseBody.TargetCount);
+
         Assert.Equal(
-            HabitDifficulty.Elite,
+            1,
+            responseBody.TargetCount);
+
+        Assert.Equal(
+            HabitDifficulty.Medium,
             responseBody.Difficulty);
 
-        Assert.False(responseBody.IsActive);
+        Assert.NotNull(
+            responseBody.PendingConfiguration);
+
+        Assert.Equal(
+            HabitCategory.FitnessAndMovement,
+            responseBody.PendingConfiguration.Category);
+
+        Assert.Equal(
+            HabitFrequencyType.Weekly,
+            responseBody.PendingConfiguration
+                .FrequencyType);
+
+        Assert.Equal(
+            4,
+            responseBody.PendingConfiguration
+                .TargetCount);
+
+        Assert.Equal(
+            HabitDifficulty.Elite,
+            responseBody.PendingConfiguration
+                .Difficulty);
+
+        Assert.False(
+            responseBody.IsActive);
 
         Assert.Equal(
             createdAtUtc,
@@ -810,11 +843,31 @@ secondaryReward =>
                     _jsonOptions);
 
         Assert.NotNull(savedHabit);
+
         Assert.Equal(
             "Updated habit name",
             savedHabit.Name);
-        Assert.False(savedHabit.IsActive);
+
+        Assert.Equal(
+            HabitCategory.GeneralGrowth,
+            savedHabit.Category);
+
+        Assert.NotNull(
+            savedHabit.PendingConfiguration);
+
+        Assert.Equal(
+            HabitCategory.FitnessAndMovement,
+            savedHabit.PendingConfiguration.Category);
+
+        Assert.Equal(
+            4,
+            savedHabit.PendingConfiguration
+                .TargetCount);
+
+        Assert.False(
+            savedHabit.IsActive);
     }
+
 
     [Fact]
     public async Task UpdateHabit_WhenNameIsWhitespace_ReturnsValidationProblemDetails()

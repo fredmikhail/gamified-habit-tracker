@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using HabitTracker.Api.Domain.Enums;
 
 namespace HabitTracker.Api.DTOs;
@@ -18,8 +19,14 @@ public sealed class HabitResponse
 
     public HabitDifficulty Difficulty { get; set; }
 
+    [JsonIgnore(
+        Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PendingHabitConfigurationResponse?
+        PendingConfiguration
+    { get; set; }
+
     public IReadOnlyList<HabitAttributeRewardResponse>
-    AttributeRewards
+        AttributeRewards
     { get; set; }
         = Array.Empty<HabitAttributeRewardResponse>();
 

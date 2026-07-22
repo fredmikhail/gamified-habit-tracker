@@ -101,8 +101,9 @@ public sealed class HabitService
             cancellationToken);
 
         return CreateHabitResponse(
-            habit,
-            isCompletedToday: false);
+    habit,
+    isCompletedToday: false,
+    effectiveFromDate);
     }
 
     public async Task<IReadOnlyList<HabitResponse>> GetUserHabitsAsync(
@@ -115,6 +116,8 @@ public sealed class HabitService
         .AsNoTracking()
         .Include(habit =>
             habit.HabitAttributeRewards)
+        .Include(habit =>
+            habit.HabitConfigurationVersions)
         .Where(habit =>
             habit.UserId == userId);
 
@@ -151,12 +154,13 @@ public sealed class HabitService
             completedHabitIds.ToHashSet();
 
         return habits
-            .Select(habit =>
-                CreateHabitResponse(
-                    habit,
-                    completedHabitIdSet.Contains(
-                        habit.Id)))
-            .ToList();
+    .Select(habit =>
+        CreateHabitResponse(
+            habit,
+            completedHabitIdSet.Contains(
+                habit.Id),
+            completedDate))
+    .ToList();
     }
 
     public async Task<HabitResponse?> UpdateHabitAsync(
@@ -205,34 +209,112 @@ public sealed class HabitService
             frequencyType,
             targetCount);
 
+        var settings =
+            await GetUserCalendarSettingsAsync(
+                userId,
+                cancellationToken);
+
+        var updatedAtUtc =
+            _timeProvider.GetUtcNow();
+
+        var localDate =
+            LocalDateCalculator.GetLocalDate(
+                updatedAtUtc,
+                settings.TimeZoneId);
+
+        var currentWeek =
+            CalendarPeriodCalculator.GetWeekPeriod(
+                localDate,
+                settings.WeekStartsOn);
+
+        var nextWeekStart =
+            currentWeek.EndDateInclusive.AddDays(1);
+
         var currentConfiguration =
+            GetEffectiveConfiguration(
+                habit,
+                localDate);
+
+        var pendingConfiguration =
             habit.HabitConfigurationVersions
                 .SingleOrDefault(configuration =>
-                    configuration
-                        .EffectiveToDateExclusive is null)
-            ?? throw new InvalidOperationException(
-                "The habit does not have an open configuration version.");
+                    configuration.EffectiveFromDate
+                        > localDate);
+
+        if (pendingConfiguration is not null
+            && pendingConfiguration.EffectiveFromDate
+                != nextWeekStart)
+        {
+            throw new InvalidOperationException(
+                "The pending habit configuration does not begin at the next week boundary.");
+        }
 
         habit.Name = name;
         habit.Description =
             NormalizeOptionalText(request.Description);
-        habit.Category = category;
-        habit.FrequencyType = frequencyType;
-        habit.TargetCount = targetCount;
-        habit.Difficulty = difficulty;
         habit.UpdatedAtUtc =
-            _timeProvider.GetUtcNow().UtcDateTime;
+            updatedAtUtc.UtcDateTime;
 
-        currentConfiguration.Category =
-            category;
-        currentConfiguration.FrequencyType =
-            frequencyType;
-        currentConfiguration.TargetCount =
-            targetCount;
-        currentConfiguration.Difficulty =
-            difficulty;
+        var requestedRulesMatchCurrent =
+            HasSameRules(
+                currentConfiguration,
+                category,
+                frequencyType,
+                targetCount,
+                difficulty);
 
-        SynchronizeAttributeRewards(habit);
+        if (requestedRulesMatchCurrent)
+        {
+            if (pendingConfiguration is not null)
+            {
+                _dbContext.HabitConfigurationVersions.Remove(
+                    pendingConfiguration);
+
+                currentConfiguration
+                    .EffectiveToDateExclusive = null;
+            }
+        }
+        else if (pendingConfiguration is null)
+        {
+            currentConfiguration.EffectiveToDateExclusive =
+                nextWeekStart;
+
+            var nextVersionNumber =
+                habit.HabitConfigurationVersions
+                    .Max(configuration =>
+                        configuration.VersionNumber)
+                + 1;
+
+            habit.HabitConfigurationVersions.Add(
+                new HabitConfigurationVersion
+                {
+                    HabitId = habit.Id,
+                    VersionNumber =
+                        nextVersionNumber,
+                    Category = category,
+                    FrequencyType =
+                        frequencyType,
+                    TargetCount = targetCount,
+                    Difficulty = difficulty,
+                    EffectiveFromDate =
+                        nextWeekStart,
+                    CreatedAtUtc =
+                        updatedAtUtc.UtcDateTime
+                });
+        }
+        else
+        {
+            pendingConfiguration.Category =
+                category;
+            pendingConfiguration.FrequencyType =
+                frequencyType;
+            pendingConfiguration.TargetCount =
+                targetCount;
+            pendingConfiguration.Difficulty =
+                difficulty;
+            pendingConfiguration.CreatedAtUtc =
+                updatedAtUtc.UtcDateTime;
+        }
 
         await _dbContext.SaveChangesAsync(
             cancellationToken);
@@ -245,7 +327,8 @@ public sealed class HabitService
 
         return CreateHabitResponse(
             habit,
-            isCompletedToday);
+            isCompletedToday,
+            localDate);
     }
     public async Task<HabitResponse?> DeactivateHabitAsync(
         Guid userId,
@@ -256,11 +339,13 @@ public sealed class HabitService
     await _dbContext.Habits
         .Include(habit =>
             habit.HabitAttributeRewards)
+        .Include(habit =>
+            habit.HabitConfigurationVersions)
         .SingleOrDefaultAsync(
-                    habit =>
-                        habit.Id == habitId
-                        && habit.UserId == userId,
-                    cancellationToken);
+            habit =>
+                habit.Id == habitId
+                && habit.UserId == userId,
+            cancellationToken);
 
         if (habit is null)
         {
@@ -282,9 +367,15 @@ public sealed class HabitService
                 habitId,
                 cancellationToken);
 
+        var localDate =
+    await GetUserLocalDateAsync(
+        userId,
+        cancellationToken);
+
         return CreateHabitResponse(
             habit,
-            isCompletedToday);
+            isCompletedToday,
+            localDate);
     }
 
     public async Task<HabitResponse?> GetUserHabitAsync(
@@ -297,11 +388,13 @@ public sealed class HabitService
         .AsNoTracking()
         .Include(habit =>
             habit.HabitAttributeRewards)
+        .Include(habit =>
+            habit.HabitConfigurationVersions)
         .SingleOrDefaultAsync(
-                    habit =>
-                        habit.Id == habitId
-                        && habit.UserId == userId,
-                    cancellationToken);
+            habit =>
+                habit.Id == habitId
+                && habit.UserId == userId,
+            cancellationToken);
 
         if (habit is null)
         {
@@ -314,9 +407,65 @@ public sealed class HabitService
                 habitId,
                 cancellationToken);
 
+        var localDate =
+    await GetUserLocalDateAsync(
+        userId,
+        cancellationToken);
+
         return CreateHabitResponse(
             habit,
-            isCompletedToday);
+            isCompletedToday,
+            localDate);
+    }
+
+    private async Task<UserCalendarSettings>
+    GetUserCalendarSettingsAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        return await _dbContext.UserSettings
+            .Where(settings =>
+                settings.UserId == userId)
+            .Select(settings =>
+                new UserCalendarSettings(
+                    settings.TimeZone,
+                    settings.WeekStartsOn))
+            .SingleAsync(cancellationToken);
+    }
+
+    private static HabitConfigurationVersion
+    GetEffectiveConfiguration(
+        Habit habit,
+        DateOnly date)
+    {
+        return habit.HabitConfigurationVersions
+            .SingleOrDefault(configuration =>
+                configuration.EffectiveFromDate
+                    <= date
+                && (
+                    configuration
+                        .EffectiveToDateExclusive is null
+                    || date
+                        < configuration
+                            .EffectiveToDateExclusive))
+            ?? throw new InvalidOperationException(
+                "The habit does not have a configuration effective on the requested date.");
+    }
+
+    private static bool HasSameRules(
+        HabitConfigurationVersion configuration,
+        HabitCategory category,
+        HabitFrequencyType frequencyType,
+        int targetCount,
+        HabitDifficulty difficulty)
+    {
+        return configuration.Category == category
+            && configuration.FrequencyType
+                == frequencyType
+            && configuration.TargetCount
+                == targetCount
+            && configuration.Difficulty
+                == difficulty;
     }
 
     private async Task<string> GetUserTimeZoneIdAsync(
@@ -484,9 +633,16 @@ public sealed class HabitService
     }
 
     private HabitResponse CreateHabitResponse(
-        Habit habit,
-        bool isCompletedToday)
+    Habit habit,
+    bool isCompletedToday,
+    DateOnly localDate)
     {
+        var pendingConfiguration =
+            habit.HabitConfigurationVersions
+                .SingleOrDefault(configuration =>
+                    configuration.EffectiveFromDate
+                        > localDate);
+
         return new HabitResponse
         {
             Id = habit.Id,
@@ -496,12 +652,34 @@ public sealed class HabitService
             FrequencyType = habit.FrequencyType,
             TargetCount = habit.TargetCount,
             Difficulty = habit.Difficulty,
+            PendingConfiguration =
+                pendingConfiguration is null
+                    ? null
+                    : new PendingHabitConfigurationResponse
+                    {
+                        EffectiveFromDate =
+                            pendingConfiguration
+                                .EffectiveFromDate,
+                        Category =
+                            pendingConfiguration.Category,
+                        FrequencyType =
+                            pendingConfiguration
+                                .FrequencyType,
+                        TargetCount =
+                            pendingConfiguration.TargetCount,
+                        Difficulty =
+                            pendingConfiguration.Difficulty
+                    },
             AttributeRewards =
-    CreateAttributeRewardResponses(habit),
+                CreateAttributeRewardResponses(habit),
             IsActive = habit.IsActive,
             IsCompletedToday = isCompletedToday,
             CreatedAtUtc = habit.CreatedAtUtc,
             UpdatedAtUtc = habit.UpdatedAtUtc
         };
     }
+
+    private sealed record UserCalendarSettings(
+    string TimeZoneId,
+    WeekStartDay WeekStartsOn);
 }

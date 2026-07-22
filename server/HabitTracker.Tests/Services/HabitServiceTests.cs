@@ -10,6 +10,16 @@ namespace HabitTracker.Tests.Services;
 
 public sealed class HabitServiceTests
 {
+    private static readonly DateTime TestUtcNow =
+        new(
+            2026,
+            7,
+            19,
+            12,
+            0,
+            0,
+            DateTimeKind.Utc);
+
     [Fact]
     public async Task CreateHabitAsync_WhenRequestIsValid_CreatesAndReturnsHabit()
     {
@@ -293,7 +303,7 @@ public sealed class HabitServiceTests
             dbContext,
             userId);
         var otherUserId = Guid.CreateVersion7();
-        var baseTimestampUtc = DateTime.UtcNow.AddDays(-1);
+        var baseTimestampUtc = TestUtcNow.AddDays(-1);
 
         var olderActiveHabit =
             CreateHabit(
@@ -358,7 +368,7 @@ public sealed class HabitServiceTests
         AddUserWithSettings(
             dbContext,
             userId);
-        var baseTimestampUtc = DateTime.UtcNow.AddDays(-1);
+        var baseTimestampUtc = TestUtcNow.AddDays(-1);
 
         var olderActiveHabit =
             CreateHabit(
@@ -438,7 +448,7 @@ public sealed class HabitServiceTests
             CreateHabit(
                 userId,
                 "Read C# textbook",
-                DateTime.UtcNow,
+                TestUtcNow,
                 isActive: false);
 
         dbContext.Habits.Add(habit);
@@ -469,7 +479,7 @@ public sealed class HabitServiceTests
             CreateHabit(
                 ownerUserId,
                 "Private habit",
-                DateTime.UtcNow,
+                TestUtcNow,
                 isActive: true);
 
         dbContext.Habits.Add(habit);
@@ -515,14 +525,14 @@ public sealed class HabitServiceTests
             CreateHabit(
                 userId,
                 "Completed habit",
-                DateTime.UtcNow.AddHours(-2),
+                TestUtcNow.AddHours(-2),
                 isActive: true);
 
         var incompleteHabit =
             CreateHabit(
                 userId,
                 "Incomplete habit",
-                DateTime.UtcNow.AddHours(-1),
+                TestUtcNow.AddHours(-1),
                 isActive: true);
 
         dbContext.Habits.AddRange(
@@ -590,7 +600,7 @@ public sealed class HabitServiceTests
             CreateHabit(
                 userId,
                 "Completed habit",
-                DateTime.UtcNow.AddDays(-1),
+                TestUtcNow.AddDays(-1),
                 isActive: true);
 
         dbContext.Habits.Add(habit);
@@ -643,7 +653,7 @@ public sealed class HabitServiceTests
             CreateHabit(
                 userId,
                 "Original habit",
-                DateTime.UtcNow.AddDays(-1),
+                TestUtcNow.AddDays(-1),
                 isActive: true);
 
         dbContext.Habits.Add(habit);
@@ -693,7 +703,7 @@ public sealed class HabitServiceTests
     }
 
     [Fact]
-    public async Task UpdateHabitAsync_WhenHabitBelongsToUser_UpdatesEditableFieldsAndPreservesProtectedFields()
+    public async Task UpdateHabitAsync_WhenHabitBelongsToUser_UpdatesImmediateFieldsAndSchedulesRuleChanges()
     {
         await using var dbContext = CreateDbContext();
 
@@ -704,14 +714,14 @@ public sealed class HabitServiceTests
             userId);
 
         var createdAtUtc =
-    new DateTime(
-        2026,
-        7,
-        18,
-        2,
-        30,
-        0,
-        DateTimeKind.Utc);
+            new DateTime(
+                2026,
+                7,
+                18,
+                2,
+                30,
+                0,
+                DateTimeKind.Utc);
 
         var previousUpdatedAtUtc =
             new DateTime(
@@ -731,29 +741,10 @@ public sealed class HabitServiceTests
                 isActive: false);
 
         habit.Description = "Old description";
-        habit.Category =
-    HabitCategory.GeneralGrowth;
         habit.UpdatedAtUtc = previousUpdatedAtUtc;
 
-        habit.HabitAttributeRewards.Add(
-    new HabitAttributeReward
-    {
-        HabitId = habit.Id,
-        AttributeType =
-            AttributeType.Discipline,
-        XpAmount = 14
-    });
-
-        habit.HabitAttributeRewards.Add(
-            new HabitAttributeReward
-            {
-                HabitId = habit.Id,
-                AttributeType =
-                    AttributeType.Mind,
-                XpAmount = 6
-            });
-
         dbContext.Habits.Add(habit);
+
         await dbContext.SaveChangesAsync();
 
         var originalId = habit.Id;
@@ -763,123 +754,200 @@ public sealed class HabitServiceTests
 
         var habitService = CreateHabitService(dbContext);
 
-        var request = new UpdateHabitRequest
-        {
-            Name = "  Updated habit  ",
-            Description = "  Updated description  ",
-            Category =
-    HabitCategory.LearningAndSkills,
-            FrequencyType =
-                HabitFrequencyType.Weekly,
-            TargetCount = 4,
-            Difficulty =
-                HabitDifficulty.Elite
-        };
-
         var response =
             await habitService.UpdateHabitAsync(
                 userId,
                 habit.Id,
-                request);
+                new UpdateHabitRequest
+                {
+                    Name = "  Updated habit  ",
+                    Description =
+                        "  Updated description  ",
+                    Category =
+                        HabitCategory.LearningAndSkills,
+                    FrequencyType =
+                        HabitFrequencyType.Weekly,
+                    TargetCount = 4,
+                    Difficulty =
+                        HabitDifficulty.Elite
+                });
 
         Assert.NotNull(response);
 
-        var savedHabit =
-            Assert.Single(dbContext.Habits);
-
-        Assert.Equal(originalId, savedHabit.Id);
-        Assert.Equal(originalUserId, savedHabit.UserId);
+        Assert.Equal(originalId, habit.Id);
+        Assert.Equal(originalUserId, habit.UserId);
         Assert.Equal(
             originalCreatedAtUtc,
-            savedHabit.CreatedAtUtc);
+            habit.CreatedAtUtc);
         Assert.Equal(
             originalIsActive,
-            savedHabit.IsActive);
+            habit.IsActive);
 
-        Assert.Equal("Updated habit", savedHabit.Name);
+        Assert.Equal(
+            "Updated habit",
+            habit.Name);
+
         Assert.Equal(
             "Updated description",
-            savedHabit.Description);
-        Assert.Equal(
-    HabitCategory.LearningAndSkills,
-    savedHabit.Category);
-        Assert.Equal(
-            HabitFrequencyType.Weekly,
-            savedHabit.FrequencyType);
-        Assert.Equal(4, savedHabit.TargetCount);
-        Assert.Equal(
-            HabitDifficulty.Elite,
-            savedHabit.Difficulty);
-
-        var savedConfiguration =
-            Assert.Single(
-                dbContext.HabitConfigurationVersions);
+            habit.Description);
 
         Assert.Equal(
-            savedHabit.Category,
-            savedConfiguration.Category);
+            HabitCategory.GeneralGrowth,
+            habit.Category);
 
         Assert.Equal(
-            savedHabit.FrequencyType,
-            savedConfiguration.FrequencyType);
+            HabitFrequencyType.Daily,
+            habit.FrequencyType);
 
         Assert.Equal(
-            savedHabit.TargetCount,
-            savedConfiguration.TargetCount);
+            1,
+            habit.TargetCount);
 
         Assert.Equal(
-            savedHabit.Difficulty,
-            savedConfiguration.Difficulty);
-
-        var savedRewards =
-dbContext.HabitAttributeRewards
-    .Where(reward =>
-        reward.HabitId == savedHabit.Id)
-    .ToDictionary(
-        reward => reward.AttributeType,
-        reward => reward.XpAmount);
-
-        Assert.Equal(2, savedRewards.Count);
-
-        Assert.Equal(
-            35,
-            savedRewards[AttributeType.Mind]);
-
-        Assert.Equal(
-            15,
-            savedRewards[AttributeType.Focus]);
-
-        Assert.DoesNotContain(
-            AttributeType.Discipline,
-            savedRewards.Keys);
+            HabitDifficulty.Medium,
+            habit.Difficulty);
 
         Assert.True(
-            savedHabit.UpdatedAtUtc
+            habit.UpdatedAtUtc
                 > previousUpdatedAtUtc);
 
-        Assert.Equal(savedHabit.Id, response.Id);
-        Assert.Equal(savedHabit.Name, response.Name);
+        var configurations =
+            dbContext.HabitConfigurationVersions
+                .OrderBy(configuration =>
+                    configuration.VersionNumber)
+                .ToList();
+
         Assert.Equal(
-            savedHabit.Description,
+            2,
+            configurations.Count);
+
+        var currentConfiguration =
+            configurations[0];
+
+        Assert.Equal(
+            1,
+            currentConfiguration.VersionNumber);
+
+        Assert.Equal(
+            new DateOnly(2026, 7, 20),
+            currentConfiguration
+                .EffectiveToDateExclusive);
+
+        Assert.Equal(
+            HabitCategory.GeneralGrowth,
+            currentConfiguration.Category);
+
+        Assert.Equal(
+            HabitFrequencyType.Daily,
+            currentConfiguration.FrequencyType);
+
+        Assert.Equal(
+            1,
+            currentConfiguration.TargetCount);
+
+        Assert.Equal(
+            HabitDifficulty.Medium,
+            currentConfiguration.Difficulty);
+
+        var pendingConfiguration =
+            configurations[1];
+
+        Assert.Equal(
+            2,
+            pendingConfiguration.VersionNumber);
+
+        Assert.Equal(
+            new DateOnly(2026, 7, 20),
+            pendingConfiguration.EffectiveFromDate);
+
+        Assert.Null(
+            pendingConfiguration
+                .EffectiveToDateExclusive);
+
+        Assert.Equal(
+            HabitCategory.LearningAndSkills,
+            pendingConfiguration.Category);
+
+        Assert.Equal(
+            HabitFrequencyType.Weekly,
+            pendingConfiguration.FrequencyType);
+
+        Assert.Equal(
+            4,
+            pendingConfiguration.TargetCount);
+
+        Assert.Equal(
+            HabitDifficulty.Elite,
+            pendingConfiguration.Difficulty);
+
+        Assert.Equal(
+            habit.Id,
+            response.Id);
+
+        Assert.Equal(
+            habit.Name,
+            response.Name);
+
+        Assert.Equal(
+            habit.Description,
             response.Description);
-        Assert.Equal(savedHabit.Category, response.Category);
+
         Assert.Equal(
-            savedHabit.FrequencyType,
+            habit.Category,
+            response.Category);
+
+        Assert.Equal(
+            habit.FrequencyType,
             response.FrequencyType);
+
         Assert.Equal(
-            savedHabit.TargetCount,
+            habit.TargetCount,
             response.TargetCount);
+
         Assert.Equal(
-            savedHabit.Difficulty,
+            habit.Difficulty,
             response.Difficulty);
-        Assert.Equal(savedHabit.IsActive, response.IsActive);
+
         Assert.Equal(
-            savedHabit.CreatedAtUtc,
+            habit.IsActive,
+            response.IsActive);
+
+        Assert.Equal(
+            habit.CreatedAtUtc,
             response.CreatedAtUtc);
+
         Assert.Equal(
-            savedHabit.UpdatedAtUtc,
+            habit.UpdatedAtUtc,
             response.UpdatedAtUtc);
+
+        Assert.NotNull(
+            response.PendingConfiguration);
+
+        Assert.Equal(
+            pendingConfiguration.EffectiveFromDate,
+            response.PendingConfiguration
+                .EffectiveFromDate);
+
+        Assert.Equal(
+            pendingConfiguration.Category,
+            response.PendingConfiguration.Category);
+
+        Assert.Equal(
+            pendingConfiguration.FrequencyType,
+            response.PendingConfiguration
+                .FrequencyType);
+
+        Assert.Equal(
+            pendingConfiguration.TargetCount,
+            response.PendingConfiguration
+                .TargetCount);
+
+        Assert.Equal(
+            pendingConfiguration.Difficulty,
+            response.PendingConfiguration
+                .Difficulty);
     }
+
 
     [Fact]
     public async Task UpdateHabitAsync_WhenDescriptionIsBlank_StoresNull()
@@ -896,7 +964,7 @@ dbContext.HabitAttributeRewards
             CreateHabit(
                 userId,
                 "Existing habit",
-                DateTime.UtcNow.AddDays(-1),
+                TestUtcNow.AddDays(-1),
                 isActive: true);
 
         habit.Description = "Existing description";
@@ -939,7 +1007,7 @@ dbContext.HabitAttributeRewards
 
         var ownerUserId = Guid.CreateVersion7();
         var requestingUserId = Guid.CreateVersion7();
-        var createdAtUtc = DateTime.UtcNow.AddDays(-1);
+        var createdAtUtc = TestUtcNow.AddDays(-1);
 
         var habit =
             CreateHabit(
@@ -1003,7 +1071,7 @@ dbContext.HabitAttributeRewards
         await using var dbContext = CreateDbContext();
 
         var userId = Guid.CreateVersion7();
-        var createdAtUtc = DateTime.UtcNow.AddDays(-1);
+        var createdAtUtc = TestUtcNow.AddDays(-1);
 
         var habit =
             CreateHabit(
@@ -1043,7 +1111,7 @@ dbContext.HabitAttributeRewards
         await using var dbContext = CreateDbContext();
 
         var userId = Guid.CreateVersion7();
-        var createdAtUtc = DateTime.UtcNow.AddDays(-1);
+        var createdAtUtc = TestUtcNow.AddDays(-1);
 
         var habit =
             CreateHabit(
@@ -1076,6 +1144,191 @@ dbContext.HabitAttributeRewards
         Assert.Equal(createdAtUtc, habit.UpdatedAtUtc);
     }
 
+
+    [Fact]
+    public async Task UpdateHabitAsync_WhenPendingConfigurationExists_UpdatesSamePendingVersion()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
+        var habit =
+            CreateHabit(
+                userId,
+                "Existing habit",
+                new DateTime(
+                    2026,
+                    7,
+                    18,
+                    2,
+                    30,
+                    0,
+                    DateTimeKind.Utc),
+                isActive: true);
+
+        dbContext.Habits.Add(habit);
+
+        await dbContext.SaveChangesAsync();
+
+        var habitService = CreateHabitService(dbContext);
+
+        await habitService.UpdateHabitAsync(
+            userId,
+            habit.Id,
+            new UpdateHabitRequest
+            {
+                Name = habit.Name,
+                Description = null,
+                Category =
+                    HabitCategory.LearningAndSkills,
+                FrequencyType =
+                    HabitFrequencyType.Weekly,
+                TargetCount = 3,
+                Difficulty =
+                    HabitDifficulty.Hard
+            });
+
+        var response =
+            await habitService.UpdateHabitAsync(
+                userId,
+                habit.Id,
+                new UpdateHabitRequest
+                {
+                    Name = habit.Name,
+                    Description = null,
+                    Category =
+                        HabitCategory.FitnessAndMovement,
+                    FrequencyType =
+                        HabitFrequencyType.Weekly,
+                    TargetCount = 5,
+                    Difficulty =
+                        HabitDifficulty.Elite
+                });
+
+        Assert.Equal(
+            2,
+            dbContext.HabitConfigurationVersions.Count());
+
+        var currentConfiguration =
+            dbContext.HabitConfigurationVersions
+                .Single(configuration =>
+                    configuration.VersionNumber == 1);
+
+        Assert.Equal(
+            new DateOnly(2026, 7, 20),
+            currentConfiguration
+                .EffectiveToDateExclusive);
+
+        var pendingConfiguration =
+            dbContext.HabitConfigurationVersions
+                .Single(configuration =>
+                    configuration.VersionNumber == 2);
+
+        Assert.Equal(
+            new DateOnly(2026, 7, 20),
+            pendingConfiguration.EffectiveFromDate);
+
+        Assert.Equal(
+            HabitCategory.FitnessAndMovement,
+            pendingConfiguration.Category);
+
+        Assert.Equal(
+            HabitFrequencyType.Weekly,
+            pendingConfiguration.FrequencyType);
+
+        Assert.Equal(
+            5,
+            pendingConfiguration.TargetCount);
+
+        Assert.Equal(
+            HabitDifficulty.Elite,
+            pendingConfiguration.Difficulty);
+
+        Assert.NotNull(
+            response!.PendingConfiguration);
+
+        Assert.Equal(
+            HabitCategory.FitnessAndMovement,
+            response.PendingConfiguration.Category);
+
+        Assert.Equal(
+            5,
+            response.PendingConfiguration.TargetCount);
+    }
+
+    [Fact]
+    public async Task UpdateHabitAsync_WhenRequestedRulesMatchCurrent_RemovesPendingVersion()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
+        var habit =
+            CreateHabit(
+                userId,
+                "Existing habit",
+                new DateTime(
+                    2026,
+                    7,
+                    18,
+                    2,
+                    30,
+                    0,
+                    DateTimeKind.Utc),
+                isActive: true);
+
+        dbContext.Habits.Add(habit);
+
+        await dbContext.SaveChangesAsync();
+
+        var habitService = CreateHabitService(dbContext);
+
+        await habitService.UpdateHabitAsync(
+            userId,
+            habit.Id,
+            CreateValidUpdateRequest());
+
+        var response =
+            await habitService.UpdateHabitAsync(
+                userId,
+                habit.Id,
+                new UpdateHabitRequest
+                {
+                    Name = habit.Name,
+                    Description = null,
+                    Category =
+                        HabitCategory.GeneralGrowth,
+                    FrequencyType =
+                        HabitFrequencyType.Daily,
+                    TargetCount = 1,
+                    Difficulty =
+                        HabitDifficulty.Medium
+                });
+
+        var currentConfiguration =
+            Assert.Single(
+                dbContext.HabitConfigurationVersions);
+
+        Assert.Equal(
+            1,
+            currentConfiguration.VersionNumber);
+
+        Assert.Null(
+            currentConfiguration
+                .EffectiveToDateExclusive);
+
+        Assert.Null(
+            response!.PendingConfiguration);
+    }
+
     [Fact]
     public async Task DeactivateHabitAsync_WhenOwnedHabitIsActive_DeactivatesHabitAndUpdatesTimestamp()
     {
@@ -1087,9 +1340,9 @@ dbContext.HabitAttributeRewards
             dbContext,
             userId);
 
-        var createdAtUtc = DateTime.UtcNow.AddDays(-2);
+        var createdAtUtc = TestUtcNow.AddDays(-2);
         var previousUpdatedAtUtc =
-            DateTime.UtcNow.AddDays(-1);
+            TestUtcNow.AddDays(-1);
 
         var habit =
             CreateHabit(
@@ -1162,9 +1415,9 @@ dbContext.HabitAttributeRewards
             userId);
 
         var createdAtUtc =
-            DateTime.UtcNow.AddDays(-2);
+            TestUtcNow.AddDays(-2);
         var previousUpdatedAtUtc =
-            DateTime.UtcNow.AddDays(-1);
+            TestUtcNow.AddDays(-1);
 
         var habit =
             CreateHabit(
@@ -1217,7 +1470,7 @@ dbContext.HabitAttributeRewards
             Guid.CreateVersion7();
 
         var createdAtUtc =
-            DateTime.UtcNow.AddDays(-1);
+            TestUtcNow.AddDays(-1);
 
         var habit =
             CreateHabit(
@@ -1278,7 +1531,7 @@ dbContext.HabitAttributeRewards
             CreateHabit(
                 userId,
                 "Completed habit",
-                DateTime.UtcNow.AddDays(-1),
+                TestUtcNow.AddDays(-1),
                 isActive: true);
 
         dbContext.Habits.Add(habit);
