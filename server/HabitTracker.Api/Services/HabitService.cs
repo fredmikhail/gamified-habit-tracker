@@ -143,9 +143,10 @@ public sealed class HabitService
             await _dbContext.HabitCompletions
                 .AsNoTracking()
                 .Where(completion =>
-                    completion.UserId == userId
-                    && completion.CompletedDate
-                        == completedDate)
+    completion.UserId == userId
+    && completion.CompletedDate
+        == completedDate
+    && completion.UndoneAtUtc == null)
                 .Select(completion =>
                     completion.HabitId)
                 .ToListAsync(cancellationToken);
@@ -509,9 +510,10 @@ public sealed class HabitService
             .AnyAsync(
                 completion =>
                     completion.UserId == userId
-                    && completion.HabitId == habitId
-                    && completion.CompletedDate
-                        == completedDate,
+&& completion.HabitId == habitId
+&& completion.CompletedDate
+    == completedDate
+&& completion.UndoneAtUtc == null,
                 cancellationToken);
     }
 

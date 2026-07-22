@@ -355,6 +355,82 @@ public sealed class CompletionServiceTests
     }
 
     [Fact]
+    public async Task CompleteHabitAsync_WhenTodaysCompletionWasUndone_CreatesNewActiveCompletion()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+
+        AddUserWithSettings(
+            dbContext,
+            userId,
+            UtcNow.UtcDateTime);
+
+        var (habit, configuration) =
+            CreateHabitWithConfiguration(
+                userId,
+                Guid.CreateVersion7(),
+                UtcNow.UtcDateTime.AddDays(-1),
+                isActive: true,
+                effectiveFromDate:
+                    CurrentLocalDate.AddDays(-1));
+
+        var undoneCompletion =
+            CreateCompletion(
+                userId,
+                habit,
+                configuration,
+                CurrentLocalDate,
+                UtcNow.UtcDateTime.AddHours(-1));
+
+        undoneCompletion.UndoneAtUtc =
+            UtcNow.UtcDateTime.AddMinutes(-15);
+
+        dbContext.Habits.Add(habit);
+
+        dbContext.HabitCompletions.Add(
+            undoneCompletion);
+
+        await dbContext.SaveChangesAsync();
+
+        var completionService =
+            CreateCompletionService(
+                dbContext,
+                new FixedTimeProvider(UtcNow));
+
+        var response =
+            await completionService.CompleteHabitAsync(
+                userId,
+                habit.Id,
+                new CompleteHabitRequest());
+
+        Assert.NotNull(response);
+
+        var completions =
+            await dbContext.HabitCompletions
+                .Where(completion =>
+                    completion.HabitId == habit.Id)
+                .ToListAsync();
+
+        Assert.Equal(2, completions.Count);
+
+        Assert.Single(
+            completions,
+            completion =>
+                completion.UndoneAtUtc is not null);
+
+        var activeCompletion =
+            Assert.Single(
+                completions,
+                completion =>
+                    completion.UndoneAtUtc is null);
+
+        Assert.Equal(
+            response.Completion.Id,
+            activeCompletion.Id);
+    }
+
+    [Fact]
     public async Task CompleteHabitAsync_WhenHabitWasCompletedYesterday_CreatesTodaysCompletion()
     {
         await using var dbContext = CreateDbContext();
@@ -417,7 +493,7 @@ public sealed class CompletionServiceTests
     }
 
     [Fact]
-    public async Task UndoTodayAsync_WhenCompletionExistsToday_RemovesCompletionAndKeepsHabit()
+    public async Task UndoTodayAsync_WhenCompletionExistsToday_MarksCompletionUndoneAndKeepsHabit()
     {
         await using var dbContext = CreateDbContext();
 
@@ -457,10 +533,15 @@ public sealed class CompletionServiceTests
 
         Assert.True(wasRemoved);
 
-        Assert.DoesNotContain(
-            dbContext.HabitCompletions,
-            completion =>
-                completion.HabitId == habit.Id);
+        var savedCompletion =
+    Assert.Single(
+        dbContext.HabitCompletions,
+        completion =>
+            completion.HabitId == habit.Id);
+
+        Assert.Equal(
+            UtcNow.UtcDateTime,
+            savedCompletion.UndoneAtUtc);
 
         var savedHabit =
             Assert.Single(
@@ -472,7 +553,7 @@ public sealed class CompletionServiceTests
     }
 
     [Fact]
-    public async Task UndoTodayAsync_WhenHabitIsInactive_RemovesTodaysCompletion()
+    public async Task UndoTodayAsync_WhenHabitIsInactive_MarksCompletionUndone()
     {
         await using var dbContext = CreateDbContext();
 
@@ -512,10 +593,15 @@ public sealed class CompletionServiceTests
 
         Assert.True(wasRemoved);
 
-        Assert.DoesNotContain(
-            dbContext.HabitCompletions,
-            completion =>
-                completion.HabitId == habit.Id);
+        var savedCompletion =
+    Assert.Single(
+        dbContext.HabitCompletions,
+        completion =>
+            completion.HabitId == habit.Id);
+
+        Assert.Equal(
+            UtcNow.UtcDateTime,
+            savedCompletion.UndoneAtUtc);
 
         var savedHabit =
             Assert.Single(

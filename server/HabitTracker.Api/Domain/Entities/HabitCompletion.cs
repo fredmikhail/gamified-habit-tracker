@@ -14,6 +14,8 @@ public sealed class HabitCompletion
 
     public DateTime CompletedAtUtc { get; set; }
 
+    public DateTime? UndoneAtUtc { get; set; }
+
     public string? Notes { get; set; }
 
     public User User { get; set; } = null!;

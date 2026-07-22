@@ -11,21 +11,24 @@ public sealed class AttributeService
     private const string HabitCompletionReason =
         "Habit completion";
 
+    private const string HabitCompletionUndoReason =
+        "Habit completion undo";
+
     private readonly AppDbContext _dbContext;
     private readonly XpService _xpService;
 
     public AttributeService(
-    AppDbContext dbContext,
-    XpService xpService)
+        AppDbContext dbContext,
+        XpService xpService)
     {
         _dbContext = dbContext;
         _xpService = xpService;
     }
 
     public async Task<IReadOnlyList<UserAttributeResponse>>
-    GetUserAttributesAsync(
-        Guid userId,
-        CancellationToken cancellationToken = default)
+        GetUserAttributesAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
     {
         var storedAttributes =
             await _dbContext.UserAttributes
@@ -138,21 +141,24 @@ public sealed class AttributeService
         DateTime reversedAtUtc,
         CancellationToken cancellationToken = default)
     {
-        var transactions =
+        var awardedTransactions =
             await _dbContext.XpTransactions
                 .Where(transaction =>
                     transaction.UserId == userId
                     && transaction.HabitCompletionId
-                        == completion.Id)
+                        == completion.Id
+                    && transaction.Amount > 0
+                    && transaction.Reason
+                        == HabitCompletionReason)
                 .ToListAsync(cancellationToken);
 
-        if (transactions.Count == 0)
+        if (awardedTransactions.Count == 0)
         {
             return;
         }
 
         var attributeTypes =
-            transactions
+            awardedTransactions
                 .Select(transaction =>
                     transaction.AttributeType)
                 .Distinct()
@@ -168,7 +174,7 @@ public sealed class AttributeService
                     attribute => attribute.AttributeType,
                     cancellationToken);
 
-        foreach (var transaction in transactions)
+        foreach (var transaction in awardedTransactions)
         {
             if (!userAttributes.TryGetValue(
                     transaction.AttributeType,
@@ -187,9 +193,19 @@ public sealed class AttributeService
 
             userAttribute.CurrentXp -= transaction.Amount;
             userAttribute.UpdatedAtUtc = reversedAtUtc;
-        }
 
-        _dbContext.XpTransactions.RemoveRange(
-            transactions);
+            completion.XpTransactions.Add(
+                new XpTransaction
+                {
+                    UserId = userId,
+                    HabitCompletionId = completion.Id,
+                    AttributeType =
+                        transaction.AttributeType,
+                    Amount = -transaction.Amount,
+                    Reason =
+                        HabitCompletionUndoReason,
+                    CreatedAtUtc = reversedAtUtc
+                });
+        }
     }
 }

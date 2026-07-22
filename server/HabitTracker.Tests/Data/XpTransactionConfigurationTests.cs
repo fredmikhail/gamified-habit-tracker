@@ -78,7 +78,7 @@ public sealed class XpTransactionConfigurationTests
     }
 
     [Fact]
-    public void XpTransactionModel_ConfiguresUniqueCompletionAndAttributeIndex()
+    public void XpTransactionModel_ConfiguresUniqueCompletionAttributeAndReasonIndex()
     {
         using var dbContext = CreateDbContext();
 
@@ -93,6 +93,7 @@ public sealed class XpTransactionConfigurationTests
                     {
                         nameof(XpTransaction.HabitCompletionId),
                         nameof(XpTransaction.AttributeType),
+                        nameof(XpTransaction.Reason)
                     }));
 
         Assert.True(index.IsUnique);

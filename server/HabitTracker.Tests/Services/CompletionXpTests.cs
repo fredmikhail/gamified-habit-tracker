@@ -150,7 +150,7 @@ public sealed class CompletionXpTests
     }
 
     [Fact]
-    public async Task UndoTodayAsync_WhenXpWasAwarded_ReversesXpAndDeletesTransactions()
+    public async Task UndoTodayAsync_WhenXpWasAwarded_AppendsReversalTransactions()
     {
         await using var dbContext = CreateDbContext();
 
@@ -246,8 +246,54 @@ public sealed class CompletionXpTests
                 habitId);
 
         Assert.True(wasRemoved);
-        Assert.Empty(dbContext.HabitCompletions);
-        Assert.Empty(dbContext.XpTransactions);
+
+        var savedCompletion =
+            Assert.Single(
+                dbContext.HabitCompletions);
+
+        Assert.Equal(
+            UtcNow.UtcDateTime,
+            savedCompletion.UndoneAtUtc);
+
+        var transactions =
+            dbContext.XpTransactions
+                .Where(transaction =>
+                    transaction.HabitCompletionId
+                        == completion.Id)
+                .ToList();
+
+        Assert.Equal(4, transactions.Count);
+
+        Assert.Equal(
+            2,
+            transactions.Count(transaction =>
+                transaction.Amount > 0));
+
+        Assert.Equal(
+            2,
+            transactions.Count(transaction =>
+                transaction.Amount < 0));
+
+        Assert.Equal(
+            0,
+            transactions.Sum(transaction =>
+                transaction.Amount));
+
+        Assert.All(
+            transactions.Where(transaction =>
+                transaction.Amount > 0),
+            transaction =>
+                Assert.Equal(
+                    "Habit completion",
+                    transaction.Reason));
+
+        Assert.All(
+            transactions.Where(transaction =>
+                transaction.Amount < 0),
+            transaction =>
+                Assert.Equal(
+                    "Habit completion undo",
+                    transaction.Reason));
 
         var attributes =
             dbContext.UserAttributes

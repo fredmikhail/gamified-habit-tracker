@@ -550,7 +550,7 @@ public sealed class CompletionsControllerTests
     }
 
     [Fact]
-    public async Task UndoToday_WhenCompletionExists_ReturnsNoContentAndRemovesCompletion()
+    public async Task UndoToday_WhenCompletionExists_ReturnsNoContentAndMarksCompletionUndone()
     {
         using var client = CreateClient();
 
@@ -619,10 +619,14 @@ public sealed class CompletionsControllerTests
             scope.ServiceProvider
                 .GetRequiredService<AppDbContext>();
 
-        Assert.DoesNotContain(
-            dbContext.HabitCompletions,
-            completion =>
-                completion.HabitId == habit.Id);
+        var savedCompletion =
+    Assert.Single(
+        dbContext.HabitCompletions,
+        completion =>
+            completion.HabitId == habit.Id);
+
+        Assert.NotNull(
+            savedCompletion.UndoneAtUtc);
 
         Assert.Contains(
             dbContext.Habits,
@@ -792,7 +796,7 @@ public sealed class CompletionsControllerTests
     }
 
     [Fact]
-    public async Task UndoToday_WhenHabitIsInactive_ReturnsNoContentAndRemovesCompletion()
+    public async Task UndoToday_WhenHabitIsInactive_ReturnsNoContentAndMarksCompletionUndone()
     {
         using var client = CreateClient();
 
@@ -867,10 +871,14 @@ public sealed class CompletionsControllerTests
             verificationScope.ServiceProvider
                 .GetRequiredService<AppDbContext>();
 
-        Assert.DoesNotContain(
-            verificationDbContext.HabitCompletions,
-            completion =>
-                completion.HabitId == habit.Id);
+        var savedCompletion =
+    Assert.Single(
+        verificationDbContext.HabitCompletions,
+        completion =>
+            completion.HabitId == habit.Id);
+
+        Assert.NotNull(
+            savedCompletion.UndoneAtUtc);
 
         var inactiveHabit =
             Assert.Single(

@@ -71,7 +71,8 @@ public sealed class CompletionService
                 completion =>
                     completion.HabitId == habitId
                     && completion.CompletedDate
-                        == completedDate,
+                        == completedDate
+                    && completion.UndoneAtUtc == null,
                 cancellationToken);
 
         if (alreadyCompleted)
@@ -202,7 +203,8 @@ public sealed class CompletionService
                     completion =>
                         completion.HabitId == habitId
                         && completion.CompletedDate
-                            == completedDate,
+                            == completedDate
+                        && completion.UndoneAtUtc == null,
                     cancellationToken);
 
         if (completion is null)
@@ -217,8 +219,8 @@ public sealed class CompletionService
                 currentUtc.UtcDateTime,
                 cancellationToken);
 
-        _dbContext.HabitCompletions.Remove(
-            completion);
+        completion.UndoneAtUtc =
+            currentUtc.UtcDateTime;
 
         await _dbContext.SaveChangesAsync(
             cancellationToken);

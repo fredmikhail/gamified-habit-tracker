@@ -26,6 +26,8 @@ public sealed class HabitCompletionConfiguration
             completion.HabitId,
             completion.CompletedDate,
         })
+            .HasFilter(
+                "\"undone_at_utc\" IS NULL")
             .IsUnique();
 
         builder.HasIndex(completion => new

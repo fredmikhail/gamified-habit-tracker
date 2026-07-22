@@ -40,6 +40,7 @@ public sealed class XpTransactionConfiguration
         {
             transaction.HabitCompletionId,
             transaction.AttributeType,
+            transaction.Reason,
         })
             .IsUnique();
 
@@ -66,7 +67,7 @@ public sealed class XpTransactionConfiguration
             tableBuilder.HasCheckConstraint(
                 "ck_xp_transactions_amount",
                 """
-                "amount" > 0
+                "amount" <> 0
                 """);
 
             tableBuilder.HasCheckConstraint(

@@ -54,8 +54,9 @@ public sealed class DashboardService
             await _dbContext.HabitCompletions
                 .AsNoTracking()
                 .Where(completion =>
-                    completion.UserId == userId
-                    && completion.CompletedDate == localDate)
+    completion.UserId == userId
+    && completion.CompletedDate == localDate
+    && completion.UndoneAtUtc == null)
                 .Select(completion =>
                     new
                     {
