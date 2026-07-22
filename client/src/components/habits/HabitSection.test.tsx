@@ -2,12 +2,17 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getAttributes } from '../../api/attributesApi'
+import { getDashboard } from '../../api/dashboardApi'
 import { createHabit, deactivateHabit, getHabits } from '../../api/habitsApi'
 import type { HabitResponse } from '../../types/HabitResponse'
 import { HabitSection } from './HabitSection'
 
 vi.mock('../../api/attributesApi', () => ({
   getAttributes: vi.fn(),
+}))
+
+vi.mock('../../api/dashboardApi', () => ({
+  getDashboard: vi.fn(),
 }))
 
 vi.mock('../../api/habitsApi', () => ({
@@ -20,12 +25,23 @@ vi.mock('../../api/habitsApi', () => ({
 }))
 
 const getAttributesMock = vi.mocked(getAttributes)
+const getDashboardMock = vi.mocked(getDashboard)
 const createHabitMock = vi.mocked(createHabit)
 const deactivateHabitMock = vi.mocked(deactivateHabit)
 const getHabitsMock = vi.mocked(getHabits)
 
 describe('HabitSection', () => {
   beforeEach(() => {
+    getDashboardMock.mockReset()
+
+    getDashboardMock.mockResolvedValue({
+      overallProgress: {
+        totalXp: 0,
+        level: 1,
+        xpIntoCurrentLevel: 0,
+        xpNeededForNextLevel: 200,
+      },
+    })
     getAttributesMock.mockReset()
     getAttributesMock.mockResolvedValue([])
     createHabitMock.mockReset()
