@@ -1,17 +1,7 @@
-import { useEffect, useState } from 'react'
-import { getDashboard } from '../../api/dashboardApi'
+import { useEffect } from 'react'
 import type { DashboardResponse } from '../../types/DashboardResponse'
+import { useWorkspaceData } from '../../workspace/useWorkspaceData'
 import { HabitStreakSection } from './HabitStreakSection'
-
-type OverallProgressSectionProps = {
-  refreshKey: number
-}
-
-function getDashboardErrorMessage(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : 'An unknown dashboard-loading error occurred.'
-}
 
 function getProgressPercentage(dashboard: DashboardResponse): number {
   const progress = dashboard.overallProgress
@@ -45,44 +35,21 @@ function getExecutionPercentage(dashboard: DashboardResponse): number {
   )
 }
 
-export function OverallProgressSection({
-  refreshKey,
-}: OverallProgressSectionProps) {
-  const [dashboard, setDashboard] = useState<DashboardResponse | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+export function OverallProgressSection() {
+  const { dashboardResource } = useWorkspaceData()
+
+  const {
+    data: dashboard,
+    errorMessage,
+    isRefreshing,
+    ensureLoaded,
+  } = dashboardResource
 
   useEffect(() => {
-    let isActive = true
+    void ensureLoaded()
+  }, [ensureLoaded])
 
-    async function loadDashboard() {
-      setIsLoading(true)
-
-      try {
-        const loadedDashboard = await getDashboard()
-
-        if (isActive) {
-          setDashboard(loadedDashboard)
-          setErrorMessage(null)
-        }
-      } catch (error) {
-        if (isActive) {
-          setDashboard(null)
-          setErrorMessage(getDashboardErrorMessage(error))
-        }
-      } finally {
-        if (isActive) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    void loadDashboard()
-
-    return () => {
-      isActive = false
-    }
-  }, [refreshKey])
+  const isWaitingForInitialData = dashboard === null && !errorMessage
 
   const progressPercentage = dashboard ? getProgressPercentage(dashboard) : 0
 
@@ -104,24 +71,30 @@ export function OverallProgressSection({
           </p>
         </div>
 
-        {!isLoading && dashboard && (
+        {dashboard && (
           <span className="rounded bg-slate-900 px-4 py-2 font-bold text-white">
             Level {dashboard.overallProgress.level}
           </span>
         )}
       </div>
 
-      {isLoading && (
+      {isWaitingForInitialData && (
         <p className="mt-4 text-slate-600">Loading overall progress...</p>
       )}
 
-      {!isLoading && errorMessage && (
+      {isRefreshing && (
+        <p className="mt-4 text-sm text-slate-500" role="status">
+          Refreshing overall progress...
+        </p>
+      )}
+
+      {errorMessage && (
         <p className="mt-4 text-red-700" role="alert">
           Dashboard loading error: {errorMessage}
         </p>
       )}
 
-      {!isLoading && dashboard && !errorMessage && (
+      {dashboard && (
         <>
           <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -157,7 +130,7 @@ export function OverallProgressSection({
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <article className="rounded-lg border border-slate-200 p-4">
               <p className="text-sm font-medium text-slate-600">
-                Today's activity
+                Today&apos;s activity
               </p>
 
               <p className="mt-2 text-2xl font-bold">

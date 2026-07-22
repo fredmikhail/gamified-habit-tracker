@@ -1,19 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getAttributes } from '../../api/attributesApi'
-import { getDashboard } from '../../api/dashboardApi'
 import { createHabit, deactivateHabit, getHabits } from '../../api/habitsApi'
 import type { HabitResponse } from '../../types/HabitResponse'
+import { WorkspaceDataProvider } from '../../workspace/WorkspaceDataProvider'
 import { HabitSection } from './HabitSection'
-
-vi.mock('../../api/attributesApi', () => ({
-  getAttributes: vi.fn(),
-}))
-
-vi.mock('../../api/dashboardApi', () => ({
-  getDashboard: vi.fn(),
-}))
 
 vi.mock('../../api/habitsApi', () => ({
   completeHabit: vi.fn(),
@@ -24,73 +15,58 @@ vi.mock('../../api/habitsApi', () => ({
   updateHabit: vi.fn(),
 }))
 
-const getAttributesMock = vi.mocked(getAttributes)
-const getDashboardMock = vi.mocked(getDashboard)
 const createHabitMock = vi.mocked(createHabit)
 const deactivateHabitMock = vi.mocked(deactivateHabit)
 const getHabitsMock = vi.mocked(getHabits)
+const onProgressChanged = vi.fn()
+
+function createHabitFixture(
+  overrides: Partial<HabitResponse> = {},
+): HabitResponse {
+  return {
+    id: '019c0000-0000-7000-8000-000000000001',
+    name: 'Read C# textbook',
+    description: null,
+    category: 'learningAndSkills',
+    frequencyType: 'daily',
+    targetCount: 1,
+    difficulty: 'medium',
+    isActive: true,
+    isCompletedToday: false,
+    createdAtUtc: '2026-07-19T12:00:00Z',
+    updatedAtUtc: '2026-07-19T12:00:00Z',
+    ...overrides,
+  }
+}
+
+function renderHabitSection() {
+  return render(
+    <WorkspaceDataProvider>
+      <HabitSection onProgressChanged={onProgressChanged} />
+    </WorkspaceDataProvider>,
+  )
+}
 
 describe('HabitSection', () => {
   beforeEach(() => {
-    getDashboardMock.mockReset()
-
-    getDashboardMock.mockResolvedValue({
-      overallProgress: {
-        totalXp: 0,
-        level: 1,
-        xpIntoCurrentLevel: 0,
-        xpNeededForNextLevel: 200,
-      },
-      todayActivity: {
-        localDate: '2026-07-22',
-        completions: 0,
-        xpEarned: 0,
-      },
-      todayExecution: {
-        completedDailyHabits: 0,
-        totalDailyHabits: 0,
-      },
-      habitStreaks: [],
-    })
-
-    getAttributesMock.mockReset()
-    getAttributesMock.mockResolvedValue([])
-
     createHabitMock.mockReset()
     deactivateHabitMock.mockReset()
     getHabitsMock.mockReset()
+    onProgressChanged.mockReset()
   })
 
-  it('reloads habits and dashboard after creating one', async () => {
+  it('adds a created habit without reloading the habit list', async () => {
     const user = userEvent.setup()
+    const createdHabit = createHabitFixture()
 
-    const createdHabit: HabitResponse = {
-      id: '019c0000-0000-7000-8000-000000000001',
-      name: 'Read C# textbook',
-      description: null,
-      category: 'learningAndSkills',
-      frequencyType: 'daily',
-      targetCount: 1,
-      difficulty: 'medium',
-      isActive: true,
-      isCompletedToday: false,
-      createdAtUtc: '2026-07-19T12:00:00Z',
-      updatedAtUtc: '2026-07-19T12:00:00Z',
-    }
-
-    getHabitsMock
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([createdHabit])
-
+    getHabitsMock.mockResolvedValue([])
     createHabitMock.mockResolvedValue(createdHabit)
 
-    render(<HabitSection />)
+    renderHabitSection()
 
-    await screen.findByText('You do not have any habits yet.')
-
-    await waitFor(() => {
-      expect(getDashboardMock).toHaveBeenCalledTimes(1)
-    })
+    expect(
+      await screen.findByText('You do not have any habits yet.'),
+    ).toBeInTheDocument()
 
     await user.type(
       screen.getByRole('textbox', {
@@ -129,52 +105,32 @@ describe('HabitSection', () => {
       difficulty: 'medium',
     })
 
-    expect(getHabitsMock).toHaveBeenCalledTimes(2)
+    expect(getHabitsMock).toHaveBeenCalledTimes(1)
 
     await waitFor(() => {
-      expect(getDashboardMock).toHaveBeenCalledTimes(2)
+      expect(onProgressChanged).toHaveBeenCalledTimes(1)
     })
   })
 
-  it('reloads the active list and dashboard after deactivating a habit', async () => {
+  it('removes a deactivated habit without reloading the habit list', async () => {
     const user = userEvent.setup()
+    const activeHabit = createHabitFixture()
 
-    const activeHabit: HabitResponse = {
-      id: '019c0000-0000-7000-8000-000000000001',
-      name: 'Read C# textbook',
-      description: null,
-      category: 'learningAndSkills',
-      frequencyType: 'daily',
-      targetCount: 1,
-      difficulty: 'medium',
-      isActive: true,
-      isCompletedToday: false,
-      createdAtUtc: '2026-07-19T12:00:00Z',
-      updatedAtUtc: '2026-07-19T12:00:00Z',
-    }
-
-    const deactivatedHabit: HabitResponse = {
-      ...activeHabit,
+    const deactivatedHabit = createHabitFixture({
       isActive: false,
-      isCompletedToday: false,
       updatedAtUtc: '2026-07-20T12:00:00Z',
-    }
+    })
 
-    getHabitsMock.mockResolvedValueOnce([activeHabit]).mockResolvedValueOnce([])
-
+    getHabitsMock.mockResolvedValue([activeHabit])
     deactivateHabitMock.mockResolvedValue(deactivatedHabit)
 
-    render(<HabitSection />)
+    renderHabitSection()
 
     expect(
       await screen.findByRole('heading', {
         name: 'Read C# textbook',
       }),
     ).toBeInTheDocument()
-
-    await waitFor(() => {
-      expect(getDashboardMock).toHaveBeenCalledTimes(1)
-    })
 
     await user.click(
       screen.getByRole('button', {
@@ -194,10 +150,11 @@ describe('HabitSection', () => {
 
     expect(deactivateHabitMock).toHaveBeenCalledTimes(1)
     expect(deactivateHabitMock).toHaveBeenCalledWith(activeHabit.id)
-    expect(getHabitsMock).toHaveBeenCalledTimes(2)
+
+    expect(getHabitsMock).toHaveBeenCalledTimes(1)
 
     await waitFor(() => {
-      expect(getDashboardMock).toHaveBeenCalledTimes(2)
+      expect(onProgressChanged).toHaveBeenCalledTimes(1)
     })
 
     expect(

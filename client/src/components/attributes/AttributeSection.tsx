@@ -1,20 +1,10 @@
-import { useEffect, useState } from 'react'
-import { getAttributes } from '../../api/attributesApi'
+import { useEffect } from 'react'
 import type { AttributeType } from '../../types/AttributeType'
 import type { UserAttributeResponse } from '../../types/UserAttributeResponse'
-
-type AttributeSectionProps = {
-  refreshKey: number
-}
+import { useWorkspaceData } from '../../workspace/useWorkspaceData'
 
 function getAttributeLabel(attributeType: AttributeType): string {
   return attributeType.charAt(0).toUpperCase() + attributeType.slice(1)
-}
-
-function getAttributeErrorMessage(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : 'An unknown attribute-loading error occurred.'
 }
 
 function getProgressPercentage(attribute: UserAttributeResponse): number {
@@ -28,42 +18,21 @@ function getProgressPercentage(attribute: UserAttributeResponse): number {
   )
 }
 
-export function AttributeSection({ refreshKey }: AttributeSectionProps) {
-  const [attributes, setAttributes] = useState<UserAttributeResponse[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+export function AttributeSection() {
+  const { attributesResource } = useWorkspaceData()
+
+  const {
+    data: attributes,
+    errorMessage,
+    isRefreshing,
+    ensureLoaded,
+  } = attributesResource
 
   useEffect(() => {
-    let isActive = true
+    void ensureLoaded()
+  }, [ensureLoaded])
 
-    async function loadAttributes() {
-      setIsLoading(true)
-
-      try {
-        const loadedAttributes = await getAttributes()
-
-        if (isActive) {
-          setAttributes(loadedAttributes)
-          setErrorMessage(null)
-        }
-      } catch (error) {
-        if (isActive) {
-          setAttributes([])
-          setErrorMessage(getAttributeErrorMessage(error))
-        }
-      } finally {
-        if (isActive) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    void loadAttributes()
-
-    return () => {
-      isActive = false
-    }
-  }, [refreshKey])
+  const isWaitingForInitialData = attributes === null && !errorMessage
 
   return (
     <section
@@ -78,20 +47,27 @@ export function AttributeSection({ refreshKey }: AttributeSectionProps) {
         Complete related habits to develop specific areas of your character.
       </p>
 
-      {isLoading && (
+      {isWaitingForInitialData && (
         <p className="mt-4 text-slate-600">Loading attributes...</p>
       )}
 
-      {!isLoading && errorMessage && (
+      {isRefreshing && (
+        <p className="mt-4 text-sm text-slate-500" role="status">
+          Refreshing attributes...
+        </p>
+      )}
+
+      {errorMessage && (
         <p className="mt-4 text-red-700" role="alert">
           Attribute loading error: {errorMessage}
         </p>
       )}
 
-      {!isLoading && !errorMessage && (
+      {attributes !== null && (
         <ul className="mt-5 grid gap-4 sm:grid-cols-2">
           {attributes.map((attribute) => {
             const label = getAttributeLabel(attribute.attributeType)
+
             const progressPercentage = getProgressPercentage(attribute)
 
             return (

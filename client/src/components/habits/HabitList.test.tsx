@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { useState, type ComponentProps } from 'react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -8,6 +9,7 @@ import {
   updateHabit,
 } from '../../api/habitsApi'
 import type { HabitResponse } from '../../types/HabitResponse'
+import { WorkspaceDataProvider } from '../../workspace/WorkspaceDataProvider'
 import { HabitList } from './HabitList'
 
 vi.mock('../../api/habitsApi', () => ({
@@ -18,10 +20,46 @@ vi.mock('../../api/habitsApi', () => ({
   updateHabit: vi.fn(),
 }))
 
+const completeHabitMock = vi.mocked(completeHabit)
 const deactivateHabitMock = vi.mocked(deactivateHabit)
 const getHabitsMock = vi.mocked(getHabits)
 const updateHabitMock = vi.mocked(updateHabit)
-const completeHabitMock = vi.mocked(completeHabit)
+
+function createHabitFixture(
+  overrides: Partial<HabitResponse> = {},
+): HabitResponse {
+  return {
+    id: '019c0000-0000-7000-8000-000000000001',
+    name: 'Read C# textbook',
+    description: 'Read one chapter.',
+    category: 'learningAndSkills',
+    frequencyType: 'daily',
+    targetCount: 1,
+    difficulty: 'medium',
+    isActive: true,
+    isCompletedToday: false,
+    createdAtUtc: '2026-07-19T12:00:00Z',
+    updatedAtUtc: '2026-07-19T12:00:00Z',
+    ...overrides,
+  }
+}
+
+function renderHabitList(
+  overrides: Partial<ComponentProps<typeof HabitList>> = {},
+) {
+  const props: ComponentProps<typeof HabitList> = {
+    onHabitDeactivated: vi.fn(),
+    onHabitUpdated: vi.fn(),
+    onProgressChanged: vi.fn(),
+    ...overrides,
+  }
+
+  return render(
+    <WorkspaceDataProvider>
+      <HabitList {...props} />
+    </WorkspaceDataProvider>,
+  )
+}
 
 describe('HabitList', () => {
   beforeEach(() => {
@@ -33,20 +71,7 @@ describe('HabitList', () => {
 
   it('updates the displayed completion state without reloading the habit list', async () => {
     const user = userEvent.setup()
-
-    const habit: HabitResponse = {
-      id: '019c0000-0000-7000-8000-000000000001',
-      name: 'Read C# textbook',
-      description: 'Read one chapter.',
-      category: 'learningAndSkills',
-      frequencyType: 'daily',
-      targetCount: 1,
-      difficulty: 'medium',
-      isActive: true,
-      isCompletedToday: false,
-      createdAtUtc: '2026-07-19T12:00:00Z',
-      updatedAtUtc: '2026-07-19T12:00:00Z',
-    }
+    const habit = createHabitFixture()
 
     getHabitsMock.mockResolvedValue([habit])
 
@@ -70,14 +95,7 @@ describe('HabitList', () => {
       ],
     })
 
-    render(
-      <HabitList
-        refreshKey={0}
-        onHabitDeactivated={vi.fn()}
-        onHabitUpdated={vi.fn()}
-        onProgressChanged={vi.fn()}
-      />,
-    )
+    renderHabitList()
 
     await screen.findByRole('heading', {
       name: 'Read C# textbook',
@@ -100,7 +118,9 @@ describe('HabitList', () => {
     ).toHaveAttribute('aria-pressed', 'true')
 
     expect(getHabitsMock).toHaveBeenCalledTimes(1)
+
     expect(screen.getByRole('status')).toHaveTextContent('+14 Mind XP')
+
     expect(screen.getByRole('status')).toHaveTextContent('+6 Focus XP')
   })
 
@@ -109,14 +129,7 @@ describe('HabitList', () => {
       () => new Promise<HabitResponse[]>(() => undefined),
     )
 
-    render(
-      <HabitList
-        refreshKey={0}
-        onHabitDeactivated={vi.fn()}
-        onHabitUpdated={vi.fn()}
-        onProgressChanged={vi.fn()}
-      />,
-    )
+    renderHabitList()
 
     expect(screen.getByText('Loading habits...')).toBeInTheDocument()
   })
@@ -126,33 +139,17 @@ describe('HabitList', () => {
       new Error('The habits could not be loaded.'),
     )
 
-    render(
-      <HabitList
-        refreshKey={0}
-        onHabitDeactivated={vi.fn()}
-        onHabitUpdated={vi.fn()}
-        onProgressChanged={vi.fn()}
-      />,
-    )
+    renderHabitList()
 
-    expect(
-      await screen.findByText(
-        'Habit loading error: The habits could not be loaded.',
-      ),
-    ).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Habit loading error: The habits could not be loaded.',
+    )
   })
 
   it('shows an empty message when the user has no active habits', async () => {
     getHabitsMock.mockResolvedValue([])
 
-    render(
-      <HabitList
-        refreshKey={0}
-        onHabitDeactivated={vi.fn()}
-        onHabitUpdated={vi.fn()}
-        onProgressChanged={vi.fn()}
-      />,
-    )
+    renderHabitList()
 
     expect(
       await screen.findByText('You do not have any habits yet.'),
@@ -164,20 +161,8 @@ describe('HabitList', () => {
 
   it('renders the loaded habits', async () => {
     const habits: HabitResponse[] = [
-      {
-        id: '019c0000-0000-7000-8000-000000000001',
-        name: 'Read C# textbook',
-        description: 'Read one chapter.',
-        category: 'learningAndSkills',
-        frequencyType: 'daily',
-        targetCount: 1,
-        difficulty: 'medium',
-        isActive: true,
-        isCompletedToday: false,
-        createdAtUtc: '2026-07-19T12:00:00Z',
-        updatedAtUtc: '2026-07-19T12:00:00Z',
-      },
-      {
+      createHabitFixture(),
+      createHabitFixture({
         id: '019c0000-0000-7000-8000-000000000002',
         name: 'Go to gym',
         description: null,
@@ -185,23 +170,14 @@ describe('HabitList', () => {
         frequencyType: 'weekly',
         targetCount: 3,
         difficulty: 'elite',
-        isActive: true,
-        isCompletedToday: false,
         createdAtUtc: '2026-07-18T12:00:00Z',
         updatedAtUtc: '2026-07-18T12:00:00Z',
-      },
+      }),
     ]
 
     getHabitsMock.mockResolvedValue(habits)
 
-    render(
-      <HabitList
-        refreshKey={0}
-        onHabitDeactivated={vi.fn()}
-        onHabitUpdated={vi.fn()}
-        onProgressChanged={vi.fn()}
-      />,
-    )
+    renderHabitList()
 
     expect(
       await screen.findByRole('heading', {
@@ -226,60 +202,77 @@ describe('HabitList', () => {
     expect(screen.getByText('Category: Fitness & Movement')).toBeInTheDocument()
 
     expect(screen.getByText('Medium')).toBeInTheDocument()
-
     expect(screen.getByText('Elite')).toBeInTheDocument()
   })
 
-  it('reloads habits when the refresh key changes', async () => {
+  it('reuses cached habits when the list returns', async () => {
+    const user = userEvent.setup()
+
     getHabitsMock.mockResolvedValue([])
 
-    const { rerender } = render(
-      <HabitList
-        refreshKey={0}
-        onHabitDeactivated={vi.fn()}
-        onHabitUpdated={vi.fn()}
-        onProgressChanged={vi.fn()}
-      />,
-    )
+    function PersistentHabitListHarness() {
+      const [isVisible, setIsVisible] = useState(true)
 
-    await screen.findByText('You do not have any habits yet.')
+      return (
+        <WorkspaceDataProvider>
+          <button
+            type="button"
+            onClick={() => setIsVisible((currentValue) => !currentValue)}
+          >
+            Toggle habits
+          </button>
+
+          {isVisible && (
+            <HabitList
+              onHabitDeactivated={vi.fn()}
+              onHabitUpdated={vi.fn()}
+              onProgressChanged={vi.fn()}
+            />
+          )}
+        </WorkspaceDataProvider>
+      )
+    }
+
+    render(<PersistentHabitListHarness />)
+
+    expect(
+      await screen.findByText('You do not have any habits yet.'),
+    ).toBeInTheDocument()
 
     expect(getHabitsMock).toHaveBeenCalledTimes(1)
 
-    rerender(
-      <HabitList
-        refreshKey={1}
-        onHabitDeactivated={vi.fn()}
-        onHabitUpdated={vi.fn()}
-        onProgressChanged={vi.fn()}
-      />,
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Toggle habits',
+      }),
     )
 
-    await waitFor(() => {
-      expect(getHabitsMock).toHaveBeenCalledTimes(2)
-    })
+    expect(
+      screen.queryByText('You do not have any habits yet.'),
+    ).not.toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Toggle habits',
+      }),
+    )
+
+    expect(
+      screen.getByText('You do not have any habits yet.'),
+    ).toBeInTheDocument()
+
+    expect(screen.queryByText('Loading habits...')).not.toBeInTheDocument()
+
+    expect(getHabitsMock).toHaveBeenCalledTimes(1)
   })
 
   it('updates a habit and displays its scheduled rule changes', async () => {
     const user = userEvent.setup()
     const onHabitUpdated = vi.fn()
 
-    const habit: HabitResponse = {
-      id: '019c0000-0000-7000-8000-000000000001',
-      name: 'Read C# textbook',
-      description: 'Read one chapter.',
-      category: 'learningAndSkills',
-      frequencyType: 'daily',
-      targetCount: 1,
-      difficulty: 'medium',
-      isActive: true,
-      isCompletedToday: false,
-      createdAtUtc: '2026-07-19T12:00:00Z',
-      updatedAtUtc: '2026-07-19T12:00:00Z',
-    }
+    const habit = createHabitFixture()
 
-    const updatedHabit: HabitResponse = {
-      ...habit,
+    const updatedHabit = createHabitFixture({
       name: 'Read TypeScript book',
       pendingConfiguration: {
         effectiveFromDate: '2026-07-27',
@@ -289,19 +282,14 @@ describe('HabitList', () => {
         difficulty: 'hard',
       },
       updatedAtUtc: '2026-07-20T12:00:00Z',
-    }
+    })
 
     getHabitsMock.mockResolvedValue([habit])
     updateHabitMock.mockResolvedValue(updatedHabit)
 
-    render(
-      <HabitList
-        refreshKey={0}
-        onHabitDeactivated={vi.fn()}
-        onHabitUpdated={onHabitUpdated}
-        onProgressChanged={vi.fn()}
-      />,
-    )
+    renderHabitList({
+      onHabitUpdated,
+    })
 
     await screen.findByRole('heading', {
       name: 'Read C# textbook',
@@ -359,35 +347,19 @@ describe('HabitList', () => {
     expect(screen.getByText('Scheduled for July 27, 2026')).toBeInTheDocument()
 
     expect(screen.getByText('Difficulty: Hard')).toBeInTheDocument()
+
+    expect(getHabitsMock).toHaveBeenCalledTimes(1)
   })
 
   it('closes the edit form without updating when canceled', async () => {
     const user = userEvent.setup()
-
-    const habit: HabitResponse = {
-      id: '019c0000-0000-7000-8000-000000000001',
-      name: 'Read C# textbook',
+    const habit = createHabitFixture({
       description: null,
-      category: 'learningAndSkills',
-      frequencyType: 'daily',
-      targetCount: 1,
-      difficulty: 'medium',
-      isActive: true,
-      isCompletedToday: false,
-      createdAtUtc: '2026-07-19T12:00:00Z',
-      updatedAtUtc: '2026-07-19T12:00:00Z',
-    }
+    })
 
     getHabitsMock.mockResolvedValue([habit])
 
-    render(
-      <HabitList
-        refreshKey={0}
-        onHabitDeactivated={vi.fn()}
-        onHabitUpdated={vi.fn()}
-        onProgressChanged={vi.fn()}
-      />,
-    )
+    renderHabitList()
 
     await screen.findByRole('heading', {
       name: 'Read C# textbook',
@@ -420,43 +392,22 @@ describe('HabitList', () => {
     expect(updateHabitMock).not.toHaveBeenCalled()
   })
 
-  it('deactivates a habit and reports that the list should refresh', async () => {
+  it('removes a deactivated habit and reports the change', async () => {
     const user = userEvent.setup()
     const onHabitDeactivated = vi.fn()
+    const habit = createHabitFixture()
 
-    const habit: HabitResponse = {
-      id: '019c0000-0000-7000-8000-000000000001',
-      name: 'Read C# textbook',
-      description: 'Read one chapter.',
-      category: 'learningAndSkills',
-      frequencyType: 'daily',
-      targetCount: 1,
-      difficulty: 'medium',
-      isActive: true,
-      isCompletedToday: false,
-      createdAtUtc: '2026-07-19T12:00:00Z',
-      updatedAtUtc: '2026-07-19T12:00:00Z',
-    }
-
-    const deactivatedHabit: HabitResponse = {
-      ...habit,
+    const deactivatedHabit = createHabitFixture({
       isActive: false,
-      isCompletedToday: false,
       updatedAtUtc: '2026-07-20T12:00:00Z',
-    }
+    })
 
     getHabitsMock.mockResolvedValue([habit])
-
     deactivateHabitMock.mockResolvedValue(deactivatedHabit)
 
-    render(
-      <HabitList
-        refreshKey={0}
-        onHabitDeactivated={onHabitDeactivated}
-        onHabitUpdated={vi.fn()}
-        onProgressChanged={vi.fn()}
-      />,
-    )
+    renderHabitList({
+      onHabitDeactivated,
+    })
 
     await screen.findByRole('heading', {
       name: 'Read C# textbook',
@@ -475,11 +426,16 @@ describe('HabitList', () => {
     )
 
     expect(deactivateHabitMock).toHaveBeenCalledTimes(1)
-
     expect(deactivateHabitMock).toHaveBeenCalledWith(habit.id)
 
     expect(onHabitDeactivated).toHaveBeenCalledTimes(1)
 
     expect(onHabitDeactivated).toHaveBeenCalledWith(deactivatedHabit)
+
+    expect(
+      await screen.findByText('You do not have any habits yet.'),
+    ).toBeInTheDocument()
+
+    expect(getHabitsMock).toHaveBeenCalledTimes(1)
   })
 })

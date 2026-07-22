@@ -1,6 +1,10 @@
+import { useState } from 'react'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getDashboard } from '../../api/dashboardApi'
+import type { DashboardResponse } from '../../types/DashboardResponse'
+import { WorkspaceDataProvider } from '../../workspace/WorkspaceDataProvider'
 import { OverallProgressSection } from './OverallProgressSection'
 
 vi.mock('../../api/dashboardApi', () => ({
@@ -9,40 +13,64 @@ vi.mock('../../api/dashboardApi', () => ({
 
 const getDashboardMock = vi.mocked(getDashboard)
 
+const dashboardResponse: DashboardResponse = {
+  overallProgress: {
+    totalXp: 300,
+    level: 2,
+    xpIntoCurrentLevel: 100,
+    xpNeededForNextLevel: 250,
+  },
+  todayActivity: {
+    localDate: '2026-07-22',
+    completions: 2,
+    xpEarned: 30,
+  },
+  todayExecution: {
+    completedDailyHabits: 1,
+    totalDailyHabits: 2,
+  },
+  habitStreaks: [
+    {
+      habitId: '019c0000-0000-7000-8000-000000000001',
+      habitName: 'Read C# textbook',
+      frequencyType: 'daily',
+      currentStreak: 2,
+      longestStreak: 5,
+    },
+  ],
+}
+
+function renderOverallProgressSection() {
+  return render(
+    <WorkspaceDataProvider>
+      <OverallProgressSection />
+    </WorkspaceDataProvider>,
+  )
+}
+
+function PersistentDashboardHarness() {
+  const [isVisible, setIsVisible] = useState(true)
+
+  return (
+    <WorkspaceDataProvider>
+      <button type="button" onClick={() => setIsVisible((current) => !current)}>
+        Toggle dashboard
+      </button>
+
+      {isVisible && <OverallProgressSection />}
+    </WorkspaceDataProvider>
+  )
+}
+
 describe('OverallProgressSection', () => {
   beforeEach(() => {
     getDashboardMock.mockReset()
   })
 
   it('displays backend-calculated overall progress', async () => {
-    getDashboardMock.mockResolvedValue({
-      overallProgress: {
-        totalXp: 300,
-        level: 2,
-        xpIntoCurrentLevel: 100,
-        xpNeededForNextLevel: 250,
-      },
-      todayActivity: {
-        localDate: '2026-07-22',
-        completions: 2,
-        xpEarned: 30,
-      },
-      todayExecution: {
-        completedDailyHabits: 1,
-        totalDailyHabits: 2,
-      },
-      habitStreaks: [
-        {
-          habitId: '019c0000-0000-7000-8000-000000000001',
-          habitName: 'Read C# textbook',
-          frequencyType: 'daily',
-          currentStreak: 2,
-          longestStreak: 5,
-        },
-      ],
-    })
+    getDashboardMock.mockResolvedValue(dashboardResponse)
 
-    render(<OverallProgressSection refreshKey={0} />)
+    renderOverallProgressSection()
 
     expect(await screen.findByText('Level 2')).toBeInTheDocument()
     expect(screen.getByText('300')).toBeInTheDocument()
@@ -76,65 +104,48 @@ describe('OverallProgressSection', () => {
     expect(screen.getByText('5 days')).toBeInTheDocument()
   })
 
-  it('reloads progress when the refresh key changes', async () => {
-    getDashboardMock
-      .mockResolvedValueOnce({
-        overallProgress: {
-          totalXp: 0,
-          level: 1,
-          xpIntoCurrentLevel: 0,
-          xpNeededForNextLevel: 200,
-        },
-        todayActivity: {
-          localDate: '2026-07-22',
-          completions: 0,
-          xpEarned: 0,
-        },
-        todayExecution: {
-          completedDailyHabits: 0,
-          totalDailyHabits: 0,
-        },
-        habitStreaks: [],
-      })
-      .mockResolvedValueOnce({
-        overallProgress: {
-          totalXp: 20,
-          level: 1,
-          xpIntoCurrentLevel: 20,
-          xpNeededForNextLevel: 200,
-        },
-        todayActivity: {
-          localDate: '2026-07-22',
-          completions: 0,
-          xpEarned: 0,
-        },
-        todayExecution: {
-          completedDailyHabits: 0,
-          totalDailyHabits: 0,
-        },
-        habitStreaks: [],
-      })
-
-    const { rerender } = render(<OverallProgressSection refreshKey={0} />)
-
-    expect(await screen.findByText('0 / 200 XP')).toBeInTheDocument()
-
-    rerender(<OverallProgressSection refreshKey={1} />)
-
-    expect(await screen.findByText('20 / 200 XP')).toBeInTheDocument()
-
-    expect(getDashboardMock).toHaveBeenCalledTimes(2)
-  })
-
-  it('displays the backend error when loading fails', async () => {
+  it('displays the backend error when initial loading fails', async () => {
     getDashboardMock.mockRejectedValue(
       new Error('Dashboard progress could not be loaded.'),
     )
 
-    render(<OverallProgressSection refreshKey={0} />)
+    renderOverallProgressSection()
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Dashboard loading error: Dashboard progress could not be loaded.',
     )
+  })
+
+  it('reuses cached dashboard data when the section returns', async () => {
+    const user = userEvent.setup()
+
+    getDashboardMock.mockResolvedValue(dashboardResponse)
+
+    render(<PersistentDashboardHarness />)
+
+    expect(await screen.findByText('Level 2')).toBeInTheDocument()
+    expect(getDashboardMock).toHaveBeenCalledTimes(1)
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Toggle dashboard',
+      }),
+    )
+
+    expect(screen.queryByText('Level 2')).not.toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Toggle dashboard',
+      }),
+    )
+
+    expect(screen.getByText('Level 2')).toBeInTheDocument()
+
+    expect(
+      screen.queryByText('Loading overall progress...'),
+    ).not.toBeInTheDocument()
+
+    expect(getDashboardMock).toHaveBeenCalledTimes(1)
   })
 })

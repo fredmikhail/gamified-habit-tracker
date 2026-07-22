@@ -1,11 +1,9 @@
 import { useState } from 'react'
-import { getHealth } from './api/healthApi'
+import { AuthenticatedWorkspace } from './AuthenticatedWorkspace'
 import { useAuth } from './auth/useAuth'
 import { LoginForm } from './components/auth/LoginForm'
 import { RegisterForm } from './components/auth/RegisterForm'
-import { HabitSection } from './components/habits/HabitSection'
 import { ThemeSelector } from './components/theme/ThemeSelector'
-import type { HealthResponse } from './types/HealthResponse'
 
 type AuthMode = 'login' | 'register'
 
@@ -21,38 +19,12 @@ function App() {
 
   const [authMode, setAuthMode] = useState<AuthMode>('login')
 
-  const [healthResponse, setHealthResponse] = useState<HealthResponse | null>(
-    null,
-  )
-
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-
-  function changeAuthMode(mode: AuthMode) {
+  function changeAuthMode(mode: AuthMode): void {
     clearAuthError()
     setAuthMode(mode)
   }
 
-  async function handleCheckBackend() {
-    setIsLoading(true)
-    setErrorMessage(null)
-
-    try {
-      const response = await getHealth()
-
-      setHealthResponse(response)
-    } catch (error) {
-      setHealthResponse(null)
-
-      setErrorMessage(
-        error instanceof Error ? error.message : 'An unknown error occurred.',
-      )
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  async function handleLogout() {
+  async function handleLogout(): Promise<void> {
     try {
       await logoutUser()
     } catch {
@@ -60,98 +32,101 @@ function App() {
     }
   }
 
+  if (isAuthLoading) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-canvas px-6 text-content">
+        <div className="text-center">
+          <div
+            aria-hidden="true"
+            className="mx-auto size-10 animate-pulse rounded-xl border border-accent/50 bg-accent-soft shadow-[var(--theme-energy-shadow)]"
+          />
+
+          <p className="mt-4 text-sm text-content-muted">
+            Restoring your command center...
+          </p>
+        </div>
+      </main>
+    )
+  }
+
+  if (currentUser) {
+    return (
+      <AuthenticatedWorkspace
+        currentUser={currentUser}
+        isLogoutPending={isAuthActionLoading}
+        onLogout={handleLogout}
+      />
+    )
+  }
+
   return (
-    <main className="min-h-screen bg-slate-100 px-6 py-12 text-slate-900">
-      <div className="fixed right-4 top-4 z-50">
+    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-canvas px-5 py-12 text-content">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,var(--theme-accent-soft),transparent_34%),radial-gradient(circle_at_85%_90%,rgb(139_92_246/0.1),transparent_36%)]"
+      />
+
+      <div className="absolute right-4 top-4 z-20">
         <ThemeSelector />
       </div>
-      <div className="mx-auto max-w-3xl text-center">
-        <h1 className="text-4xl font-bold">Gamified Habit Tracker</h1>
 
-        <p className="mt-4 text-lg text-slate-600">
-          Frontend and Tailwind CSS setup are working.
-        </p>
+      <section className="relative z-10 w-full max-w-md rounded-3xl border border-line bg-surface-raised p-6 shadow-[var(--theme-panel-shadow)] sm:p-8">
+        <div className="text-center">
+          <p className="text-[11px] font-semibold tracking-[0.22em] text-accent uppercase">
+            Personal progression system
+          </p>
 
-        <div className="mx-auto mt-6 max-w-md rounded-lg bg-white p-6 shadow-sm">
-          {isAuthLoading && <p>Checking authentication...</p>}
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+            Gamified Habit Tracker
+          </h1>
 
-          {!isAuthLoading && !currentUser && (
-            <>
-              <div className="mb-6 flex rounded bg-slate-100 p-1">
-                <button
-                  className={`flex-1 rounded px-3 py-2 font-semibold ${
-                    authMode === 'login' ? 'bg-white shadow-sm' : ''
-                  }`}
-                  type="button"
-                  onClick={() => changeAuthMode('login')}
-                >
-                  Sign in
-                </button>
-
-                <button
-                  className={`flex-1 rounded px-3 py-2 font-semibold ${
-                    authMode === 'register' ? 'bg-white shadow-sm' : ''
-                  }`}
-                  type="button"
-                  onClick={() => changeAuthMode('register')}
-                >
-                  Register
-                </button>
-              </div>
-
-              {authMode === 'login' && <LoginForm />}
-
-              {authMode === 'register' && <RegisterForm />}
-            </>
-          )}
-
-          {!isAuthLoading && currentUser && (
-            <>
-              <p>
-                Signed in as{' '}
-                <span className="font-semibold">{currentUser.displayName}</span>
-              </p>
-
-              <button
-                className="mt-4 rounded border border-slate-300 px-4 py-2 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isAuthActionLoading}
-                type="button"
-                onClick={handleLogout}
-              >
-                {isAuthActionLoading ? 'Signing out...' : 'Sign out'}
-              </button>
-            </>
-          )}
-
-          {authErrorMessage && (
-            <p className="mt-4 text-red-700">
-              Authentication error: {authErrorMessage}
-            </p>
-          )}
+          <p className="mt-3 text-sm leading-6 text-content-muted">
+            Build stronger habits. Develop your attributes. Level up through
+            consistent action.
+          </p>
         </div>
 
-        {!isAuthLoading && currentUser && <HabitSection />}
+        <div className="mt-7 flex rounded-xl border border-line bg-surface-muted p-1">
+          <button
+            className={`min-h-10 flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+              authMode === 'login'
+                ? 'bg-surface-raised text-content shadow-sm'
+                : 'text-content-muted hover:text-content'
+            }`}
+            type="button"
+            onClick={() => changeAuthMode('login')}
+          >
+            Sign in
+          </button>
 
-        <button
-          className="mt-8 rounded bg-slate-900 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={isLoading}
-          type="button"
-          onClick={handleCheckBackend}
-        >
-          {isLoading ? 'Checking...' : 'Check backend'}
-        </button>
+          <button
+            className={`min-h-10 flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+              authMode === 'register'
+                ? 'bg-surface-raised text-content shadow-sm'
+                : 'text-content-muted hover:text-content'
+            }`}
+            type="button"
+            onClick={() => changeAuthMode('register')}
+          >
+            Register
+          </button>
+        </div>
 
-        {healthResponse && (
-          <div className="mt-6">
-            <p>Backend status: {healthResponse.status}</p>
-            <p>Checked at UTC: {healthResponse.checkedAtUtc}</p>
-          </div>
+        <div className="mt-6">
+          {authMode === 'login' && <LoginForm />}
+
+          {authMode === 'register' && <RegisterForm />}
+        </div>
+
+        {authErrorMessage && (
+          <p
+            className="mt-5 rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger"
+            role="alert"
+          >
+            Authentication error: {authErrorMessage}
+          </p>
         )}
-
-        {errorMessage && (
-          <p className="mt-6 text-red-700">Request failed: {errorMessage}</p>
-        )}
-      </div>
+      </section>
     </main>
   )
 }

@@ -1,39 +1,50 @@
-import { useState } from 'react'
-import { AttributeSection } from '../attributes/AttributeSection'
-import { OverallProgressSection } from '../dashboard/OverallProgressSection'
+import type { HabitResponse } from '../../types/HabitResponse'
+import { useWorkspaceData } from '../../workspace/useWorkspaceData'
 import { HabitForm } from './HabitForm'
 import { HabitList } from './HabitList'
 
-export function HabitSection() {
-  const [habitRefreshKey, setHabitRefreshKey] = useState(0)
-  const [progressRefreshKey, setProgressRefreshKey] = useState(0)
+type HabitSectionProps = {
+  onProgressChanged: () => void
+}
 
-  function refreshHabits() {
-    setHabitRefreshKey((currentKey) => currentKey + 1)
+export function HabitSection({ onProgressChanged }: HabitSectionProps) {
+  const { habitsResource } = useWorkspaceData()
+  const { updateData: updateHabits } = habitsResource
+
+  function handleHabitCreated(createdHabit: HabitResponse): void {
+    updateHabits((currentHabits) => {
+      if (currentHabits === null) {
+        return [createdHabit]
+      }
+
+      const habitAlreadyExists = currentHabits.some(
+        (habit) => habit.id === createdHabit.id,
+      )
+
+      if (habitAlreadyExists) {
+        return currentHabits.map((habit) =>
+          habit.id === createdHabit.id ? createdHabit : habit,
+        )
+      }
+
+      return [...currentHabits, createdHabit]
+    })
+
+    onProgressChanged()
   }
 
-  function refreshProgress() {
-    setProgressRefreshKey((currentKey) => currentKey + 1)
-  }
-
-  function refreshHabitsAndProgress() {
-    refreshHabits()
-    refreshProgress()
+  function handleHabitChanged(): void {
+    onProgressChanged()
   }
 
   return (
     <>
-      <OverallProgressSection refreshKey={progressRefreshKey} />
-
-      <AttributeSection refreshKey={progressRefreshKey} />
-
-      <HabitForm onHabitCreated={refreshHabitsAndProgress} />
+      <HabitForm onHabitCreated={handleHabitCreated} />
 
       <HabitList
-        refreshKey={habitRefreshKey}
-        onHabitUpdated={refreshHabitsAndProgress}
-        onHabitDeactivated={refreshHabitsAndProgress}
-        onProgressChanged={refreshProgress}
+        onHabitUpdated={handleHabitChanged}
+        onHabitDeactivated={handleHabitChanged}
+        onProgressChanged={onProgressChanged}
       />
     </>
   )

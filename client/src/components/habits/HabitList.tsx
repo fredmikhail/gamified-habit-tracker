@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
-import { getHabits } from '../../api/habitsApi'
 import type { HabitResponse } from '../../types/HabitResponse'
+import { useWorkspaceData } from '../../workspace/useWorkspaceData'
 import { HabitCompletionButton } from './HabitCompletionButton'
 import { HabitDeactivateButton } from './HabitDeactivateButton'
 import { HabitEditForm } from './HabitEditForm'
 import { getHabitCategoryLabel } from './habitCategoryOptions'
 
 type HabitListProps = {
-  refreshKey: number
   onHabitUpdated: (habit: HabitResponse) => void
   onHabitDeactivated: (habit: HabitResponse) => void
   onProgressChanged: () => void
@@ -51,70 +50,61 @@ function getFrequencyLabel(configuration: FrequencyConfiguration): string {
   return `${configuration.targetCount} times per week`
 }
 
-function getHabitErrorMessage(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : 'An unknown habit-loading error occurred.'
-}
-
 export function HabitList({
-  refreshKey,
   onHabitUpdated,
   onHabitDeactivated,
   onProgressChanged,
 }: HabitListProps) {
-  const [habits, setHabits] = useState<HabitResponse[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const { habitsResource } = useWorkspaceData()
+
+  const {
+    data: habits,
+    errorMessage,
+    isRefreshing,
+    ensureLoaded,
+    updateData: updateHabits,
+  } = habitsResource
+
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null)
 
   useEffect(() => {
-    let isActive = true
+    void ensureLoaded()
+  }, [ensureLoaded])
 
-    async function loadHabits() {
-      try {
-        const loadedHabits = await getHabits()
+  const isWaitingForInitialData = habits === null && !errorMessage
 
-        if (isActive) {
-          setHabits(loadedHabits)
-          setErrorMessage(null)
-        }
-      } catch (error) {
-        if (isActive) {
-          setHabits([])
-          setErrorMessage(getHabitErrorMessage(error))
-        }
-      } finally {
-        if (isActive) {
-          setIsLoading(false)
-        }
+  function replaceCachedHabit(updatedHabit: HabitResponse): void {
+    updateHabits((currentHabits) => {
+      if (currentHabits === null) {
+        return [updatedHabit]
       }
-    }
 
-    void loadHabits()
-
-    return () => {
-      isActive = false
-    }
-  }, [refreshKey])
-
-  function handleHabitUpdated(updatedHabit: HabitResponse) {
-    setHabits((currentHabits) =>
-      currentHabits.map((habit) =>
+      return currentHabits.map((habit) =>
         habit.id === updatedHabit.id ? updatedHabit : habit,
-      ),
-    )
+      )
+    })
+  }
 
+  function handleHabitUpdated(updatedHabit: HabitResponse): void {
+    replaceCachedHabit(updatedHabit)
     setEditingHabitId(null)
     onHabitUpdated(updatedHabit)
   }
 
-  function handleCompletionStatusChanged(updatedHabit: HabitResponse) {
-    setHabits((currentHabits) =>
-      currentHabits.map((habit) =>
-        habit.id === updatedHabit.id ? updatedHabit : habit,
-      ),
-    )
+  function handleCompletionStatusChanged(updatedHabit: HabitResponse): void {
+    replaceCachedHabit(updatedHabit)
+  }
+
+  function handleHabitDeactivated(deactivatedHabit: HabitResponse): void {
+    updateHabits((currentHabits) => {
+      if (currentHabits === null) {
+        return []
+      }
+
+      return currentHabits.filter((habit) => habit.id !== deactivatedHabit.id)
+    })
+
+    onHabitDeactivated(deactivatedHabit)
   }
 
   return (
@@ -126,17 +116,27 @@ export function HabitList({
         Habits
       </h2>
 
-      {isLoading && <p className="mt-4 text-slate-600">Loading habits...</p>}
-
-      {!isLoading && errorMessage && (
-        <p className="mt-4 text-red-700">Habit loading error: {errorMessage}</p>
+      {isWaitingForInitialData && (
+        <p className="mt-4 text-slate-600">Loading habits...</p>
       )}
 
-      {!isLoading && !errorMessage && habits.length === 0 && (
+      {isRefreshing && (
+        <p className="mt-4 text-sm text-slate-500" role="status">
+          Refreshing habits...
+        </p>
+      )}
+
+      {errorMessage && (
+        <p className="mt-4 text-red-700" role="alert">
+          Habit loading error: {errorMessage}
+        </p>
+      )}
+
+      {habits !== null && habits.length === 0 && (
         <p className="mt-4 text-slate-600">You do not have any habits yet.</p>
       )}
 
-      {!isLoading && !errorMessage && habits.length > 0 && (
+      {habits !== null && habits.length > 0 && (
         <ul className="mt-4 space-y-4">
           {habits.map((habit) => (
             <li
@@ -217,7 +217,7 @@ export function HabitList({
 
                   <HabitDeactivateButton
                     habit={habit}
-                    onHabitDeactivated={onHabitDeactivated}
+                    onHabitDeactivated={handleHabitDeactivated}
                   />
                 </div>
               )}
