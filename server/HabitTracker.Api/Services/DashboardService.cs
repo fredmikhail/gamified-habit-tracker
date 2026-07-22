@@ -1,4 +1,5 @@
 using HabitTracker.Api.Data;
+using HabitTracker.Api.Domain.Entities;
 using HabitTracker.Api.Domain.Enums;
 using HabitTracker.Api.DTOs;
 using Microsoft.EntityFrameworkCore;
@@ -10,17 +11,20 @@ public sealed class DashboardService
     private readonly AppDbContext _dbContext;
     private readonly XpService _xpService;
     private readonly StreakService _streakService;
+    private readonly AttributeService _attributeService;
     private readonly TimeProvider _timeProvider;
 
     public DashboardService(
         AppDbContext dbContext,
         XpService xpService,
         StreakService streakService,
+        AttributeService attributeService,
         TimeProvider timeProvider)
     {
         _dbContext = dbContext;
         _xpService = xpService;
         _streakService = streakService;
+        _attributeService = attributeService;
         _timeProvider = timeProvider;
     }
 
@@ -136,6 +140,53 @@ public sealed class DashboardService
                 && todayCompletedHabitIds.Contains(
                     item.Habit.Id));
 
+        var todayHabits =
+            habitStreakCalculations
+                .Select(item =>
+                {
+                    var effectiveConfiguration =
+                        GetEffectiveConfiguration(
+                            item.Habit,
+                            localDate);
+
+                    return new DashboardHabitResponse
+                    {
+                        Id = item.Habit.Id,
+                        Name = item.Habit.Name,
+                        Category =
+                            effectiveConfiguration.Category,
+                        FrequencyType =
+                            effectiveConfiguration.FrequencyType,
+                        TargetCount =
+                            effectiveConfiguration.TargetCount,
+                        Difficulty =
+                            effectiveConfiguration.Difficulty,
+                        AttributeRewards =
+                            CreateAttributeRewardResponses(
+                                effectiveConfiguration),
+                        IsCompletedToday =
+                            todayCompletedHabitIds.Contains(
+                                item.Habit.Id),
+                        CurrentStreak =
+                            item.Streak.CurrentStreak,
+                        LongestStreak =
+                            item.Streak.LongestStreak
+                    };
+                })
+                .OrderBy(habit =>
+                    habit.IsCompletedToday)
+                .ThenBy(habit =>
+                    habit.Name)
+                .ThenBy(habit =>
+                    habit.Id)
+                .ToList();
+
+        var attributes =
+            await _attributeService
+                .GetUserAttributesAsync(
+                    userId,
+                    cancellationToken);
+
         var habitStreaks =
             habitStreakCalculations
                 .Select(item =>
@@ -179,7 +230,49 @@ public sealed class DashboardService
                     TotalDailyHabits =
                         totalDailyHabits
                 },
+            TodayHabits = todayHabits,
+            Attributes = attributes,
             HabitStreaks = habitStreaks
         };
+    }
+
+    private static HabitConfigurationVersion
+        GetEffectiveConfiguration(
+            Habit habit,
+            DateOnly date)
+    {
+        return habit.HabitConfigurationVersions
+            .SingleOrDefault(configuration =>
+                configuration.EffectiveFromDate
+                    <= date
+                && (
+                    configuration
+                        .EffectiveToDateExclusive is null
+                    || date
+                        < configuration
+                            .EffectiveToDateExclusive))
+            ?? throw new InvalidOperationException(
+                "The habit does not have a configuration effective on the requested date.");
+    }
+
+    private IReadOnlyList<HabitAttributeRewardResponse>
+        CreateAttributeRewardResponses(
+            HabitConfigurationVersion configuration)
+    {
+        return _xpService
+            .CalculateRewards(
+                configuration.Category,
+                configuration.Difficulty)
+            .OrderByDescending(reward =>
+                reward.Value)
+            .ThenBy(reward =>
+                reward.Key)
+            .Select(reward =>
+                new HabitAttributeRewardResponse
+                {
+                    AttributeType = reward.Key,
+                    XpAmount = reward.Value
+                })
+            .ToList();
     }
 }

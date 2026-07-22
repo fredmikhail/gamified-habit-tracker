@@ -4,7 +4,6 @@ using HabitTracker.Api.Domain.Enums;
 using HabitTracker.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
-
 namespace HabitTracker.Tests.Services;
 
 public sealed class DashboardServiceTests
@@ -79,6 +78,22 @@ public sealed class DashboardServiceTests
             0,
             response.TodayExecution
                 .TotalDailyHabits);
+
+        Assert.Empty(response.TodayHabits);
+
+        Assert.Equal(
+            Enum.GetValues<AttributeType>(),
+            response.Attributes
+                .Select(attribute =>
+                    attribute.AttributeType)
+                .ToArray());
+
+        Assert.All(
+            response.Attributes,
+            attribute =>
+                Assert.Equal(
+                    0,
+                    attribute.CurrentXp));
     }
 
     [Fact]
@@ -151,7 +166,7 @@ public sealed class DashboardServiceTests
     }
 
     [Fact]
-    public async Task GetDashboardAsync_WhenUserHasTodayActivity_ReturnsOwnedActivityAndDailyExecution()
+    public async Task GetDashboardAsync_WhenUserHasTodayActivity_ReturnsOwnedActivityExecutionAndHabits()
     {
         await using var dbContext =
             CreateDbContext();
@@ -171,30 +186,46 @@ public sealed class DashboardServiceTests
             CreateHabit(
                 userId,
                 HabitFrequencyType.Daily,
-                isActive: true);
+                isActive: true,
+                name: "Completed daily habit",
+                category:
+                    HabitCategory.LearningAndSkills,
+                difficulty:
+                    HabitDifficulty.Hard);
 
         var incompleteDailyHabit =
             CreateHabit(
                 userId,
                 HabitFrequencyType.Daily,
-                isActive: true);
+                isActive: true,
+                name: "Incomplete daily habit");
 
         var completedWeeklyHabit =
             CreateHabit(
                 userId,
                 HabitFrequencyType.Weekly,
-                isActive: true);
+                isActive: true,
+                name: "Completed weekly habit");
+
+        var inactiveHabit =
+            CreateHabit(
+                userId,
+                HabitFrequencyType.Daily,
+                isActive: false,
+                name: "Inactive habit");
 
         var otherUserDailyHabit =
             CreateHabit(
                 otherUserId,
                 HabitFrequencyType.Daily,
-                isActive: true);
+                isActive: true,
+                name: "Other user habit");
 
         dbContext.Habits.AddRange(
             completedDailyHabit,
             incompleteDailyHabit,
             completedWeeklyHabit,
+            inactiveHabit,
             otherUserDailyHabit);
 
         var dailyCompletion =
@@ -281,6 +312,263 @@ public sealed class DashboardServiceTests
             2,
             response.TodayExecution
                 .TotalDailyHabits);
+
+        Assert.Equal(
+            3,
+            response.TodayHabits.Count);
+
+        Assert.DoesNotContain(
+            response.TodayHabits,
+            habit =>
+                habit.Id == inactiveHabit.Id);
+
+        Assert.DoesNotContain(
+            response.TodayHabits,
+            habit =>
+                habit.Id == otherUserDailyHabit.Id);
+
+        var completedDailyResponse =
+            Assert.Single(
+                response.TodayHabits,
+                habit =>
+                    habit.Id
+                    == completedDailyHabit.Id);
+
+        Assert.True(
+            completedDailyResponse
+                .IsCompletedToday);
+
+        Assert.Equal(
+            HabitCategory.LearningAndSkills,
+            completedDailyResponse.Category);
+
+        Assert.Equal(
+            HabitFrequencyType.Daily,
+            completedDailyResponse
+                .FrequencyType);
+
+        Assert.Equal(
+            1,
+            completedDailyResponse.TargetCount);
+
+        Assert.Equal(
+            HabitDifficulty.Hard,
+            completedDailyResponse.Difficulty);
+
+        Assert.Collection(
+            completedDailyResponse.AttributeRewards,
+            primaryReward =>
+            {
+                Assert.Equal(
+                    AttributeType.Mind,
+                    primaryReward.AttributeType);
+
+                Assert.Equal(
+                    21,
+                    primaryReward.XpAmount);
+            },
+            secondaryReward =>
+            {
+                Assert.Equal(
+                    AttributeType.Focus,
+                    secondaryReward.AttributeType);
+
+                Assert.Equal(
+                    9,
+                    secondaryReward.XpAmount);
+            });
+
+        var incompleteDailyResponse =
+            Assert.Single(
+                response.TodayHabits,
+                habit =>
+                    habit.Id
+                    == incompleteDailyHabit.Id);
+
+        Assert.False(
+            incompleteDailyResponse
+                .IsCompletedToday);
+    }
+
+    [Fact]
+    public async Task GetDashboardAsync_WhenHabitHasFutureConfiguration_UsesConfigurationEffectiveToday()
+    {
+        await using var dbContext =
+            CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
+        var habit =
+            CreateHabit(
+                userId,
+                HabitFrequencyType.Daily,
+                isActive: true,
+                name: "Scheduled configuration habit",
+                category:
+                    HabitCategory.GeneralGrowth,
+                difficulty:
+                    HabitDifficulty.Medium);
+
+        var currentConfiguration =
+            Assert.Single(
+                habit.HabitConfigurationVersions);
+
+        currentConfiguration
+            .EffectiveToDateExclusive =
+                new DateOnly(2026, 7, 27);
+
+        habit.HabitConfigurationVersions.Add(
+            new HabitConfigurationVersion
+            {
+                HabitId = habit.Id,
+                VersionNumber = 2,
+                Category =
+                    HabitCategory.FitnessAndMovement,
+                FrequencyType =
+                    HabitFrequencyType.Weekly,
+                TargetCount = 3,
+                Difficulty =
+                    HabitDifficulty.Elite,
+                EffectiveFromDate =
+                    new DateOnly(2026, 7, 27),
+                CreatedAtUtc =
+                    FixedUtcNow.UtcDateTime
+            });
+
+        dbContext.Habits.Add(habit);
+
+        await dbContext.SaveChangesAsync();
+
+        var dashboardService =
+            CreateDashboardService(dbContext);
+
+        var response =
+            await dashboardService.GetDashboardAsync(
+                userId);
+
+        var dashboardHabit =
+            Assert.Single(
+                response.TodayHabits);
+
+        Assert.Equal(
+            HabitCategory.GeneralGrowth,
+            dashboardHabit.Category);
+
+        Assert.Equal(
+            HabitFrequencyType.Daily,
+            dashboardHabit.FrequencyType);
+
+        Assert.Equal(
+            1,
+            dashboardHabit.TargetCount);
+
+        Assert.Equal(
+            HabitDifficulty.Medium,
+            dashboardHabit.Difficulty);
+    }
+
+    [Fact]
+    public async Task GetDashboardAsync_WhenUserHasAttributeProgress_ReturnsAllOwnedAttributes()
+    {
+        await using var dbContext =
+            CreateDbContext();
+
+        var userId = Guid.CreateVersion7();
+        var otherUserId = Guid.CreateVersion7();
+
+        AddUserWithSettings(
+            dbContext,
+            userId);
+
+        dbContext.UserAttributes.AddRange(
+            new UserAttribute
+            {
+                UserId = userId,
+                AttributeType =
+                    AttributeType.Discipline,
+                CurrentXp = 99,
+                UpdatedAtUtc =
+                    FixedUtcNow.UtcDateTime
+            },
+            new UserAttribute
+            {
+                UserId = userId,
+                AttributeType =
+                    AttributeType.Fitness,
+                CurrentXp = 225,
+                UpdatedAtUtc =
+                    FixedUtcNow.UtcDateTime
+            },
+            new UserAttribute
+            {
+                UserId = otherUserId,
+                AttributeType =
+                    AttributeType.Mind,
+                CurrentXp = 999,
+                UpdatedAtUtc =
+                    FixedUtcNow.UtcDateTime
+            });
+
+        await dbContext.SaveChangesAsync();
+
+        var dashboardService =
+            CreateDashboardService(dbContext);
+
+        var response =
+            await dashboardService.GetDashboardAsync(
+                userId);
+
+        Assert.Equal(
+            Enum.GetValues<AttributeType>(),
+            response.Attributes
+                .Select(attribute =>
+                    attribute.AttributeType)
+                .ToArray());
+
+        var discipline =
+            Assert.Single(
+                response.Attributes,
+                attribute =>
+                    attribute.AttributeType
+                    == AttributeType.Discipline);
+
+        Assert.Equal(
+            99,
+            discipline.CurrentXp);
+
+        Assert.Equal(
+            1,
+            discipline.Level);
+
+        var fitness =
+            Assert.Single(
+                response.Attributes,
+                attribute =>
+                    attribute.AttributeType
+                    == AttributeType.Fitness);
+
+        Assert.Equal(
+            225,
+            fitness.CurrentXp);
+
+        Assert.Equal(
+            3,
+            fitness.Level);
+
+        var mind =
+            Assert.Single(
+                response.Attributes,
+                attribute =>
+                    attribute.AttributeType
+                    == AttributeType.Mind);
+
+        Assert.Equal(
+            0,
+            mind.CurrentXp);
     }
 
     [Fact]
@@ -323,7 +611,8 @@ public sealed class DashboardServiceTests
                 userId);
 
         var habitStreak =
-            Assert.Single(response.HabitStreaks);
+            Assert.Single(
+                response.HabitStreaks);
 
         Assert.Equal(
             habit.Id,
@@ -344,16 +633,35 @@ public sealed class DashboardServiceTests
         Assert.Equal(
             2,
             habitStreak.LongestStreak);
+
+        var dashboardHabit =
+            Assert.Single(
+                response.TodayHabits);
+
+        Assert.Equal(
+            2,
+            dashboardHabit.CurrentStreak);
+
+        Assert.Equal(
+            2,
+            dashboardHabit.LongestStreak);
     }
 
     private static DashboardService CreateDashboardService(
-    AppDbContext dbContext)
+        AppDbContext dbContext)
     {
+        var xpService =
+            new XpService();
+
         return new DashboardService(
             dbContext,
-            new XpService(),
+            xpService,
             new StreakService(),
-            new FixedTimeProvider(FixedUtcNow));
+            new AttributeService(
+                dbContext,
+                xpService),
+            new FixedTimeProvider(
+                FixedUtcNow));
     }
 
     private static void AddUserWithSettings(
@@ -406,27 +714,33 @@ public sealed class DashboardServiceTests
     }
 
     private static Habit CreateHabit(
-    Guid userId,
-    HabitFrequencyType frequencyType,
-    bool isActive)
+        Guid userId,
+        HabitFrequencyType frequencyType,
+        bool isActive,
+        string name = "Dashboard test habit",
+        HabitCategory category =
+            HabitCategory.GeneralGrowth,
+        HabitDifficulty difficulty =
+            HabitDifficulty.Medium)
     {
         var createdAtUtc =
             FixedUtcNow.UtcDateTime.AddDays(-7);
+
+        var targetCount =
+            frequencyType
+                == HabitFrequencyType.Daily
+                    ? 1
+                    : 3;
 
         var habit =
             new Habit
             {
                 UserId = userId,
-                Name = "Dashboard test habit",
-                Category =
-                    HabitCategory.GeneralGrowth,
+                Name = name,
+                Category = category,
                 FrequencyType = frequencyType,
-                TargetCount =
-                    frequencyType == HabitFrequencyType.Daily
-                        ? 1
-                        : 3,
-                Difficulty =
-                    HabitDifficulty.Medium,
+                TargetCount = targetCount,
+                Difficulty = difficulty,
                 IsActive = isActive,
                 CreatedAtUtc = createdAtUtc,
                 UpdatedAtUtc = createdAtUtc
@@ -437,10 +751,10 @@ public sealed class DashboardServiceTests
             {
                 HabitId = habit.Id,
                 VersionNumber = 1,
-                Category = habit.Category,
-                FrequencyType = habit.FrequencyType,
-                TargetCount = habit.TargetCount,
-                Difficulty = habit.Difficulty,
+                Category = category,
+                FrequencyType = frequencyType,
+                TargetCount = targetCount,
+                Difficulty = difficulty,
                 EffectiveFromDate =
                     new DateOnly(2026, 7, 15),
                 CreatedAtUtc = createdAtUtc

@@ -1,11 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using HabitTracker.Api.Services;
 using HabitTracker.Api.Data;
 using HabitTracker.Api.Domain.Entities;
 using HabitTracker.Api.Domain.Enums;
 using HabitTracker.Api.DTOs;
+using HabitTracker.Api.Services;
 using HabitTracker.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -55,9 +55,9 @@ public sealed class DashboardControllerTests
         await RegisterAsync(client);
 
         var expectedLocalDate =
-    LocalDateCalculator.GetLocalDate(
-        TimeProvider.System.GetUtcNow(),
-        "America/Toronto");
+            LocalDateCalculator.GetLocalDate(
+                TimeProvider.System.GetUtcNow(),
+                "America/Toronto");
 
         var response =
             await client.GetAsync(
@@ -93,8 +93,8 @@ public sealed class DashboardControllerTests
                 .XpNeededForNextLevel);
 
         Assert.Equal(
-    expectedLocalDate,
-    dashboard.TodayActivity.LocalDate);
+            expectedLocalDate,
+            dashboard.TodayActivity.LocalDate);
 
         Assert.Equal(
             0,
@@ -113,6 +113,23 @@ public sealed class DashboardControllerTests
             0,
             dashboard.TodayExecution
                 .TotalDailyHabits);
+
+        Assert.Empty(
+            dashboard.TodayHabits);
+
+        Assert.Equal(
+            Enum.GetValues<AttributeType>(),
+            dashboard.Attributes
+                .Select(attribute =>
+                    attribute.AttributeType)
+                .ToArray());
+
+        Assert.All(
+            dashboard.Attributes,
+            attribute =>
+                Assert.Equal(
+                    0,
+                    attribute.CurrentXp));
     }
 
     [Fact]
@@ -165,18 +182,8 @@ public sealed class DashboardControllerTests
                 .XpNeededForNextLevel);
     }
 
-    private HttpClient CreateClient()
-    {
-        return _factory.CreateClient(
-            new WebApplicationFactoryClientOptions
-            {
-                AllowAutoRedirect = false,
-                HandleCookies = true
-            });
-    }
-
     [Fact]
-    public async Task GetDashboard_WhenHabitHasCompletions_ReturnsHabitStreak()
+    public async Task GetDashboard_WhenHabitHasCompletions_ReturnsActionableHabitStreakAndAttributes()
     {
         using var client = CreateClient();
 
@@ -192,6 +199,9 @@ public sealed class DashboardControllerTests
             await SeedDailyHabitStreakAsync(
                 registration.User.Id,
                 localDate);
+
+        await SeedUserAttributeAsync(
+            registration.User.Id);
 
         var response =
             await client.GetAsync(
@@ -231,11 +241,106 @@ public sealed class DashboardControllerTests
         Assert.Equal(
             2,
             habitStreak.LongestStreak);
+
+        var dashboardHabit =
+            Assert.Single(
+                dashboard.TodayHabits);
+
+        Assert.Equal(
+            habit.Id,
+            dashboardHabit.Id);
+
+        Assert.Equal(
+            habit.Name,
+            dashboardHabit.Name);
+
+        Assert.Equal(
+            HabitCategory.GeneralGrowth,
+            dashboardHabit.Category);
+
+        Assert.Equal(
+            HabitFrequencyType.Daily,
+            dashboardHabit.FrequencyType);
+
+        Assert.Equal(
+            1,
+            dashboardHabit.TargetCount);
+
+        Assert.Equal(
+            HabitDifficulty.Medium,
+            dashboardHabit.Difficulty);
+
+        Assert.False(
+            dashboardHabit.IsCompletedToday);
+
+        Assert.Equal(
+            2,
+            dashboardHabit.CurrentStreak);
+
+        Assert.Equal(
+            2,
+            dashboardHabit.LongestStreak);
+
+        Assert.Collection(
+            dashboardHabit.AttributeRewards,
+            primaryReward =>
+            {
+                Assert.Equal(
+                    AttributeType.Discipline,
+                    primaryReward.AttributeType);
+
+                Assert.Equal(
+                    14,
+                    primaryReward.XpAmount);
+            },
+            secondaryReward =>
+            {
+                Assert.Equal(
+                    AttributeType.Mind,
+                    secondaryReward.AttributeType);
+
+                Assert.Equal(
+                    6,
+                    secondaryReward.XpAmount);
+            });
+
+        var discipline =
+            Assert.Single(
+                dashboard.Attributes,
+                attribute =>
+                    attribute.AttributeType
+                    == AttributeType.Discipline);
+
+        Assert.Equal(
+            99,
+            discipline.CurrentXp);
+
+        Assert.Equal(
+            1,
+            discipline.Level);
+
+        Assert.Equal(
+            99,
+            discipline.XpIntoCurrentLevel);
+
+        Assert.Equal(
+            100,
+            discipline.XpNeededForNextLevel);
+    }
+
+    private HttpClient CreateClient()
+    {
+        return _factory.CreateClient(
+            new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = false,
+                HandleCookies = true
+            });
     }
 
     private async Task<Habit> SeedDailyHabitStreakAsync(
-    Guid userId,
-    DateOnly localDate)
+        Guid userId,
+        DateOnly localDate)
     {
         using var scope =
             _factory.Services.CreateScope();
@@ -315,6 +420,30 @@ public sealed class DashboardControllerTests
         return habit;
     }
 
+    private async Task SeedUserAttributeAsync(
+        Guid userId)
+    {
+        using var scope =
+            _factory.Services.CreateScope();
+
+        var dbContext =
+            scope.ServiceProvider
+                .GetRequiredService<AppDbContext>();
+
+        dbContext.UserAttributes.Add(
+            new UserAttribute
+            {
+                UserId = userId,
+                AttributeType =
+                    AttributeType.Discipline,
+                CurrentXp = 99,
+                UpdatedAtUtc =
+                    DateTime.UtcNow
+            });
+
+        await dbContext.SaveChangesAsync();
+    }
+
     private async Task SeedXpTransactionsAsync(
         Guid userId,
         Guid otherUserId)
@@ -366,7 +495,8 @@ public sealed class DashboardControllerTests
                 Guid.CreateVersion7(),
             AttributeType = attributeType,
             Amount = amount,
-            Reason = "Dashboard integration test",
+            Reason =
+                "Dashboard integration test",
             CreatedAtUtc = createdAtUtc
         };
     }
