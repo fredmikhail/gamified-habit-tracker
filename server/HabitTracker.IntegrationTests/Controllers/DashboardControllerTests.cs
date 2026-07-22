@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using HabitTracker.Api.Services;
 using HabitTracker.Api.Data;
 using HabitTracker.Api.Domain.Entities;
 using HabitTracker.Api.Domain.Enums;
@@ -53,6 +54,11 @@ public sealed class DashboardControllerTests
 
         await RegisterAsync(client);
 
+        var expectedLocalDate =
+    LocalDateCalculator.GetLocalDate(
+        TimeProvider.System.GetUtcNow(),
+        "America/Toronto");
+
         var response =
             await client.GetAsync(
                 "/api/dashboard");
@@ -85,6 +91,28 @@ public sealed class DashboardControllerTests
             200,
             dashboard.OverallProgress
                 .XpNeededForNextLevel);
+
+        Assert.Equal(
+    expectedLocalDate,
+    dashboard.TodayActivity.LocalDate);
+
+        Assert.Equal(
+            0,
+            dashboard.TodayActivity.Completions);
+
+        Assert.Equal(
+            0,
+            dashboard.TodayActivity.XpEarned);
+
+        Assert.Equal(
+            0,
+            dashboard.TodayExecution
+                .CompletedDailyHabits);
+
+        Assert.Equal(
+            0,
+            dashboard.TodayExecution
+                .TotalDailyHabits);
     }
 
     [Fact]
