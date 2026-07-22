@@ -5,9 +5,11 @@ using HabitTracker.Api.Data;
 using HabitTracker.Api.Domain.Entities;
 using HabitTracker.Api.Domain.Enums;
 using HabitTracker.Api.DTOs;
+using HabitTracker.Api.Services;
 using HabitTracker.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -1414,12 +1416,31 @@ secondaryReward =>
             scope.ServiceProvider
                 .GetRequiredService<AppDbContext>();
 
+        var timeZoneId =
+            await dbContext.UserSettings
+                .Where(settings =>
+                    settings.UserId == userId)
+                .Select(settings =>
+                    settings.TimeZone)
+                .SingleAsync();
+
+        var createdAtOffset =
+            new DateTimeOffset(
+                DateTime.SpecifyKind(
+                    createdAtUtc,
+                    DateTimeKind.Utc));
+
+        var effectiveFromDate =
+            LocalDateCalculator.GetLocalDate(
+                createdAtOffset,
+                timeZoneId);
+
         var habit = new Habit
         {
             UserId = userId,
             Name = name,
             Category =
-        HabitCategory.GeneralGrowth,
+                HabitCategory.GeneralGrowth,
             FrequencyType =
                 HabitFrequencyType.Daily,
             TargetCount = 1,
@@ -1429,6 +1450,22 @@ secondaryReward =>
             CreatedAtUtc = createdAtUtc,
             UpdatedAtUtc = createdAtUtc
         };
+
+        habit.HabitConfigurationVersions.Add(
+            new HabitConfigurationVersion
+            {
+                HabitId = habit.Id,
+                VersionNumber = 1,
+                Category = habit.Category,
+                FrequencyType =
+                    habit.FrequencyType,
+                TargetCount = habit.TargetCount,
+                Difficulty = habit.Difficulty,
+                EffectiveFromDate =
+                    effectiveFromDate,
+                CreatedAtUtc =
+                    createdAtUtc
+            });
 
         dbContext.Habits.Add(habit);
 

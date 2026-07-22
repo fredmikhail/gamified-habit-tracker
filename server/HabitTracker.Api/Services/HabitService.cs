@@ -24,9 +24,9 @@ public sealed class HabitService
     }
 
     public async Task<HabitResponse> CreateHabitAsync(
-        Guid userId,
-        CreateHabitRequest request,
-        CancellationToken cancellationToken = default)
+    Guid userId,
+    CreateHabitRequest request,
+    CancellationToken cancellationToken = default)
     {
         var name = request.Name.Trim();
 
@@ -34,6 +34,9 @@ public sealed class HabitService
         {
             throw new InvalidHabitNameException();
         }
+
+        var category =
+            request.Category!.Value;
 
         var frequencyType =
             request.FrequencyType!.Value;
@@ -48,7 +51,18 @@ public sealed class HabitService
             frequencyType,
             targetCount);
 
-        var createdAtUtc = DateTime.UtcNow;
+        var createdAtUtc =
+            _timeProvider.GetUtcNow();
+
+        var timeZoneId =
+            await GetUserTimeZoneIdAsync(
+                userId,
+                cancellationToken);
+
+        var effectiveFromDate =
+            LocalDateCalculator.GetLocalDate(
+                createdAtUtc,
+                timeZoneId);
 
         var habit = new Habit
         {
@@ -56,13 +70,28 @@ public sealed class HabitService
             Name = name,
             Description =
                 NormalizeOptionalText(request.Description),
-            Category = request.Category!.Value,
+            Category = category,
             FrequencyType = frequencyType,
             TargetCount = targetCount,
             Difficulty = difficulty,
-            CreatedAtUtc = createdAtUtc,
-            UpdatedAtUtc = createdAtUtc
+            CreatedAtUtc = createdAtUtc.UtcDateTime,
+            UpdatedAtUtc = createdAtUtc.UtcDateTime
         };
+
+        habit.HabitConfigurationVersions.Add(
+            new HabitConfigurationVersion
+            {
+                HabitId = habit.Id,
+                VersionNumber = 1,
+                Category = category,
+                FrequencyType = frequencyType,
+                TargetCount = targetCount,
+                Difficulty = difficulty,
+                EffectiveFromDate =
+                    effectiveFromDate,
+                CreatedAtUtc =
+                    createdAtUtc.UtcDateTime
+            });
 
         SynchronizeAttributeRewards(habit);
 
@@ -131,16 +160,18 @@ public sealed class HabitService
     }
 
     public async Task<HabitResponse?> UpdateHabitAsync(
-        Guid userId,
-        Guid habitId,
-        UpdateHabitRequest request,
-        CancellationToken cancellationToken = default)
+    Guid userId,
+    Guid habitId,
+    UpdateHabitRequest request,
+    CancellationToken cancellationToken = default)
     {
         var habit =
-    await _dbContext.Habits
-        .Include(habit =>
-            habit.HabitAttributeRewards)
-        .SingleOrDefaultAsync(
+            await _dbContext.Habits
+                .Include(habit =>
+                    habit.HabitAttributeRewards)
+                .Include(habit =>
+                    habit.HabitConfigurationVersions)
+                .SingleOrDefaultAsync(
                     habit =>
                         habit.Id == habitId
                         && habit.UserId == userId,
@@ -158,6 +189,9 @@ public sealed class HabitService
             throw new InvalidHabitNameException();
         }
 
+        var category =
+            request.Category!.Value;
+
         var frequencyType =
             request.FrequencyType!.Value;
 
@@ -171,14 +205,32 @@ public sealed class HabitService
             frequencyType,
             targetCount);
 
+        var currentConfiguration =
+            habit.HabitConfigurationVersions
+                .SingleOrDefault(configuration =>
+                    configuration
+                        .EffectiveToDateExclusive is null)
+            ?? throw new InvalidOperationException(
+                "The habit does not have an open configuration version.");
+
         habit.Name = name;
         habit.Description =
             NormalizeOptionalText(request.Description);
-        habit.Category = request.Category!.Value;
+        habit.Category = category;
         habit.FrequencyType = frequencyType;
         habit.TargetCount = targetCount;
         habit.Difficulty = difficulty;
-        habit.UpdatedAtUtc = DateTime.UtcNow;
+        habit.UpdatedAtUtc =
+            _timeProvider.GetUtcNow().UtcDateTime;
+
+        currentConfiguration.Category =
+            category;
+        currentConfiguration.FrequencyType =
+            frequencyType;
+        currentConfiguration.TargetCount =
+            targetCount;
+        currentConfiguration.Difficulty =
+            difficulty;
 
         SynchronizeAttributeRewards(habit);
 
@@ -195,7 +247,6 @@ public sealed class HabitService
             habit,
             isCompletedToday);
     }
-
     public async Task<HabitResponse?> DeactivateHabitAsync(
         Guid userId,
         Guid habitId,
@@ -268,17 +319,26 @@ public sealed class HabitService
             isCompletedToday);
     }
 
+    private async Task<string> GetUserTimeZoneIdAsync(
+    Guid userId,
+    CancellationToken cancellationToken)
+    {
+        return await _dbContext.UserSettings
+            .Where(settings =>
+                settings.UserId == userId)
+            .Select(settings =>
+                settings.TimeZone)
+            .SingleAsync(cancellationToken);
+    }
+
     private async Task<DateOnly> GetUserLocalDateAsync(
         Guid userId,
         CancellationToken cancellationToken)
     {
         var timeZoneId =
-            await _dbContext.UserSettings
-                .Where(settings =>
-                    settings.UserId == userId)
-                .Select(settings =>
-                    settings.TimeZone)
-                .SingleAsync(cancellationToken);
+            await GetUserTimeZoneIdAsync(
+                userId,
+                cancellationToken);
 
         return LocalDateCalculator.GetLocalDate(
             _timeProvider.GetUtcNow(),

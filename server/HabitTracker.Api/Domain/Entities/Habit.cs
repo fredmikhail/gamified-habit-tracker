@@ -26,6 +26,11 @@ public sealed class Habit
 
     public DateTime UpdatedAtUtc { get; set; }
 
+    public ICollection<HabitConfigurationVersion>
+    HabitConfigurationVersions
+    { get; set; }
+        = new List<HabitConfigurationVersion>();
+
     public ICollection<HabitCompletion> HabitCompletions { get; set; }
         = new List<HabitCompletion>();
 

@@ -16,6 +16,10 @@ public sealed class AppDbContext : DbContext
 
     public DbSet<Habit> Habits => Set<Habit>();
 
+    public DbSet<HabitConfigurationVersion>
+    HabitConfigurationVersions =>
+        Set<HabitConfigurationVersion>();
+
     public DbSet<HabitCompletion> HabitCompletions =>
         Set<HabitCompletion>();
 
