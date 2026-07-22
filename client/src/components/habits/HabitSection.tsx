@@ -16,18 +16,23 @@ export function HabitSection() {
     setProgressRefreshKey((currentKey) => currentKey + 1)
   }
 
+  function refreshHabitsAndProgress() {
+    refreshHabits()
+    refreshProgress()
+  }
+
   return (
     <>
       <OverallProgressSection refreshKey={progressRefreshKey} />
 
       <AttributeSection refreshKey={progressRefreshKey} />
 
-      <HabitForm onHabitCreated={refreshHabits} />
+      <HabitForm onHabitCreated={refreshHabitsAndProgress} />
 
       <HabitList
         refreshKey={habitRefreshKey}
-        onHabitUpdated={refreshHabits}
-        onHabitDeactivated={refreshHabits}
+        onHabitUpdated={refreshHabitsAndProgress}
+        onHabitDeactivated={refreshHabitsAndProgress}
         onProgressChanged={refreshProgress}
       />
     </>

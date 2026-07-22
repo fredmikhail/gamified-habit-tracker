@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getAttributes } from '../../api/attributesApi'
@@ -52,14 +52,16 @@ describe('HabitSection', () => {
       },
       habitStreaks: [],
     })
+
     getAttributesMock.mockReset()
     getAttributesMock.mockResolvedValue([])
+
     createHabitMock.mockReset()
     deactivateHabitMock.mockReset()
     getHabitsMock.mockReset()
   })
 
-  it('reloads and displays habits after creating one', async () => {
+  it('reloads habits and dashboard after creating one', async () => {
     const user = userEvent.setup()
 
     const createdHabit: HabitResponse = {
@@ -85,6 +87,10 @@ describe('HabitSection', () => {
     render(<HabitSection />)
 
     await screen.findByText('You do not have any habits yet.')
+
+    await waitFor(() => {
+      expect(getDashboardMock).toHaveBeenCalledTimes(1)
+    })
 
     await user.type(
       screen.getByRole('textbox', {
@@ -124,9 +130,13 @@ describe('HabitSection', () => {
     })
 
     expect(getHabitsMock).toHaveBeenCalledTimes(2)
+
+    await waitFor(() => {
+      expect(getDashboardMock).toHaveBeenCalledTimes(2)
+    })
   })
 
-  it('reloads the active list after deactivating a habit', async () => {
+  it('reloads the active list and dashboard after deactivating a habit', async () => {
     const user = userEvent.setup()
 
     const activeHabit: HabitResponse = {
@@ -162,6 +172,10 @@ describe('HabitSection', () => {
       }),
     ).toBeInTheDocument()
 
+    await waitFor(() => {
+      expect(getDashboardMock).toHaveBeenCalledTimes(1)
+    })
+
     await user.click(
       screen.getByRole('button', {
         name: 'Deactivate',
@@ -179,10 +193,12 @@ describe('HabitSection', () => {
     ).toBeInTheDocument()
 
     expect(deactivateHabitMock).toHaveBeenCalledTimes(1)
-
     expect(deactivateHabitMock).toHaveBeenCalledWith(activeHabit.id)
-
     expect(getHabitsMock).toHaveBeenCalledTimes(2)
+
+    await waitFor(() => {
+      expect(getDashboardMock).toHaveBeenCalledTimes(2)
+    })
 
     expect(
       screen.queryByRole('heading', {
