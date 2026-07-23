@@ -14,6 +14,9 @@ public sealed class AttributeService
     private const string HabitCompletionUndoReason =
         "Habit completion undo";
 
+    private const int RecentXpTransactionLimit = 6;
+    private const int LevelUpQueueLimit = 3;
+
     private readonly AppDbContext _dbContext;
     private readonly XpService _xpService;
 
@@ -72,6 +75,110 @@ public sealed class AttributeService
         }
 
         return responses;
+    }
+
+    public async Task<AttributeOverviewResponse>
+        GetAttributeOverviewAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
+    {
+        var attributes =
+            await GetUserAttributesAsync(
+                userId,
+                cancellationToken);
+
+        var totalAttributeXp =
+            attributes.Sum(attribute =>
+                attribute.CurrentXp);
+
+        var progressedAttributes =
+            attributes
+                .Where(attribute =>
+                    attribute.CurrentXp > 0)
+                .ToList();
+
+        var strongestAttribute =
+            progressedAttributes
+                .OrderByDescending(attribute =>
+                    attribute.CurrentXp)
+                .ThenBy(attribute =>
+                    attribute.AttributeType)
+                .FirstOrDefault();
+
+        var needsFocusAttribute =
+            progressedAttributes.Count == 0
+                ? null
+                : attributes
+                    .OrderBy(attribute =>
+                        attribute.CurrentXp)
+                    .ThenBy(attribute =>
+                        attribute.AttributeType)
+                    .First();
+
+        var closestToLevelUp =
+            attributes
+                .Select(attribute =>
+                    new AttributeLevelUpResponse
+                    {
+                        AttributeType =
+                            attribute.AttributeType,
+                        CurrentLevel =
+                            attribute.Level,
+                        XpRemaining =
+                            attribute.XpNeededForNextLevel
+                            - attribute.XpIntoCurrentLevel
+                    })
+                .OrderBy(attribute =>
+                    attribute.XpRemaining)
+                .ThenBy(attribute =>
+                    attribute.AttributeType)
+                .Take(LevelUpQueueLimit)
+                .ToList();
+
+        var recentXpTransactions =
+            await _dbContext.XpTransactions
+                .AsNoTracking()
+                .Where(transaction =>
+                    transaction.UserId == userId)
+                .OrderByDescending(transaction =>
+                    transaction.CreatedAtUtc)
+                .ThenByDescending(transaction =>
+                    transaction.Id)
+                .Select(transaction =>
+                    new XpTransactionResponse
+                    {
+                        Id = transaction.Id,
+                        HabitName =
+                            transaction
+                                .HabitCompletion
+                                .Habit
+                                .Name,
+                        AttributeType =
+                            transaction.AttributeType,
+                        Amount = transaction.Amount,
+                        Reason = transaction.Reason,
+                        CreatedAtUtc =
+                            transaction.CreatedAtUtc
+                    })
+                .Take(RecentXpTransactionLimit)
+                .ToListAsync(cancellationToken);
+
+        return new AttributeOverviewResponse
+        {
+            Attributes = attributes,
+            TotalAttributeXp = totalAttributeXp,
+            BalanceScore =
+                CalculateBalanceScore(
+                    attributes),
+            StrongestAttribute =
+                strongestAttribute,
+            NeedsFocusAttribute =
+                needsFocusAttribute,
+            ClosestToLevelUp =
+                closestToLevelUp,
+            RecentXpTransactions =
+                recentXpTransactions
+        };
     }
 
     public async Task ApplyCompletionRewardsAsync(
@@ -207,5 +314,31 @@ public sealed class AttributeService
                     CreatedAtUtc = reversedAtUtc
                 });
         }
+    }
+
+    private static int CalculateBalanceScore(
+        IReadOnlyList<UserAttributeResponse> attributes)
+    {
+        if (attributes.Count == 0)
+        {
+            return 0;
+        }
+
+        var strongestXp =
+            attributes.Max(attribute =>
+                attribute.CurrentXp);
+
+        if (strongestXp == 0)
+        {
+            return 0;
+        }
+
+        var averageXp =
+            attributes.Average(attribute =>
+                (decimal)attribute.CurrentXp);
+
+        return (int)Math.Round(
+            averageXp / strongestXp * 100m,
+            MidpointRounding.AwayFromZero);
     }
 }

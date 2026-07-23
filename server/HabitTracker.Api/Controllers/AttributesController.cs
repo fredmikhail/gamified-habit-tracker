@@ -44,4 +44,29 @@ public sealed class AttributesController : ControllerBase
 
         return Ok(attributes);
     }
+
+    [HttpGet("overview")]
+    public async Task<ActionResult<AttributeOverviewResponse>>
+        GetAttributeOverviewAsync(
+            CancellationToken cancellationToken)
+    {
+        var userIdValue =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(
+                userIdValue,
+                out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var overview =
+            await _attributeService
+                .GetAttributeOverviewAsync(
+                    userId,
+                    cancellationToken);
+
+        return Ok(overview);
+    }
 }
