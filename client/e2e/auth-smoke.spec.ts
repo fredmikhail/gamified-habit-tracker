@@ -1,5 +1,15 @@
 import { expect, test } from '@playwright/test'
 
+async function expectAuthenticatedWorkspace(
+  page: import('@playwright/test').Page,
+  username: string,
+): Promise<void> {
+  const appShell = page.getByTestId('app-shell')
+
+  await expect(appShell).toBeVisible()
+  await expect(appShell).toContainText(`@${username}`)
+}
+
 test('shows the login form for an anonymous user', async ({ page }) => {
   await page.goto('/')
 
@@ -61,11 +71,11 @@ test('registers, restores the session, logs out, and logs back in', async ({
     })
     .click()
 
-  await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
+  await expectAuthenticatedWorkspace(page, username)
 
   await page.reload()
 
-  await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
+  await expectAuthenticatedWorkspace(page, username)
 
   await page
     .getByRole('button', {
@@ -105,5 +115,5 @@ test('registers, restores the session, logs out, and logs back in', async ({
     })
     .click()
 
-  await expect(page.getByText(`Signed in as ${username}`)).toBeVisible()
+  await expectAuthenticatedWorkspace(page, username)
 })
