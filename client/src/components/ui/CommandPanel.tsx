@@ -26,7 +26,7 @@ export function CommandPanel({
     <section
       aria-labelledby={headingId}
       className={[
-        'relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface-raised shadow-[var(--theme-panel-shadow)]',
+        'ui-adaptive-panel relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface-raised shadow-[var(--theme-panel-shadow)]',
         className,
       ].join(' ')}
     >
@@ -34,16 +34,25 @@ export function CommandPanel({
         <div className="min-w-0">
           {eyebrow && (
             <div className="flex items-center gap-1.5 text-accent">
-              {Icon && <Icon aria-hidden="true" size={13} strokeWidth={1.9} />}
+              {Icon && (
+                <Icon
+                  aria-hidden="true"
+                  strokeWidth={1.9}
+                  style={{
+                    width: 'var(--ui-icon-size)',
+                    height: 'var(--ui-icon-size)',
+                  }}
+                />
+              )}
 
-              <p className="text-[clamp(0.625rem,0.58rem_+_0.04vw,0.6875rem)] font-bold tracking-[0.18em] uppercase">
+              <p className="text-[var(--ui-eyebrow-size)] font-bold tracking-[0.18em] uppercase">
                 {eyebrow}
               </p>
             </div>
           )}
 
           <h2
-            className="mt-1 truncate text-[clamp(0.9375rem,0.84rem_+_0.1vw,1.0625rem)] font-semibold"
+            className="mt-1 truncate text-[var(--ui-panel-title-size)] font-semibold"
             id={headingId}
           >
             {title}

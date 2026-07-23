@@ -141,7 +141,7 @@ export function AttributeCard({
   if (compact) {
     return (
       <article
-        className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-surface p-2.5"
+        className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-surface p-[clamp(0.625rem,0.55rem_+_0.08vw,0.8rem)]"
         data-attribute-type={attribute.attributeType}
         style={{
           ...style,
@@ -153,7 +153,7 @@ export function AttributeCard({
       >
         <div className="flex items-center justify-between gap-2">
           <div
-            className="grid size-8 shrink-0 place-items-center rounded-lg border"
+            className="grid size-[clamp(2rem,1.65rem_+_0.45vw,2.375rem)] shrink-0 place-items-center rounded-lg border"
             style={{
               borderColor:
                 'color-mix(in srgb, var(--attribute-accent) 42%, transparent)',
@@ -162,11 +162,18 @@ export function AttributeCard({
               color: 'var(--attribute-accent)',
             }}
           >
-            <visual.Icon aria-hidden="true" size={15} strokeWidth={1.9} />
+            <visual.Icon
+              aria-hidden="true"
+              strokeWidth={1.9}
+              style={{
+                width: 'clamp(0.9375rem, 0.55rem + 0.45vw, 1.125rem)',
+                height: 'clamp(0.9375rem, 0.55rem + 0.45vw, 1.125rem)',
+              }}
+            />
           </div>
 
           <span
-            className="shrink-0 rounded-md border px-1.5 py-0.5 text-[9px] font-bold"
+            className="shrink-0 rounded-md border px-1.5 py-0.5 text-[clamp(0.5625rem,0.48rem_+_0.08vw,0.6875rem)] font-bold"
             style={{
               borderColor:
                 'color-mix(in srgb, var(--attribute-accent) 38%, transparent)',
@@ -179,12 +186,12 @@ export function AttributeCard({
           </span>
         </div>
 
-        <h3 className="mt-1.5 truncate text-xs leading-4 font-semibold">
+        <h3 className="mt-1.5 truncate text-[clamp(0.75rem,0.61rem_+_0.18vw,0.875rem)] leading-4 font-semibold">
           {visual.label}
         </h3>
 
         <div className="mt-auto pt-1.5">
-          <div className="flex items-center justify-between gap-2 text-[10px] font-medium">
+          <div className="flex items-center justify-between gap-2 text-[clamp(0.625rem,0.5rem_+_0.16vw,0.75rem)] font-medium">
             <span className="text-content-muted">
               {attribute.currentXp.toLocaleString()} XP
             </span>
@@ -213,7 +220,7 @@ export function AttributeCard({
             />
           </div>
 
-          <p className="mt-1 truncate text-[9px] text-content-subtle">
+          <p className="mt-1 truncate text-[clamp(0.5625rem,0.46rem_+_0.13vw,0.6875rem)] text-content-subtle">
             {attribute.xpIntoCurrentLevel} / {attribute.xpNeededForNextLevel}{' '}
             toward next level
           </p>

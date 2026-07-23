@@ -24,7 +24,7 @@ export function MetricPanel({
     <article
       aria-label={label}
       className={[
-        'relative min-h-0 overflow-hidden rounded-2xl border border-line bg-surface-raised p-[clamp(0.75rem,0.66rem_+_0.1vw,0.9375rem)] shadow-[var(--theme-panel-shadow)]',
+        'ui-adaptive-panel relative min-h-0 overflow-hidden rounded-2xl border border-line bg-surface-raised p-[clamp(0.75rem,0.66rem_+_0.1vw,0.9375rem)] shadow-[var(--theme-panel-shadow)]',
         className,
       ].join(' ')}
       style={{
@@ -35,7 +35,7 @@ export function MetricPanel({
     >
       <div className="flex items-center gap-[clamp(0.5rem,0.44rem_+_0.06vw,0.625rem)]">
         <div
-          className="grid size-[clamp(2rem,1.85rem_+_0.12vw,2.25rem)] shrink-0 place-items-center rounded-lg border"
+          className="grid size-[var(--ui-icon-box-size)] shrink-0 place-items-center rounded-lg border"
           style={{
             borderColor:
               'color-mix(in srgb, var(--metric-accent) 35%, transparent)',
@@ -44,10 +44,17 @@ export function MetricPanel({
             color: 'var(--metric-accent)',
           }}
         >
-          <Icon aria-hidden="true" size={15} strokeWidth={1.9} />
+          <Icon
+            aria-hidden="true"
+            strokeWidth={1.9}
+            style={{
+              width: 'var(--ui-icon-size)',
+              height: 'var(--ui-icon-size)',
+            }}
+          />
         </div>
 
-        <p className="truncate text-[clamp(0.625rem,0.58rem_+_0.04vw,0.6875rem)] font-bold tracking-[0.16em] text-content-subtle uppercase">
+        <p className="truncate text-[var(--ui-eyebrow-size)] font-bold tracking-[0.16em] text-content-subtle uppercase">
           {label}
         </p>
       </div>

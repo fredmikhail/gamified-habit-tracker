@@ -211,10 +211,11 @@ function DifficultyIndicator({
   return (
     <div className="min-w-0">
       <p
-        className={['font-medium', compact ? 'text-[10px]' : 'text-xs'].join(
-          ' ',
-        )}
-        style={{ color: difficultyColor }}
+        className={['font-medium', compact ? '' : 'text-xs'].join(' ')}
+        style={{
+          color: difficultyColor,
+          fontSize: compact ? 'var(--ui-list-value-size, 0.625rem)' : undefined,
+        }}
       >
         {formatLabel(difficulty)}
       </p>
@@ -814,14 +815,16 @@ function HabitInspector({
 }: HabitInspectorProps) {
   if (mode === 'create') {
     return (
-      <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface-raised shadow-[var(--theme-panel-shadow)]">
+      <aside className="ui-adaptive-panel flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface-raised shadow-[var(--theme-panel-shadow)]">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-4 py-4">
           <div>
             <p className="text-[9px] font-bold tracking-[0.16em] text-accent uppercase">
               New progression path
             </p>
 
-            <h2 className="mt-1 text-lg font-semibold">Create habit</h2>
+            <h2 className="mt-1 text-[var(--ui-panel-title-size)] font-semibold">
+              Create habit
+            </h2>
           </div>
 
           <button
@@ -847,14 +850,16 @@ function HabitInspector({
 
   if (mode === 'edit' && habit) {
     return (
-      <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface-raised shadow-[var(--theme-panel-shadow)]">
+      <aside className="ui-adaptive-panel flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface-raised shadow-[var(--theme-panel-shadow)]">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-4 py-4">
           <div>
             <p className="text-[9px] font-bold tracking-[0.16em] text-accent uppercase">
               Configuration
             </p>
 
-            <h2 className="mt-1 text-lg font-semibold">Edit habit</h2>
+            <h2 className="mt-1 text-[var(--ui-panel-title-size)] font-semibold">
+              Edit habit
+            </h2>
           </div>
 
           <button
@@ -881,7 +886,7 @@ function HabitInspector({
 
   if (!habit) {
     return (
-      <aside className="grid h-full min-h-64 place-items-center rounded-2xl border border-dashed border-line bg-surface-raised/65 px-6 text-center">
+      <aside className="ui-adaptive-panel grid h-full min-h-64 place-items-center rounded-2xl border border-dashed border-line bg-surface-raised/65 px-6 text-center">
         <div>
           <div className="mx-auto grid size-12 place-items-center rounded-2xl border border-line bg-surface text-content-subtle">
             <Target aria-hidden="true" size={21} />
@@ -919,7 +924,7 @@ function HabitInspector({
 
   return (
     <aside
-      className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface-raised shadow-[var(--theme-panel-shadow)]"
+      className="ui-adaptive-panel flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface-raised shadow-[var(--theme-panel-shadow)]"
       style={inspectorStyle}
     >
       <header className="relative shrink-0 border-b border-line px-4 py-4">
@@ -949,7 +954,7 @@ function HabitInspector({
 
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="truncate text-base font-semibold">
+                <h2 className="truncate text-[var(--ui-panel-title-size)] font-semibold">
                   {habit.name}
                 </h2>
 
@@ -963,7 +968,7 @@ function HabitInspector({
                 </span>
               </div>
 
-              <p className="mt-1 line-clamp-3 text-[10px] leading-4 text-content-muted">
+              <p className="mt-1 line-clamp-3 text-[var(--ui-meta-size)] leading-4 text-content-muted">
                 {habit.description ??
                   'No description has been added for this habit.'}
               </p>
@@ -984,23 +989,29 @@ function HabitInspector({
       <div className="min-h-0 flex-1 overflow-y-auto">
         <dl className="divide-y divide-line px-4">
           <div className="flex items-center justify-between gap-4 py-3">
-            <dt className="text-[10px] text-content-muted">Category</dt>
+            <dt className="text-[var(--ui-meta-size)] text-content-muted">
+              Category
+            </dt>
 
-            <dd className="text-right text-[10px] font-medium">
+            <dd className="text-right text-[var(--ui-meta-size)] font-medium">
               {getHabitCategoryLabel(habit.category)}
             </dd>
           </div>
 
           <div className="flex items-center justify-between gap-4 py-3">
-            <dt className="text-[10px] text-content-muted">Frequency</dt>
+            <dt className="text-[var(--ui-meta-size)] text-content-muted">
+              Frequency
+            </dt>
 
-            <dd className="text-right text-[10px] font-medium">
+            <dd className="text-right text-[var(--ui-meta-size)] font-medium">
               {getFrequencyLabel(habit)}
             </dd>
           </div>
 
           <div className="flex items-center justify-between gap-4 py-3">
-            <dt className="text-[10px] text-content-muted">Difficulty</dt>
+            <dt className="text-[var(--ui-meta-size)] text-content-muted">
+              Difficulty
+            </dt>
 
             <dd>
               <DifficultyIndicator compact difficulty={habit.difficulty} />
@@ -1008,9 +1019,11 @@ function HabitInspector({
           </div>
 
           <div className="flex items-center justify-between gap-4 py-3">
-            <dt className="text-[10px] text-content-muted">Streak</dt>
+            <dt className="text-[var(--ui-meta-size)] text-content-muted">
+              Streak
+            </dt>
 
-            <dd className="flex items-center gap-1.5 text-[10px] font-semibold text-streak">
+            <dd className="flex items-center gap-1.5 text-[var(--ui-meta-size)] font-semibold text-streak">
               <Flame aria-hidden="true" size={13} />
 
               {dashboardHabit
@@ -1022,9 +1035,11 @@ function HabitInspector({
           </div>
 
           <div className="flex items-center justify-between gap-4 py-3">
-            <dt className="text-[10px] text-content-muted">XP reward</dt>
+            <dt className="text-[var(--ui-meta-size)] text-content-muted">
+              XP reward
+            </dt>
 
-            <dd className="flex items-center gap-1.5 text-[10px] font-semibold text-energy-blue">
+            <dd className="flex items-center gap-1.5 text-[var(--ui-meta-size)] font-semibold text-energy-blue">
               <Zap aria-hidden="true" size={13} />
 
               {rewardTotal > 0 ? `+${rewardTotal} XP` : '—'}
@@ -1065,7 +1080,7 @@ function HabitInspector({
         )}
 
         <section className="px-4 py-4">
-          <p className="text-[9px] font-bold tracking-[0.14em] text-content-subtle uppercase">
+          <p className="text-[var(--ui-eyebrow-size)] font-bold tracking-[0.14em] text-content-subtle uppercase">
             Attribute rewards preview
           </p>
 
@@ -1099,7 +1114,7 @@ function HabitInspector({
                       <visual.Icon aria-hidden="true" size={15} />
                     </div>
 
-                    <p className="mt-2 truncate text-[10px] font-semibold">
+                    <p className="mt-2 truncate text-[var(--ui-body-size)] font-semibold">
                       {visual.label}
                     </p>
 
@@ -1437,12 +1452,11 @@ export function HabitList({
 
   const rangeEnd = Math.min(currentPage * pageSize, filteredHabits.length)
 
-  const tableGridClassName =
-    'grid min-w-0 grid-cols-[minmax(12rem,2fr)_5.5rem_5.5rem_5rem] items-center gap-3 min-[1500px]:grid-cols-[minmax(13rem,2fr)_8rem_5.5rem_5.5rem_4.75rem_5.5rem]'
+  const tableGridClassName = 'habit-table-grid grid min-w-0 items-center'
 
   return (
     <div className="grid h-full min-h-0 min-w-0 gap-3 xl:grid-cols-[minmax(0,1fr)_clamp(19rem,22vw,23rem)]">
-      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface-raised shadow-[var(--theme-panel-shadow)]">
+      <section className="ui-adaptive-panel flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface-raised shadow-[var(--theme-panel-shadow)]">
         <div className="flex shrink-0 flex-col gap-3 border-b border-line p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div
@@ -1618,35 +1632,38 @@ export function HabitList({
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col p-2">
+        <div className="ui-adaptive-list flex min-h-0 flex-1 flex-col p-2">
           <div className="flex shrink-0 items-center border-b border-line px-2 py-2">
-            <div className={`${tableGridClassName} min-w-0 flex-1`}>
-              <span className="text-[8px] font-bold tracking-[0.12em] text-content-subtle uppercase">
+            <div
+              className={`${tableGridClassName} min-w-0 flex-1 px-3`}
+              data-testid="habit-table-header-grid"
+            >
+              <span className="text-[var(--ui-table-header-size)] font-bold tracking-[0.12em] text-content-subtle uppercase">
                 Habit
               </span>
 
-              <span className="hidden text-[8px] font-bold tracking-[0.12em] text-content-subtle uppercase min-[1500px]:block">
+              <span className="habit-category-column text-center text-[var(--ui-table-header-size)] font-bold tracking-[0.12em] text-content-subtle uppercase">
                 Category
               </span>
 
-              <span className="text-[8px] font-bold tracking-[0.12em] text-content-subtle uppercase">
+              <span className="text-center text-[var(--ui-table-header-size)] font-bold tracking-[0.12em] text-content-subtle uppercase">
                 Frequency
               </span>
 
-              <span className="text-[8px] font-bold tracking-[0.12em] text-content-subtle uppercase">
+              <span className="text-center text-[var(--ui-table-header-size)] font-bold tracking-[0.12em] text-content-subtle uppercase">
                 Difficulty
               </span>
 
-              <span className="hidden text-[8px] font-bold tracking-[0.12em] text-content-subtle uppercase min-[1500px]:block">
+              <span className="habit-streak-column text-center text-[var(--ui-table-header-size)] font-bold tracking-[0.12em] text-content-subtle uppercase">
                 Streak
               </span>
 
-              <span className="text-[8px] font-bold tracking-[0.12em] text-content-subtle uppercase">
+              <span className="text-center text-[var(--ui-table-header-size)] font-bold tracking-[0.12em] text-content-subtle uppercase">
                 XP reward
               </span>
             </div>
 
-            <span className="w-[3.25rem] shrink-0 text-center text-[8px] font-bold tracking-[0.12em] text-content-subtle uppercase">
+            <span className="w-[3.25rem] shrink-0 text-center text-[var(--ui-table-header-size)] font-bold tracking-[0.12em] text-content-subtle uppercase">
               Today
             </span>
           </div>
@@ -1706,151 +1723,179 @@ export function HabitList({
             )}
 
           {!errorMessage && visibleHabits.length > 0 && (
-            <ul className="grid min-h-0 flex-1 auto-rows-fr gap-1.5 py-1.5">
-              {visibleHabits.map((habit) => {
-                const dashboardHabit = dashboardHabitById.get(habit.id)
+            <div
+              className="min-h-0 flex-1 overflow-hidden"
+              data-testid="habit-list-rows-viewport"
+            >
+              <ul
+                className="grid h-full min-h-0 content-start auto-rows-[var(--ui-list-row-height)] gap-[0.3125rem] py-1"
+                data-testid="habit-row-list"
+              >
+                {visibleHabits.map((habit) => {
+                  const dashboardHabit = dashboardHabitById.get(habit.id)
 
-                const primaryReward = dashboardHabit?.attributeRewards[0]
+                  const primaryReward = dashboardHabit?.attributeRewards[0]
 
-                const visual = primaryReward
-                  ? getAttributeVisual(primaryReward.attributeType)
-                  : null
+                  const visual = primaryReward
+                    ? getAttributeVisual(primaryReward.attributeType)
+                    : null
 
-                const HabitIcon: LucideIcon =
-                  visual?.Icon ??
-                  (habit.frequencyType === 'daily' ? CalendarDays : Repeat2)
+                  const HabitIcon: LucideIcon =
+                    visual?.Icon ??
+                    (habit.frequencyType === 'daily' ? CalendarDays : Repeat2)
 
-                const accentColor =
-                  visual?.colorVariable ?? getDifficultyColor(habit.difficulty)
+                  const accentColor =
+                    visual?.colorVariable ??
+                    getDifficultyColor(habit.difficulty)
 
-                const isSelected =
-                  habit.id === selectedHabitId && inspectorMode === 'details'
+                  const isSelected =
+                    habit.id === selectedHabitId && inspectorMode === 'details'
 
-                const rowStyle = {
-                  '--row-accent': accentColor,
-                  borderColor: isSelected
-                    ? 'color-mix(in srgb, var(--theme-accent-primary) 78%, var(--theme-border))'
-                    : 'var(--theme-border)',
-                  backgroundImage: isSelected
-                    ? 'linear-gradient(90deg, color-mix(in srgb, var(--theme-accent-primary) 9%, transparent), transparent 72%)'
-                    : 'none',
-                  boxShadow: isSelected
-                    ? '0 0 18px color-mix(in srgb, var(--theme-accent-primary) 14%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--theme-accent-primary) 20%, transparent)'
-                    : 'none',
-                } as CSSProperties
+                  const rowStyle = {
+                    '--row-accent': accentColor,
+                    borderColor: isSelected
+                      ? 'color-mix(in srgb, var(--theme-accent-primary) 78%, var(--theme-border))'
+                      : 'var(--theme-border)',
+                    backgroundImage: isSelected
+                      ? 'linear-gradient(90deg, color-mix(in srgb, var(--theme-accent-primary) 9%, transparent), transparent 72%)'
+                      : 'none',
+                    boxShadow: isSelected
+                      ? '0 0 18px color-mix(in srgb, var(--theme-accent-primary) 14%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--theme-accent-primary) 20%, transparent)'
+                      : 'none',
+                  } as CSSProperties
 
-                return (
-                  <li
-                    className="flex h-full min-h-[4.25rem] min-w-0 overflow-visible rounded-xl border bg-surface transition-colors"
-                    key={habit.id}
-                    style={rowStyle}
-                  >
-                    <button
-                      aria-pressed={isSelected}
-                      className={`${tableGridClassName} min-w-0 flex-1 px-3 text-left outline-none transition hover:bg-surface-hover/60`}
-                      type="button"
-                      onClick={() => {
-                        setSelectedHabitId(habit.id)
-                        setInspectorMode('details')
-                      }}
+                  return (
+                    <li
+                      className="flex h-full min-h-0 min-w-0 overflow-visible rounded-xl border bg-surface transition-colors"
+                      key={habit.id}
+                      style={rowStyle}
                     >
-                      <div className="flex min-w-0 items-center gap-2.5">
-                        <div
-                          className="grid size-9 shrink-0 place-items-center rounded-xl border"
-                          style={{
-                            borderColor:
-                              'color-mix(in srgb, var(--row-accent) 38%, transparent)',
-                            backgroundColor:
-                              'color-mix(in srgb, var(--row-accent) 11%, transparent)',
-                            color: 'var(--row-accent)',
-                          }}
-                        >
-                          <HabitIcon aria-hidden="true" size={16} />
+                      <button
+                        aria-pressed={isSelected}
+                        className={`${tableGridClassName} min-w-0 flex-1 px-3 text-left outline-none transition hover:bg-surface-hover/60`}
+                        type="button"
+                        onClick={() => {
+                          setSelectedHabitId(habit.id)
+                          setInspectorMode('details')
+                        }}
+                      >
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <div
+                            className="grid size-[var(--ui-list-icon-box-size)] shrink-0 place-items-center rounded-xl border"
+                            style={{
+                              borderColor:
+                                'color-mix(in srgb, var(--row-accent) 38%, transparent)',
+                              backgroundColor:
+                                'color-mix(in srgb, var(--row-accent) 11%, transparent)',
+                              color: 'var(--row-accent)',
+                            }}
+                          >
+                            <HabitIcon
+                              aria-hidden="true"
+                              style={{
+                                width: 'var(--ui-list-icon-size)',
+                                height: 'var(--ui-list-icon-size)',
+                              }}
+                            />
+                          </div>
+
+                          <div className="min-w-0">
+                            <h3 className="truncate text-[var(--ui-list-title-size)] font-semibold">
+                              {habit.name}
+                            </h3>
+
+                            <p className="mt-0.5 truncate text-[var(--ui-list-meta-size)] text-content-subtle">
+                              {habit.description ?? 'No description'}
+                            </p>
+                          </div>
                         </div>
 
-                        <div className="min-w-0">
-                          <h3 className="truncate text-xs font-semibold">
-                            {habit.name}
-                          </h3>
+                        <div className="habit-category-column min-w-0 text-center">
+                          <p
+                            className="truncate text-[var(--ui-list-value-size)] text-content-muted"
+                            title={getHabitCategoryLabel(habit.category)}
+                          >
+                            {getHabitCategoryLabel(habit.category)}
+                          </p>
 
-                          <p className="mt-0.5 truncate text-[9px] text-content-subtle">
-                            {habit.description ?? 'No description'}
+                          <span className="sr-only">
+                            Category: {getHabitCategoryLabel(habit.category)}
+                          </span>
+                        </div>
+
+                        <div className="text-center">
+                          <p className="text-[var(--ui-list-value-size)] text-content-muted">
+                            {getFrequencyLabel(habit)}
+                          </p>
+
+                          <span className="sr-only">
+                            Frequency:{' '}
+                            {habit.frequencyType === 'daily'
+                              ? 'Daily'
+                              : `${habit.targetCount} times per week`}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-center text-center">
+                          <DifficultyIndicator
+                            compact
+                            difficulty={habit.difficulty}
+                          />
+                        </div>
+
+                        <div className="habit-streak-column text-center">
+                          <p className="text-[clamp(0.875rem,0.8rem_+_0.18cqi,1rem)] font-bold text-streak">
+                            {dashboardHabit?.currentStreak ?? '—'}
+                          </p>
+
+                          <p className="text-[var(--ui-list-meta-size)] text-content-subtle">
+                            {getStreakUnit(habit.frequencyType)}
                           </p>
                         </div>
+
+                        <div className="flex items-center justify-center gap-1 text-center text-[var(--ui-list-value-size)] font-semibold text-energy-blue">
+                          <Zap aria-hidden="true" size={12} />
+
+                          {dashboardHabit
+                            ? `+${getRewardTotal(dashboardHabit)} XP`
+                            : '—'}
+                        </div>
+                      </button>
+
+                      <div className="grid w-[3.25rem] shrink-0 place-items-center">
+                        {habit.isActive ? (
+                          <CompletionControl
+                            habit={habit}
+                            variant="circle"
+                            onCompletionStatusChanged={
+                              handleCompletionStatusChanged
+                            }
+                            onProgressChanged={onProgressChanged}
+                          />
+                        ) : (
+                          <CircleOff
+                            aria-label="Inactive habit"
+                            className="text-content-subtle"
+                            size={17}
+                          />
+                        )}
                       </div>
-
-                      <div className="hidden min-w-0 min-[1500px]:block">
-                        <p className="truncate text-[10px] text-content-muted">
-                          {getHabitCategoryLabel(habit.category)}
-                        </p>
-
-                        <span className="sr-only">
-                          Category: {getHabitCategoryLabel(habit.category)}
-                        </span>
-                      </div>
-
-                      <div>
-                        <p className="text-[10px] text-content-muted">
-                          {getFrequencyLabel(habit)}
-                        </p>
-
-                        <span className="sr-only">
-                          Frequency:{' '}
-                          {habit.frequencyType === 'daily'
-                            ? 'Daily'
-                            : `${habit.targetCount} times per week`}
-                        </span>
-                      </div>
-
-                      <DifficultyIndicator
-                        compact
-                        difficulty={habit.difficulty}
-                      />
-
-                      <div className="hidden min-[1500px]:block">
-                        <p className="text-sm font-bold text-streak">
-                          {dashboardHabit?.currentStreak ?? '—'}
-                        </p>
-
-                        <p className="text-[8px] text-content-subtle">
-                          {getStreakUnit(habit.frequencyType)}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-1 text-[10px] font-semibold text-energy-blue">
-                        <Zap aria-hidden="true" size={12} />
-
-                        {dashboardHabit
-                          ? `+${getRewardTotal(dashboardHabit)} XP`
-                          : '—'}
-                      </div>
-                    </button>
-
-                    <div className="grid w-[3.25rem] shrink-0 place-items-center">
-                      {habit.isActive ? (
-                        <CompletionControl
-                          habit={habit}
-                          variant="circle"
-                          onCompletionStatusChanged={
-                            handleCompletionStatusChanged
-                          }
-                          onProgressChanged={onProgressChanged}
-                        />
-                      ) : (
-                        <CircleOff
-                          aria-label="Inactive habit"
-                          className="text-content-subtle"
-                          size={17}
-                        />
-                      )}
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
           )}
 
-          <footer className="flex min-h-10 shrink-0 items-center justify-between gap-3 border-t border-line px-2 pt-2">
+          <footer
+            className="relative z-10 mt-1 flex min-h-10 shrink-0 items-center justify-between gap-3 bg-surface-raised px-2 pt-2"
+            data-testid="habit-list-footer"
+          >
+            <span
+              aria-hidden="true"
+              className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/45 to-transparent shadow-[0_0_10px_color-mix(in_srgb,var(--theme-accent-primary)_24%,transparent)]"
+            />
+
             <p className="text-[9px] text-content-subtle">
               {rangeStart}–{rangeEnd} of {filteredHabits.length}{' '}
               {filteredHabits.length === 1 ? 'habit' : 'habits'}
