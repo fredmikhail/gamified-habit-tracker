@@ -141,20 +141,25 @@ export function AttributeCard({
   if (compact) {
     return (
       <article
-        className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-surface p-[clamp(0.625rem,0.55rem_+_0.08vw,0.8rem)]"
+        className="relative flex h-full min-h-[6.5rem] flex-col overflow-hidden rounded-xl border bg-surface"
         data-attribute-type={attribute.attributeType}
+        data-testid="compact-attribute-card"
         style={{
           ...style,
+          containerType: 'inline-size',
+          padding: 'clamp(0.5rem, 5.5cqi, 0.75rem)',
           borderColor:
             'color-mix(in srgb, var(--attribute-accent) 34%, var(--theme-border))',
           backgroundImage:
             'linear-gradient(145deg, color-mix(in srgb, var(--attribute-accent) 9%, transparent), transparent 62%)',
         }}
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center justify-between gap-1.5">
           <div
-            className="grid size-[clamp(2rem,1.65rem_+_0.45vw,2.375rem)] shrink-0 place-items-center rounded-lg border"
+            className="grid shrink-0 place-items-center rounded-lg border"
             style={{
+              width: 'clamp(1.75rem, 18cqi, 2.25rem)',
+              height: 'clamp(1.75rem, 18cqi, 2.25rem)',
               borderColor:
                 'color-mix(in srgb, var(--attribute-accent) 42%, transparent)',
               backgroundColor:
@@ -166,15 +171,16 @@ export function AttributeCard({
               aria-hidden="true"
               strokeWidth={1.9}
               style={{
-                width: 'clamp(0.9375rem, 0.55rem + 0.45vw, 1.125rem)',
-                height: 'clamp(0.9375rem, 0.55rem + 0.45vw, 1.125rem)',
+                width: 'clamp(0.8125rem, 8cqi, 1rem)',
+                height: 'clamp(0.8125rem, 8cqi, 1rem)',
               }}
             />
           </div>
 
           <span
-            className="shrink-0 rounded-md border px-1.5 py-0.5 text-[clamp(0.5625rem,0.48rem_+_0.08vw,0.6875rem)] font-bold"
+            className="shrink-0 rounded-md border px-1.5 py-0.5 font-bold"
             style={{
+              fontSize: 'clamp(0.5rem, 4.7cqi, 0.625rem)',
               borderColor:
                 'color-mix(in srgb, var(--attribute-accent) 38%, transparent)',
               backgroundColor:
@@ -186,17 +192,36 @@ export function AttributeCard({
           </span>
         </div>
 
-        <h3 className="mt-1.5 truncate text-[clamp(0.75rem,0.61rem_+_0.18vw,0.875rem)] leading-4 font-semibold">
+        <h3
+          className="min-w-0 whitespace-nowrap font-semibold"
+          style={{
+            marginTop: 'clamp(0.25rem, 2.6cqi, 0.45rem)',
+            fontSize: 'clamp(0.6875rem, 6.8cqi, 0.8125rem)',
+            lineHeight: 1.1,
+          }}
+        >
           {visual.label}
         </h3>
 
-        <div className="mt-auto pt-1.5">
-          <div className="flex items-center justify-between gap-2 text-[clamp(0.625rem,0.5rem_+_0.16vw,0.75rem)] font-medium">
-            <span className="text-content-muted">
+        <div
+          className="mt-auto min-h-0"
+          style={{ paddingTop: 'clamp(0.25rem, 2.6cqi, 0.45rem)' }}
+        >
+          <div
+            className="flex items-center justify-between gap-1.5 font-medium"
+            style={{
+              fontSize: 'clamp(0.5625rem, 5.5cqi, 0.6875rem)',
+              lineHeight: 1.1,
+            }}
+          >
+            <span className="truncate text-content-muted">
               {attribute.currentXp.toLocaleString()} XP
             </span>
 
-            <span style={{ color: 'var(--attribute-accent)' }}>
+            <span
+              className="shrink-0"
+              style={{ color: 'var(--attribute-accent)' }}
+            >
               {Math.round(progressPercentage)}%
             </span>
           </div>
@@ -206,8 +231,11 @@ export function AttributeCard({
             aria-valuemax={attribute.xpNeededForNextLevel}
             aria-valuemin={0}
             aria-valuenow={attribute.xpIntoCurrentLevel}
-            className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-muted"
+            className="h-1.5 overflow-hidden rounded-full bg-surface-muted"
             role="progressbar"
+            style={{
+              marginTop: 'clamp(0.25rem, 2.4cqi, 0.4rem)',
+            }}
           >
             <div
               className="h-full rounded-full"
@@ -220,7 +248,14 @@ export function AttributeCard({
             />
           </div>
 
-          <p className="mt-1 truncate text-[clamp(0.5625rem,0.46rem_+_0.13vw,0.6875rem)] text-content-subtle">
+          <p
+            className="truncate text-content-subtle"
+            style={{
+              marginTop: 'clamp(0.1875rem, 1.8cqi, 0.3rem)',
+              fontSize: 'clamp(0.5rem, 4.6cqi, 0.625rem)',
+              lineHeight: 1.1,
+            }}
+          >
             {attribute.xpIntoCurrentLevel} / {attribute.xpNeededForNextLevel}{' '}
             toward next level
           </p>

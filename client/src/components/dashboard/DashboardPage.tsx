@@ -6,8 +6,6 @@ import {
   PieChart,
   Shield,
   Sparkles,
-  Target,
-  Zap,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -19,7 +17,6 @@ import {
 } from 'react'
 import type { DashboardHabitResponse } from '../../types/DashboardHabitResponse'
 import type { DashboardResponse } from '../../types/DashboardResponse'
-import type { HabitStreakResponse } from '../../types/HabitStreakResponse'
 import { useWorkspaceData } from '../../workspace/useWorkspaceData'
 import { AttributeCard } from '../attributes/AttributeCard'
 import {
@@ -28,8 +25,8 @@ import {
 } from '../attributes/attributeVisuals'
 import { getHabitCategoryLabel } from '../habits/habitCategoryOptions'
 import { CommandPanel } from '../ui/CommandPanel'
-import { MetricPanel } from '../ui/MetricPanel'
 import { DashboardHabitAction } from './DashboardHabitAction'
+import { DashboardSummaryRail } from './DashboardSummaryRail'
 
 type MobilePanel = 'summary' | 'today' | 'attributes'
 
@@ -147,31 +144,10 @@ function formatFrequency(habit: DashboardHabitResponse): string {
     : `${habit.targetCount}× weekly`
 }
 
-function formatStreak(habitStreak: HabitStreakResponse): string {
-  const unit = habitStreak.frequencyType === 'daily' ? 'day' : 'week'
-
-  return `${habitStreak.currentStreak} ${
-    habitStreak.currentStreak === 1 ? unit : `${unit}s`
-  }`
-}
-
 function getRewardTotal(habit: DashboardHabitResponse): number {
   return habit.attributeRewards.reduce(
     (total, reward) => total + reward.xpAmount,
     0,
-  )
-}
-
-function getFeaturedStreak(
-  dashboard: DashboardResponse,
-): HabitStreakResponse | null {
-  return (
-    [...dashboard.habitStreaks].sort(
-      (first, second) =>
-        second.currentStreak - first.currentStreak ||
-        second.longestStreak - first.longestStreak ||
-        first.habitName.localeCompare(second.habitName),
-    )[0] ?? null
   )
 }
 
@@ -259,143 +235,6 @@ function PageControls({
       >
         ›
       </button>
-    </div>
-  )
-}
-
-function SummaryMetrics({ dashboard }: { dashboard: DashboardResponse }) {
-  const executionPercentage = getPercentage(
-    dashboard.todayExecution.completedDailyHabits,
-    dashboard.todayExecution.totalDailyHabits,
-  )
-
-  const levelPercentage = getPercentage(
-    dashboard.overallProgress.xpIntoCurrentLevel,
-    dashboard.overallProgress.xpNeededForNextLevel,
-  )
-
-  const featuredStreak = getFeaturedStreak(dashboard)
-
-  return (
-    <div className="grid h-full min-h-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-[1.15fr_1fr_0.9fr_0.8fr_1.35fr]">
-      <MetricPanel
-        Icon={CircleGauge}
-        accentVariable="var(--theme-success)"
-        label="Today's summary"
-      >
-        <div className="flex items-center gap-3">
-          <div
-            aria-label={`${Math.round(
-              executionPercentage,
-            )}% of daily habits completed`}
-            className="grid size-[clamp(3.5rem,3.2rem_+_0.3vw,4rem)] shrink-0 place-items-center rounded-full p-1"
-            role="img"
-            style={{
-              background: `conic-gradient(var(--theme-success) ${executionPercentage}%, var(--theme-surface-muted) 0)`,
-            }}
-          >
-            <div className="grid size-full place-items-center rounded-full bg-surface-raised">
-              <span className="text-[clamp(0.875rem,0.8rem_+_0.08vw,1rem)] font-bold">
-                {Math.round(executionPercentage)}%
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <p className="text-[clamp(1.25rem,1.08rem_+_0.2vw,1.625rem)] font-bold">
-              {dashboard.todayExecution.completedDailyHabits}{' '}
-              <span className="text-xs font-medium text-content-muted">
-                of {dashboard.todayExecution.totalDailyHabits}
-              </span>
-            </p>
-
-            <p className="mt-1 text-[10px] text-content-subtle">
-              daily habits completed
-            </p>
-          </div>
-        </div>
-      </MetricPanel>
-
-      <MetricPanel
-        Icon={Flame}
-        accentVariable="var(--theme-streak)"
-        label="Current streak"
-      >
-        <p className="text-[clamp(1.5rem,1.28rem_+_0.25vw,1.875rem)] font-bold">
-          {featuredStreak ? formatStreak(featuredStreak) : '0 days'}
-        </p>
-
-        <p className="mt-1 truncate text-[10px] text-content-muted">
-          {featuredStreak
-            ? featuredStreak.habitName
-            : 'Complete habits to begin'}
-        </p>
-      </MetricPanel>
-
-      <MetricPanel
-        Icon={Zap}
-        accentVariable="var(--theme-energy-violet)"
-        label="XP today"
-      >
-        <p className="text-[clamp(1.5rem,1.28rem_+_0.25vw,1.875rem)] font-bold">
-          {dashboard.todayActivity.xpEarned}
-        </p>
-
-        <p className="mt-1 text-[10px] text-success">
-          {dashboard.todayActivity.completions} completions
-        </p>
-      </MetricPanel>
-
-      <MetricPanel
-        Icon={Shield}
-        accentVariable="var(--theme-energy-cyan)"
-        label="Total level"
-      >
-        <p className="text-[clamp(1.875rem,1.55rem_+_0.35vw,2.25rem)] font-black">
-          {dashboard.overallProgress.level}
-        </p>
-
-        <p className="mt-1 text-[10px] text-content-muted">
-          {dashboard.overallProgress.totalXp} total XP
-        </p>
-      </MetricPanel>
-
-      <MetricPanel
-        Icon={Target}
-        accentVariable="var(--theme-accent-primary)"
-        label="Next level"
-      >
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="text-[clamp(1rem,0.9rem_+_0.1vw,1.125rem)] font-bold">
-            {dashboard.overallProgress.xpIntoCurrentLevel}
-          </p>
-
-          <p className="text-[10px] text-content-muted">
-            / {dashboard.overallProgress.xpNeededForNextLevel} XP
-          </p>
-        </div>
-
-        <div
-          aria-label="Overall level progress"
-          aria-valuemax={dashboard.overallProgress.xpNeededForNextLevel}
-          aria-valuemin={0}
-          aria-valuenow={dashboard.overallProgress.xpIntoCurrentLevel}
-          className="mt-3 h-2 overflow-hidden rounded-full bg-surface-muted"
-          role="progressbar"
-        >
-          <div
-            className="h-full rounded-full"
-            style={{
-              width: `${levelPercentage}%`,
-              background: 'var(--theme-progress-gradient)',
-            }}
-          />
-        </div>
-
-        <p className="mt-1.5 text-right text-[9px] text-content-subtle">
-          {Math.round(levelPercentage)}%
-        </p>
-      </MetricPanel>
     </div>
   )
 }
@@ -1113,15 +952,15 @@ export function DashboardPage() {
       )}
 
       {dashboard && (
-        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden xl:grid-cols-[minmax(0,1.45fr)_minmax(24rem,0.9fr)] xl:grid-rows-[8rem_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden xl:grid-cols-[minmax(0,1.45fr)_minmax(24rem,0.9fr)] xl:grid-rows-[auto_minmax(0,1fr)]">
           <div
             className={`${getMobilePanelClass(
               'summary',
               activePanel,
-            )} xl:col-span-2`}
+            )} h-[clamp(8rem,11vh,9.5rem)] xl:col-span-2`}
             data-testid="dashboard-summary-panel"
           >
-            <SummaryMetrics dashboard={dashboard} />
+            <DashboardSummaryRail dashboard={dashboard} />
           </div>
 
           <div
