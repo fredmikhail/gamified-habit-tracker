@@ -1070,6 +1070,286 @@ secondaryReward =>
             response.StatusCode);
     }
 
+
+    [Fact]
+    public async Task ActivateHabit_WhenAnonymous_ReturnsUnauthorized()
+    {
+        using var client = CreateClient();
+
+        var response =
+            await PostActivateHabitAsync(
+                client,
+                Guid.CreateVersion7());
+
+        Assert.Equal(
+            HttpStatusCode.Unauthorized,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ActivateHabit_WithoutCsrfToken_ReturnsBadRequest()
+    {
+        using var client = CreateClient();
+
+        var registration =
+            await RegisterAsync(client);
+
+        var habit =
+            await SeedHabitAsync(
+                registration.User.Id,
+                "Inactive habit",
+                DateTime.UtcNow.AddDays(-1),
+                isActive: false);
+
+        var response =
+            await PostActivateHabitAsync(
+                client,
+                habit.Id);
+
+        Assert.Equal(
+            HttpStatusCode.BadRequest,
+            response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ActivateHabit_WhenOwnedHabitIsInactive_ActivatesAndUpdatesListVisibility()
+    {
+        using var client = CreateClient();
+
+        var registration =
+            await RegisterAsync(client);
+
+        var createdAtUtc =
+            DateTime.UtcNow.AddDays(-2);
+
+        var habit =
+            await SeedHabitAsync(
+                registration.User.Id,
+                "Inactive habit",
+                createdAtUtc,
+                isActive: false);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(client);
+
+        var response =
+            await PostActivateHabitAsync(
+                client,
+                habit.Id,
+                csrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            response.StatusCode);
+
+        var responseBody =
+            await response.Content
+                .ReadFromJsonAsync<HabitResponse>(
+                    _jsonOptions);
+
+        Assert.NotNull(responseBody);
+
+        Assert.Equal(
+            habit.Id,
+            responseBody.Id);
+
+        Assert.True(
+            responseBody.IsActive);
+
+        Assert.Equal(
+            createdAtUtc,
+            responseBody.CreatedAtUtc);
+
+        Assert.True(
+            responseBody.UpdatedAtUtc
+                > createdAtUtc);
+
+        var activeListResponse =
+            await client.GetAsync(
+                "/api/habits");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            activeListResponse.StatusCode);
+
+        var activeHabits =
+            await activeListResponse.Content
+                .ReadFromJsonAsync<List<HabitResponse>>(
+                    _jsonOptions);
+
+        Assert.NotNull(activeHabits);
+
+        var activeHabit =
+            Assert.Single(
+                activeHabits,
+                listedHabit =>
+                    listedHabit.Id == habit.Id);
+
+        Assert.True(
+            activeHabit.IsActive);
+
+        var completeListResponse =
+            await client.GetAsync(
+                "/api/habits?includeInactive=true");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            completeListResponse.StatusCode);
+
+        var completeHabits =
+            await completeListResponse.Content
+                .ReadFromJsonAsync<List<HabitResponse>>(
+                    _jsonOptions);
+
+        Assert.NotNull(completeHabits);
+
+        var listedHabit =
+            Assert.Single(
+                completeHabits,
+                responseHabit =>
+                    responseHabit.Id == habit.Id);
+
+        Assert.True(
+            listedHabit.IsActive);
+
+        var getResponse =
+            await client.GetAsync(
+                $"/api/habits/{habit.Id}");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            getResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task ActivateHabit_WhenCalledTwice_PreservesTimestampOnSecondRequest()
+    {
+        using var client = CreateClient();
+
+        var registration =
+            await RegisterAsync(client);
+
+        var habit =
+            await SeedHabitAsync(
+                registration.User.Id,
+                "Inactive habit",
+                DateTime.UtcNow.AddDays(-1),
+                isActive: false);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(client);
+
+        var firstResponse =
+            await PostActivateHabitAsync(
+                client,
+                habit.Id,
+                csrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            firstResponse.StatusCode);
+
+        var firstResponseBody =
+            await firstResponse.Content
+                .ReadFromJsonAsync<HabitResponse>(
+                    _jsonOptions);
+
+        Assert.NotNull(firstResponseBody);
+        Assert.True(firstResponseBody.IsActive);
+
+        var secondResponse =
+            await PostActivateHabitAsync(
+                client,
+                habit.Id,
+                csrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            secondResponse.StatusCode);
+
+        var secondResponseBody =
+            await secondResponse.Content
+                .ReadFromJsonAsync<HabitResponse>(
+                    _jsonOptions);
+
+        Assert.NotNull(secondResponseBody);
+        Assert.True(secondResponseBody.IsActive);
+
+        Assert.Equal(
+            firstResponseBody.UpdatedAtUtc,
+            secondResponseBody.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public async Task ActivateHabit_WhenHabitBelongsToAnotherUser_ReturnsNotFoundAndDoesNotModifyHabit()
+    {
+        using var ownerClient = CreateClient();
+        using var requestingClient = CreateClient();
+
+        var ownerRegistration =
+            await RegisterAsync(ownerClient);
+
+        await RegisterAsync(requestingClient);
+
+        var habit =
+            await SeedHabitAsync(
+                ownerRegistration.User.Id,
+                "Private inactive habit",
+                DateTime.UtcNow.AddDays(-1),
+                isActive: false);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(
+                requestingClient);
+
+        var response =
+            await PostActivateHabitAsync(
+                requestingClient,
+                habit.Id,
+                csrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+
+        var ownerResponse =
+            await ownerClient.GetAsync(
+                $"/api/habits/{habit.Id}");
+
+        Assert.Equal(
+            HttpStatusCode.OK,
+            ownerResponse.StatusCode);
+
+        var unchangedHabit =
+            await ownerResponse.Content
+                .ReadFromJsonAsync<HabitResponse>(
+                    _jsonOptions);
+
+        Assert.NotNull(unchangedHabit);
+        Assert.False(unchangedHabit.IsActive);
+    }
+
+    [Fact]
+    public async Task ActivateHabit_WhenHabitDoesNotExist_ReturnsNotFound()
+    {
+        using var client = CreateClient();
+
+        await RegisterAsync(client);
+
+        var csrfToken =
+            await GetCsrfTokenAsync(client);
+
+        var response =
+            await PostActivateHabitAsync(
+                client,
+                Guid.CreateVersion7(),
+                csrfToken);
+
+        Assert.Equal(
+            HttpStatusCode.NotFound,
+            response.StatusCode);
+    }
+
     [Fact]
     public async Task DeactivateHabit_WhenAnonymous_ReturnsUnauthorized()
     {
@@ -1343,6 +1623,28 @@ secondaryReward =>
         Assert.Equal(
             HttpStatusCode.NotFound,
             response.StatusCode);
+    }
+
+
+    private static async Task<HttpResponseMessage> PostActivateHabitAsync(
+        HttpClient client,
+        Guid habitId,
+        string? csrfToken = null)
+    {
+        using var request =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                $"/api/habits/{habitId}/activate");
+
+        if (!string.IsNullOrWhiteSpace(
+            csrfToken))
+        {
+            request.Headers.Add(
+                "X-CSRF-TOKEN",
+                csrfToken);
+        }
+
+        return await client.SendAsync(request);
     }
 
     private static async Task<HttpResponseMessage> DeleteHabitAsync(

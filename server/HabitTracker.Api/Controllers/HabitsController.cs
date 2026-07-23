@@ -28,8 +28,8 @@ public sealed class HabitsController : ControllerBase
                 ClaimTypes.NameIdentifier);
 
         if (!Guid.TryParse(
-            userIdValue,
-            out var userId))
+                userIdValue,
+                out var userId))
         {
             return Unauthorized();
         }
@@ -47,16 +47,16 @@ public sealed class HabitsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<HabitResponse>>> GetUserHabitsAsync(
-    [FromQuery] bool includeInactive = false,
-    CancellationToken cancellationToken = default)
+        [FromQuery] bool includeInactive = false,
+        CancellationToken cancellationToken = default)
     {
         var userIdValue =
             User.FindFirstValue(
                 ClaimTypes.NameIdentifier);
 
         if (!Guid.TryParse(
-            userIdValue,
-            out var userId))
+                userIdValue,
+                out var userId))
         {
             return Unauthorized();
         }
@@ -80,8 +80,8 @@ public sealed class HabitsController : ControllerBase
                 ClaimTypes.NameIdentifier);
 
         if (!Guid.TryParse(
-            userIdValue,
-            out var userId))
+                userIdValue,
+                out var userId))
         {
             return Unauthorized();
         }
@@ -102,17 +102,17 @@ public sealed class HabitsController : ControllerBase
 
     [HttpPut("{habitId:guid}")]
     public async Task<ActionResult<HabitResponse>> UpdateHabitAsync(
-    Guid habitId,
-    UpdateHabitRequest request,
-    CancellationToken cancellationToken)
+        Guid habitId,
+        UpdateHabitRequest request,
+        CancellationToken cancellationToken)
     {
         var userIdValue =
             User.FindFirstValue(
                 ClaimTypes.NameIdentifier);
 
         if (!Guid.TryParse(
-            userIdValue,
-            out var userId))
+                userIdValue,
+                out var userId))
         {
             return Unauthorized();
         }
@@ -132,18 +132,48 @@ public sealed class HabitsController : ControllerBase
         return Ok(habit);
     }
 
-    [HttpDelete("{habitId:guid}")]
-    public async Task<ActionResult<HabitResponse>> DeactivateHabitAsync(
-    Guid habitId,
-    CancellationToken cancellationToken)
+    [HttpPost("{habitId:guid}/activate")]
+    public async Task<ActionResult<HabitResponse>> ActivateHabitAsync(
+        Guid habitId,
+        CancellationToken cancellationToken)
     {
         var userIdValue =
             User.FindFirstValue(
                 ClaimTypes.NameIdentifier);
 
         if (!Guid.TryParse(
-            userIdValue,
-            out var userId))
+                userIdValue,
+                out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var habit =
+            await _habitService.ActivateHabitAsync(
+                userId,
+                habitId,
+                cancellationToken);
+
+        if (habit is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(habit);
+    }
+
+    [HttpDelete("{habitId:guid}")]
+    public async Task<ActionResult<HabitResponse>> DeactivateHabitAsync(
+        Guid habitId,
+        CancellationToken cancellationToken)
+    {
+        var userIdValue =
+            User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(
+                userIdValue,
+                out var userId))
         {
             return Unauthorized();
         }

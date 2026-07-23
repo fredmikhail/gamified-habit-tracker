@@ -331,6 +331,58 @@ public sealed class HabitService
             isCompletedToday,
             localDate);
     }
+
+    public async Task<HabitResponse?> ActivateHabitAsync(
+    Guid userId,
+    Guid habitId,
+    CancellationToken cancellationToken = default)
+    {
+        var habit =
+            await _dbContext.Habits
+                .Include(habit =>
+                    habit.HabitAttributeRewards)
+                .Include(habit =>
+                    habit.HabitConfigurationVersions)
+                .SingleOrDefaultAsync(
+                    habit =>
+                        habit.Id == habitId
+                        && habit.UserId == userId,
+                    cancellationToken);
+
+        if (habit is null)
+        {
+            return null;
+        }
+
+        if (!habit.IsActive)
+        {
+            habit.IsActive = true;
+            habit.UpdatedAtUtc =
+                _timeProvider
+                    .GetUtcNow()
+                    .UtcDateTime;
+
+            await _dbContext.SaveChangesAsync(
+                cancellationToken);
+        }
+
+        var isCompletedToday =
+            await IsCompletedTodayAsync(
+                userId,
+                habitId,
+                cancellationToken);
+
+        var localDate =
+            await GetUserLocalDateAsync(
+                userId,
+                cancellationToken);
+
+        return CreateHabitResponse(
+            habit,
+            isCompletedToday,
+            localDate);
+    }
+
     public async Task<HabitResponse?> DeactivateHabitAsync(
         Guid userId,
         Guid habitId,
