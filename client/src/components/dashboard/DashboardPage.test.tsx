@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getDashboard } from '../../api/dashboardApi'
 import { completeHabit } from '../../api/habitsApi'
 import type { DashboardResponse } from '../../types/DashboardResponse'
@@ -20,6 +20,68 @@ vi.mock('../../api/habitsApi', () => ({
 const getDashboardMock = vi.mocked(getDashboard)
 
 const completeHabitMock = vi.mocked(completeHabit)
+
+type ResizeObserverRecord = {
+  callback: ResizeObserverCallback
+  observedElements: Set<Element>
+  observer: ResizeObserver
+}
+
+const resizeObserverRecords: ResizeObserverRecord[] = []
+
+class ResizeObserverMock implements ResizeObserver {
+  readonly observedElements = new Set<Element>()
+
+  constructor(callback: ResizeObserverCallback) {
+    resizeObserverRecords.push({
+      callback,
+      observedElements: this.observedElements,
+      observer: this,
+    })
+  }
+
+  observe(target: Element): void {
+    this.observedElements.add(target)
+  }
+
+  unobserve(target: Element): void {
+    this.observedElements.delete(target)
+  }
+
+  disconnect(): void {
+    this.observedElements.clear()
+  }
+}
+
+function emitResize(target: Element, height: number): void {
+  const contentRect = {
+    bottom: height,
+    height,
+    left: 0,
+    right: 0,
+    top: 0,
+    width: 0,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRectReadOnly
+
+  const entry = {
+    borderBoxSize: [],
+    contentBoxSize: [],
+    contentRect,
+    devicePixelContentBoxSize: [],
+    target,
+  } as ResizeObserverEntry
+
+  for (const record of resizeObserverRecords) {
+    if (!record.observedElements.has(target)) {
+      continue
+    }
+
+    record.callback([entry], record.observer)
+  }
+}
 
 const dashboardResponse: DashboardResponse = {
   overallProgress: {
@@ -95,6 +157,34 @@ const dashboardResponse: DashboardResponse = {
   ],
 }
 
+function createDashboardWithHabitCount(habitCount: number): DashboardResponse {
+  const templateHabit = dashboardResponse.todayHabits[0]
+
+  const todayHabits = Array.from({ length: habitCount }, (_, index) => ({
+    ...templateHabit,
+    id: `habit-${index + 1}`,
+    name: `Responsive habit ${index + 1}`,
+    currentStreak: index,
+    longestStreak: Math.max(index, 1),
+  }))
+
+  return {
+    ...dashboardResponse,
+    todayExecution: {
+      completedDailyHabits: 0,
+      totalDailyHabits: habitCount,
+    },
+    todayHabits,
+    habitStreaks: todayHabits.map((habit) => ({
+      habitId: habit.id,
+      habitName: habit.name,
+      frequencyType: habit.frequencyType,
+      currentStreak: habit.currentStreak,
+      longestStreak: habit.longestStreak,
+    })),
+  }
+}
+
 function renderDashboard() {
   return render(
     <WorkspaceDataProvider>
@@ -105,8 +195,16 @@ function renderDashboard() {
 
 describe('DashboardPage', () => {
   beforeEach(() => {
+    resizeObserverRecords.length = 0
+
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock)
+
     getDashboardMock.mockReset()
     completeHabitMock.mockReset()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('renders the action-first command center from one aggregate response', async () => {
@@ -168,6 +266,74 @@ describe('DashboardPage', () => {
     }
 
     expect(getDashboardMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('adapts today pagination to the measured panel height', async () => {
+    getDashboardMock.mockResolvedValue(createDashboardWithHabitCount(8))
+
+    renderDashboard()
+
+    await screen.findByRole('heading', {
+      name: "Today's habits",
+    })
+
+    const measurementRegion = screen.getByTestId(
+      'today-habits-measurement-region',
+    )
+
+    expect(
+      within(
+        screen.getByRole('list', {
+          name: "Today's habits list",
+        }),
+      ).getAllByRole('listitem'),
+    ).toHaveLength(4)
+
+    expect(
+      screen.getByRole('button', {
+        name: "Next today's habits page",
+      }),
+    ).toBeInTheDocument()
+
+    act(() => {
+      emitResize(measurementRegion, 550)
+    })
+
+    await waitFor(() => {
+      expect(
+        within(
+          screen.getByRole('list', {
+            name: "Today's habits list",
+          }),
+        ).getAllByRole('listitem'),
+      ).toHaveLength(8)
+    })
+
+    expect(
+      screen.queryByRole('button', {
+        name: "Next today's habits page",
+      }),
+    ).not.toBeInTheDocument()
+
+    act(() => {
+      emitResize(measurementRegion, 270)
+    })
+
+    await waitFor(() => {
+      expect(
+        within(
+          screen.getByRole('list', {
+            name: "Today's habits list",
+          }),
+        ).getAllByRole('listitem'),
+      ).toHaveLength(4)
+    })
+
+    expect(
+      screen.getByRole('button', {
+        name: "Next today's habits page",
+      }),
+    ).toBeInTheDocument()
   })
 
   it('completes a habit and refreshes authoritative dashboard totals', async () => {

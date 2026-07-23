@@ -30,20 +30,20 @@ export function CommandPanel({
         className,
       ].join(' ')}
     >
-      <header className="flex shrink-0 items-start justify-between gap-3 border-b border-line px-4 py-3.5">
+      <header className="flex shrink-0 items-start justify-between gap-[clamp(0.75rem,0.65rem_+_0.12vw,1rem)] border-b border-line px-[clamp(0.875rem,0.72rem_+_0.18vw,1.125rem)] py-[clamp(0.75rem,0.64rem_+_0.12vw,0.9375rem)]">
         <div className="min-w-0">
           {eyebrow && (
             <div className="flex items-center gap-1.5 text-accent">
               {Icon && <Icon aria-hidden="true" size={13} strokeWidth={1.9} />}
 
-              <p className="text-[10px] font-bold tracking-[0.18em] uppercase">
+              <p className="text-[clamp(0.625rem,0.58rem_+_0.04vw,0.6875rem)] font-bold tracking-[0.18em] uppercase">
                 {eyebrow}
               </p>
             </div>
           )}
 
           <h2
-            className="mt-1 truncate text-[15px] font-semibold"
+            className="mt-1 truncate text-[clamp(0.9375rem,0.84rem_+_0.1vw,1.0625rem)] font-semibold"
             id={headingId}
           >
             {title}
@@ -53,7 +53,12 @@ export function CommandPanel({
         {action && <div className="shrink-0">{action}</div>}
       </header>
 
-      <div className={['min-h-0 flex-1 p-3.5', bodyClassName].join(' ')}>
+      <div
+        className={[
+          'min-h-0 flex-1 p-[clamp(0.75rem,0.66rem_+_0.1vw,0.9375rem)]',
+          bodyClassName,
+        ].join(' ')}
+      >
         {children}
       </div>
     </section>

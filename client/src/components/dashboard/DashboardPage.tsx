@@ -10,7 +10,13 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useState, type CSSProperties } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type RefObject,
+} from 'react'
 import type { DashboardHabitResponse } from '../../types/DashboardHabitResponse'
 import type { DashboardResponse } from '../../types/DashboardResponse'
 import type { HabitStreakResponse } from '../../types/HabitStreakResponse'
@@ -34,7 +40,84 @@ type PageControlsProps = {
   onPageChange: (pageIndex: number) => void
 }
 
-const habitPageSize = 4
+const defaultHabitPageSize = 4
+const maximumHabitPageSize = 12
+const habitRowGap = 6
+const todayHabitRowHeight = 62
+const completedHabitRowHeight = 54
+
+function getAdaptivePageSize(
+  availableHeight: number,
+  defaultPageSize: number,
+  rowHeight: number,
+  rowGap: number,
+  maximumPageSize: number,
+): number {
+  if (!Number.isFinite(availableHeight) || availableHeight <= 0) {
+    return defaultPageSize
+  }
+
+  const calculatedPageSize = Math.floor(
+    (availableHeight + rowGap) / (rowHeight + rowGap),
+  )
+
+  return Math.min(maximumPageSize, Math.max(1, calculatedPageSize))
+}
+
+function useAdaptivePageSize(rowHeight: number): {
+  measurementRef: RefObject<HTMLDivElement | null>
+  pageSize: number
+} {
+  const measurementRef = useRef<HTMLDivElement>(null)
+  const [pageSize, setPageSize] = useState(defaultHabitPageSize)
+
+  useEffect(() => {
+    const measurementElement = measurementRef.current
+
+    if (!measurementElement) {
+      return
+    }
+
+    function updatePageSize(availableHeight: number): void {
+      setPageSize(
+        getAdaptivePageSize(
+          availableHeight,
+          defaultHabitPageSize,
+          rowHeight,
+          habitRowGap,
+          maximumHabitPageSize,
+        ),
+      )
+    }
+
+    updatePageSize(measurementElement.getBoundingClientRect().height)
+
+    if (typeof ResizeObserver === 'undefined') {
+      return
+    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0]
+
+      if (!entry) {
+        return
+      }
+
+      updatePageSize(entry.contentRect.height)
+    })
+
+    resizeObserver.observe(measurementElement)
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [rowHeight])
+
+  return {
+    measurementRef,
+    pageSize,
+  }
+}
 
 function getPercentage(current: number, total: number): number {
   if (total <= 0) {
@@ -44,15 +127,12 @@ function getPercentage(current: number, total: number): number {
   return Math.min(100, Math.max(0, (current / total) * 100))
 }
 
-function getPageCount(itemCount: number): number {
-  return Math.max(1, Math.ceil(itemCount / habitPageSize))
+function getPageCount(itemCount: number, pageSize: number): number {
+  return Math.max(1, Math.ceil(itemCount / pageSize))
 }
 
-function getPageItems<T>(items: T[], pageIndex: number): T[] {
-  return items.slice(
-    pageIndex * habitPageSize,
-    pageIndex * habitPageSize + habitPageSize,
-  )
+function getPageItems<T>(items: T[], pageIndex: number, pageSize: number): T[] {
+  return items.slice(pageIndex * pageSize, pageIndex * pageSize + pageSize)
 }
 
 function formatDifficulty(
@@ -208,21 +288,21 @@ function SummaryMetrics({ dashboard }: { dashboard: DashboardResponse }) {
             aria-label={`${Math.round(
               executionPercentage,
             )}% of daily habits completed`}
-            className="grid size-14 shrink-0 place-items-center rounded-full p-1"
+            className="grid size-[clamp(3.5rem,3.2rem_+_0.3vw,4rem)] shrink-0 place-items-center rounded-full p-1"
             role="img"
             style={{
               background: `conic-gradient(var(--theme-success) ${executionPercentage}%, var(--theme-surface-muted) 0)`,
             }}
           >
             <div className="grid size-full place-items-center rounded-full bg-surface-raised">
-              <span className="text-sm font-bold">
+              <span className="text-[clamp(0.875rem,0.8rem_+_0.08vw,1rem)] font-bold">
                 {Math.round(executionPercentage)}%
               </span>
             </div>
           </div>
 
           <div>
-            <p className="text-xl font-bold">
+            <p className="text-[clamp(1.25rem,1.08rem_+_0.2vw,1.625rem)] font-bold">
               {dashboard.todayExecution.completedDailyHabits}{' '}
               <span className="text-xs font-medium text-content-muted">
                 of {dashboard.todayExecution.totalDailyHabits}
@@ -241,7 +321,7 @@ function SummaryMetrics({ dashboard }: { dashboard: DashboardResponse }) {
         accentVariable="var(--theme-streak)"
         label="Current streak"
       >
-        <p className="text-2xl font-bold">
+        <p className="text-[clamp(1.5rem,1.28rem_+_0.25vw,1.875rem)] font-bold">
           {featuredStreak ? formatStreak(featuredStreak) : '0 days'}
         </p>
 
@@ -257,7 +337,9 @@ function SummaryMetrics({ dashboard }: { dashboard: DashboardResponse }) {
         accentVariable="var(--theme-energy-violet)"
         label="XP today"
       >
-        <p className="text-2xl font-bold">{dashboard.todayActivity.xpEarned}</p>
+        <p className="text-[clamp(1.5rem,1.28rem_+_0.25vw,1.875rem)] font-bold">
+          {dashboard.todayActivity.xpEarned}
+        </p>
 
         <p className="mt-1 text-[10px] text-success">
           {dashboard.todayActivity.completions} completions
@@ -269,7 +351,9 @@ function SummaryMetrics({ dashboard }: { dashboard: DashboardResponse }) {
         accentVariable="var(--theme-energy-cyan)"
         label="Total level"
       >
-        <p className="text-3xl font-black">{dashboard.overallProgress.level}</p>
+        <p className="text-[clamp(1.875rem,1.55rem_+_0.35vw,2.25rem)] font-black">
+          {dashboard.overallProgress.level}
+        </p>
 
         <p className="mt-1 text-[10px] text-content-muted">
           {dashboard.overallProgress.totalXp} total XP
@@ -282,7 +366,7 @@ function SummaryMetrics({ dashboard }: { dashboard: DashboardResponse }) {
         label="Next level"
       >
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-base font-bold">
+          <p className="text-[clamp(1rem,0.9rem_+_0.1vw,1.125rem)] font-bold">
             {dashboard.overallProgress.xpIntoCurrentLevel}
           </p>
 
@@ -352,13 +436,17 @@ function RecentCompletionsPanel({
 }) {
   const [pageIndex, setPageIndex] = useState(0)
 
+  const { measurementRef, pageSize } = useAdaptivePageSize(
+    completedHabitRowHeight,
+  )
+
   const completedHabits = habits.filter((habit) => habit.isCompletedToday)
 
-  const pageCount = getPageCount(completedHabits.length)
+  const pageCount = getPageCount(completedHabits.length, pageSize)
 
   const safePageIndex = Math.min(pageIndex, pageCount - 1)
 
-  const visibleHabits = getPageItems(completedHabits, safePageIndex)
+  const visibleHabits = getPageItems(completedHabits, safePageIndex, pageSize)
 
   return (
     <CommandPanel
@@ -371,58 +459,72 @@ function RecentCompletionsPanel({
           onPageChange={setPageIndex}
         />
       }
+      bodyClassName="h-full min-h-0"
       className="h-full"
       eyebrow="Activity"
       title="Completed today"
     >
-      {visibleHabits.length === 0 ? (
-        <div className="grid h-full place-items-center text-center">
-          <div>
-            <CheckCircle2
-              aria-hidden="true"
-              className="mx-auto text-content-subtle"
-              size={22}
-            />
+      <div
+        ref={measurementRef}
+        className="h-full min-h-0"
+        data-page-size={pageSize}
+        data-testid="completed-habits-measurement-region"
+      >
+        {visibleHabits.length === 0 ? (
+          <div className="grid h-full place-items-center text-center">
+            <div>
+              <CheckCircle2
+                aria-hidden="true"
+                className="mx-auto text-content-subtle"
+                size={22}
+              />
 
-            <p className="mt-2 text-xs font-semibold">Nothing completed yet</p>
+              <p className="mt-2 text-xs font-semibold">
+                Nothing completed yet
+              </p>
 
-            <p className="mt-1 text-[10px] text-content-muted">
-              Your completed habits will appear here.
-            </p>
+              <p className="mt-1 text-[10px] text-content-muted">
+                Your completed habits will appear here.
+              </p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <ul className="space-y-1.5">
-          {visibleHabits.map((habit) => (
-            <li
-              className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border border-line bg-surface px-2.5 py-2"
-              key={habit.id}
-            >
-              <HabitIcon habit={habit} />
+        ) : (
+          <ul
+            aria-label="Completed habits list"
+            className="grid content-start gap-1.5"
+            data-testid="completed-habits-list"
+          >
+            {visibleHabits.map((habit) => (
+              <li
+                className="grid min-h-[3.375rem] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border border-line bg-surface px-2.5 py-2"
+                key={habit.id}
+              >
+                <HabitIcon habit={habit} />
 
-              <div className="min-w-0">
-                <p className="truncate text-[11px] font-semibold">
-                  {habit.name}
-                </p>
+                <div className="min-w-0">
+                  <p className="truncate text-[clamp(0.6875rem,0.65rem_+_0.05vw,0.75rem)] font-semibold">
+                    {habit.name}
+                  </p>
 
-                <p className="mt-0.5 truncate text-[9px] text-content-subtle">
-                  {getHabitCategoryLabel(habit.category)}
-                </p>
-              </div>
+                  <p className="mt-0.5 truncate text-[9px] text-content-subtle">
+                    {getHabitCategoryLabel(habit.category)}
+                  </p>
+                </div>
 
-              <div className="text-right">
-                <p className="text-[10px] font-semibold text-success">
-                  +{getRewardTotal(habit)} XP
-                </p>
+                <div className="text-right">
+                  <p className="text-[10px] font-semibold text-success">
+                    +{getRewardTotal(habit)} XP
+                  </p>
 
-                <p className="mt-0.5 text-[8px] text-content-subtle">
-                  Completed
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+                  <p className="mt-0.5 text-[8px] text-content-subtle">
+                    Completed
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </CommandPanel>
   )
 }
@@ -439,11 +541,13 @@ function TodayHabitsPanel({
 }) {
   const [pageIndex, setPageIndex] = useState(0)
 
-  const pageCount = getPageCount(habits.length)
+  const { measurementRef, pageSize } = useAdaptivePageSize(todayHabitRowHeight)
+
+  const pageCount = getPageCount(habits.length, pageSize)
 
   const safePageIndex = Math.min(pageIndex, pageCount - 1)
 
-  const visibleHabits = getPageItems(habits, safePageIndex)
+  const visibleHabits = getPageItems(habits, safePageIndex, pageSize)
 
   return (
     <CommandPanel
@@ -456,65 +560,79 @@ function TodayHabitsPanel({
           onPageChange={setPageIndex}
         />
       }
+      bodyClassName="h-full min-h-0"
       className="h-full"
       eyebrow="Primary actions"
       title="Today's habits"
     >
-      {visibleHabits.length === 0 ? (
-        <div className="grid h-full place-items-center text-center">
-          <div>
-            <Activity
-              aria-hidden="true"
-              className="mx-auto text-content-subtle"
-              size={23}
-            />
+      <div
+        ref={measurementRef}
+        className="h-full min-h-0"
+        data-page-size={pageSize}
+        data-testid="today-habits-measurement-region"
+      >
+        {visibleHabits.length === 0 ? (
+          <div className="grid h-full place-items-center text-center">
+            <div>
+              <Activity
+                aria-hidden="true"
+                className="mx-auto text-content-subtle"
+                size={23}
+              />
 
-            <p className="mt-2 text-xs font-semibold">No active habits</p>
+              <p className="mt-2 text-xs font-semibold">No active habits</p>
 
-            <p className="mt-1 text-[10px] text-content-muted">
-              Create a habit to begin your daily progression.
-            </p>
+              <p className="mt-1 text-[10px] text-content-muted">
+                Create a habit to begin your daily progression.
+              </p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <ul className="space-y-1.5">
-          {visibleHabits.map((habit) => (
-            <li
-              className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border border-line bg-surface px-2.5 py-2"
-              key={habit.id}
-            >
-              <HabitIcon habit={habit} />
+        ) : (
+          <ul
+            aria-label="Today's habits list"
+            className="grid content-start gap-1.5"
+            data-testid="today-habits-list"
+          >
+            {visibleHabits.map((habit) => (
+              <li
+                className="grid min-h-[3.875rem] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl border border-line bg-surface px-2.5 py-2"
+                key={habit.id}
+              >
+                <HabitIcon habit={habit} />
 
-              <div className="min-w-0">
-                <p className="truncate text-[11px] font-semibold">
-                  {habit.name}
-                </p>
+                <div className="min-w-0">
+                  <p className="truncate text-[clamp(0.6875rem,0.65rem_+_0.05vw,0.75rem)] font-semibold">
+                    {habit.name}
+                  </p>
 
-                <div className="mt-0.5 flex min-w-0 gap-1.5 text-[8px] text-content-subtle">
-                  <span>{formatFrequency(habit)}</span>
+                  <div className="mt-0.5 flex min-w-0 gap-1.5 text-[8px] text-content-subtle">
+                    <span>{formatFrequency(habit)}</span>
 
-                  <span aria-hidden="true">·</span>
+                    <span aria-hidden="true">·</span>
 
-                  <span>{formatDifficulty(habit.difficulty)}</span>
+                    <span>{formatDifficulty(habit.difficulty)}</span>
 
-                  <span aria-hidden="true">·</span>
+                    <span aria-hidden="true">·</span>
 
-                  <span className="truncate">{habit.currentStreak} streak</span>
+                    <span className="truncate">
+                      {habit.currentStreak} streak
+                    </span>
+                  </div>
+
+                  <p className="mt-0.5 text-[8px] text-content-muted">
+                    +{getRewardTotal(habit)} XP
+                  </p>
                 </div>
 
-                <p className="mt-0.5 text-[8px] text-content-muted">
-                  +{getRewardTotal(habit)} XP
-                </p>
-              </div>
-
-              <DashboardHabitAction
-                habit={habit}
-                onCompletionStatusChanged={onCompletionStatusChanged}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+                <DashboardHabitAction
+                  habit={habit}
+                  onCompletionStatusChanged={onCompletionStatusChanged}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </CommandPanel>
   )
 }
@@ -595,7 +713,9 @@ function AttributeXpDistributionPanel({
       >
         <div className="grid size-[4.5rem] place-items-center rounded-full border border-line bg-surface-raised text-center">
           <div>
-            <p className="text-base font-bold">{totalXp.toLocaleString()}</p>
+            <p className="text-[clamp(1rem,0.9rem_+_0.1vw,1.125rem)] font-bold">
+              {totalXp.toLocaleString()}
+            </p>
 
             <p className="text-[8px] font-semibold tracking-[0.12em] text-content-subtle uppercase">
               Total XP
@@ -753,7 +873,7 @@ function ProtectTheChainPanel({
           </div>
 
           <div className="text-right">
-            <p className="text-2xl font-black text-success">
+            <p className="text-[clamp(1.5rem,1.28rem_+_0.25vw,1.875rem)] font-black text-success">
               {protectedChainCount}
             </p>
 
