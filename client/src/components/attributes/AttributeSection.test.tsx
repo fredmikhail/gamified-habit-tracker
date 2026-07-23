@@ -2,32 +2,104 @@ import { useState } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getAttributes } from '../../api/attributesApi'
+import { getAttributeOverview } from '../../api/attributesApi'
+import type { AttributeOverviewResponse } from '../../types/AttributeOverviewResponse'
 import { WorkspaceDataProvider } from '../../workspace/WorkspaceDataProvider'
 import { AttributeSection } from './AttributeSection'
 
 vi.mock('../../api/attributesApi', () => ({
-  getAttributes: vi.fn(),
+  getAttributeOverview: vi.fn(),
 }))
 
-const getAttributesMock = vi.mocked(getAttributes)
+const getAttributeOverviewMock = vi.mocked(getAttributeOverview)
 
-const attributeResponses = [
-  {
-    attributeType: 'fitness' as const,
-    currentXp: 225,
-    level: 3,
-    xpIntoCurrentLevel: 0,
-    xpNeededForNextLevel: 150,
+const overviewResponse: AttributeOverviewResponse = {
+  attributes: [
+    {
+      attributeType: 'fitness',
+      currentXp: 1300,
+      level: 11,
+      xpIntoCurrentLevel: 25,
+      xpNeededForNextLevel: 350,
+    },
+    {
+      attributeType: 'discipline',
+      currentXp: 1860,
+      level: 14,
+      xpIntoCurrentLevel: 85,
+      xpNeededForNextLevel: 425,
+    },
+    {
+      attributeType: 'vitality',
+      currentXp: 890,
+      level: 9,
+      xpIntoCurrentLevel: 90,
+      xpNeededForNextLevel: 300,
+    },
+    {
+      attributeType: 'focus',
+      currentXp: 1250,
+      level: 11,
+      xpIntoCurrentLevel: 0,
+      xpNeededForNextLevel: 350,
+    },
+    {
+      attributeType: 'mind',
+      currentXp: 1710,
+      level: 13,
+      xpIntoCurrentLevel: 60,
+      xpNeededForNextLevel: 400,
+    },
+    {
+      attributeType: 'resilience',
+      currentXp: 980,
+      level: 9,
+      xpIntoCurrentLevel: 180,
+      xpNeededForNextLevel: 300,
+    },
+    {
+      attributeType: 'social',
+      currentXp: 650,
+      level: 7,
+      xpIntoCurrentLevel: 25,
+      xpNeededForNextLevel: 250,
+    },
+    {
+      attributeType: 'purpose',
+      currentXp: 1420,
+      level: 12,
+      xpIntoCurrentLevel: 45,
+      xpNeededForNextLevel: 375,
+    },
+  ],
+  totalAttributeXp: 10060,
+  balanceScore: 68,
+  strongestAttribute: {
+    attributeType: 'discipline',
+    currentXp: 1860,
+    level: 14,
+    xpIntoCurrentLevel: 85,
+    xpNeededForNextLevel: 425,
   },
-  {
-    attributeType: 'discipline' as const,
-    currentXp: 99,
-    level: 1,
-    xpIntoCurrentLevel: 99,
-    xpNeededForNextLevel: 100,
+  needsFocusAttribute: {
+    attributeType: 'social',
+    currentXp: 650,
+    level: 7,
+    xpIntoCurrentLevel: 25,
+    xpNeededForNextLevel: 250,
   },
-]
+  closestToLevelUp: [],
+  recentXpTransactions: [
+    {
+      id: 'transaction-1',
+      habitName: 'Read C# textbook',
+      attributeType: 'mind',
+      amount: 30,
+      reason: 'Habit completion',
+      createdAtUtc: '2026-07-23T12:00:00Z',
+    },
+  ],
+}
 
 function renderAttributeSection() {
   return render(
@@ -53,63 +125,98 @@ function PersistentAttributeHarness() {
 
 describe('AttributeSection', () => {
   beforeEach(() => {
-    getAttributesMock.mockReset()
+    getAttributeOverviewMock.mockReset()
   })
 
-  it('displays backend-calculated progress using stable visual identities', async () => {
-    getAttributesMock.mockResolvedValue(attributeResponses)
+  it('fits the character command center into one bounded page layout', async () => {
+    getAttributeOverviewMock.mockResolvedValue(overviewResponse)
 
     renderAttributeSection()
 
     expect(
       await screen.findByRole('heading', {
-        name: 'Fitness',
+        name: 'Your Core Attributes',
       }),
     ).toBeInTheDocument()
 
-    expect(screen.getByText('Lv. 3')).toBeInTheDocument()
-
-    const disciplineProgress = screen.getByRole('progressbar', {
-      name: 'Discipline level progress',
-    })
-
-    expect(disciplineProgress).toHaveAttribute('aria-valuenow', '99')
+    expect(screen.getByTestId('attribute-page')).toHaveClass(
+      'h-full',
+      'overflow-hidden',
+    )
 
     expect(
-      document.querySelector('[data-attribute-type="discipline"]'),
+      screen.getByRole('heading', {
+        name: 'Character Balance Web',
+      }),
     ).toBeInTheDocument()
 
     expect(
-      document.querySelector('[data-attribute-type="fitness"]'),
+      screen.getByRole('heading', {
+        name: 'What Each Attribute Means',
+      }),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Recent XP Transactions',
+      }),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Attribute XP Distribution',
+      }),
     ).toBeInTheDocument()
   })
 
+  it('renders real overview data without interactive radar hover controls', async () => {
+    getAttributeOverviewMock.mockResolvedValue(overviewResponse)
+
+    renderAttributeSection()
+
+    expect(await screen.findByText('10,060')).toBeInTheDocument()
+
+    expect(screen.getByText('Read C# textbook')).toBeInTheDocument()
+
+    expect(
+      screen.getByRole('img', {
+        name: /Attribute balance radar/,
+      }),
+    ).toBeInTheDocument()
+
+    expect(
+      screen.queryByRole('button', {
+        name: /percent of strongest attribute/,
+      }),
+    ).not.toBeInTheDocument()
+  })
+
   it('displays the backend error when loading fails', async () => {
-    getAttributesMock.mockRejectedValue(
-      new Error('Attribute progress could not be loaded.'),
+    getAttributeOverviewMock.mockRejectedValue(
+      new Error('Attribute overview could not be loaded.'),
     )
 
     renderAttributeSection()
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Attribute loading error: Attribute progress could not be loaded.',
+      'Attribute overview error: Attribute overview could not be loaded.',
     )
   })
 
-  it('reuses cached attributes when the section returns', async () => {
+  it('reuses the cached overview when the section returns', async () => {
     const user = userEvent.setup()
 
-    getAttributesMock.mockResolvedValue(attributeResponses)
+    getAttributeOverviewMock.mockResolvedValue(overviewResponse)
 
     render(<PersistentAttributeHarness />)
 
     expect(
       await screen.findByRole('heading', {
-        name: 'Fitness',
+        name: 'Character Balance Web',
       }),
     ).toBeInTheDocument()
 
-    expect(getAttributesMock).toHaveBeenCalledTimes(1)
+    expect(getAttributeOverviewMock).toHaveBeenCalledTimes(1)
 
     await user.click(
       screen.getByRole('button', {
@@ -125,10 +232,10 @@ describe('AttributeSection', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: 'Fitness',
+        name: 'Character Balance Web',
       }),
     ).toBeInTheDocument()
 
-    expect(getAttributesMock).toHaveBeenCalledTimes(1)
+    expect(getAttributeOverviewMock).toHaveBeenCalledTimes(1)
   })
 })

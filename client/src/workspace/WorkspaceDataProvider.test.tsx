@@ -1,17 +1,17 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { getAttributes } from '../api/attributesApi'
+import { getAttributeOverview } from '../api/attributesApi'
 import { getDashboard } from '../api/dashboardApi'
 import { getHabits } from '../api/habitsApi'
+import type { AttributeOverviewResponse } from '../types/AttributeOverviewResponse'
 import type { DashboardResponse } from '../types/DashboardResponse'
 import type { HabitResponse } from '../types/HabitResponse'
-import type { UserAttributeResponse } from '../types/UserAttributeResponse'
 import { WorkspaceDataProvider } from './WorkspaceDataProvider'
 import { useWorkspaceData } from './useWorkspaceData'
 
 vi.mock('../api/attributesApi', () => ({
-  getAttributes: vi.fn(),
+  getAttributeOverview: vi.fn(),
 }))
 
 vi.mock('../api/dashboardApi', () => ({
@@ -22,7 +22,7 @@ vi.mock('../api/habitsApi', () => ({
   getHabits: vi.fn(),
 }))
 
-const getAttributesMock = vi.mocked(getAttributes)
+const getAttributeOverviewMock = vi.mocked(getAttributeOverview)
 
 const getDashboardMock = vi.mocked(getDashboard)
 
@@ -62,15 +62,35 @@ const dashboardResponse: DashboardResponse = {
   habitStreaks: [],
 }
 
-const attributeResponses: UserAttributeResponse[] = [
-  {
+const attributeOverviewResponse: AttributeOverviewResponse = {
+  attributes: [
+    {
+      attributeType: 'discipline',
+      currentXp: 70,
+      level: 1,
+      xpIntoCurrentLevel: 70,
+      xpNeededForNextLevel: 100,
+    },
+  ],
+  totalAttributeXp: 70,
+  balanceScore: 13,
+  strongestAttribute: {
     attributeType: 'discipline',
     currentXp: 70,
     level: 1,
     xpIntoCurrentLevel: 70,
-    xpNeededForNextLevel: 200,
+    xpNeededForNextLevel: 100,
   },
-]
+  needsFocusAttribute: {
+    attributeType: 'fitness',
+    currentXp: 0,
+    level: 1,
+    xpIntoCurrentLevel: 0,
+    xpNeededForNextLevel: 100,
+  },
+  closestToLevelUp: [],
+  recentXpTransactions: [],
+}
 
 const habitResponses: HabitResponse[] = [
   {
@@ -91,7 +111,7 @@ const habitResponses: HabitResponse[] = [
 function WorkspaceDataControls() {
   const {
     dashboardResource,
-    attributesResource,
+    attributeOverviewResource,
     habitsResource,
     setHabitCompletionStatus,
     refreshProgress,
@@ -108,7 +128,7 @@ function WorkspaceDataControls() {
 
       <button
         type="button"
-        onClick={() => void attributesResource.ensureLoaded()}
+        onClick={() => void attributeOverviewResource.ensureLoaded()}
       >
         Load attributes
       </button>
@@ -139,8 +159,11 @@ function WorkspaceDataControls() {
         </>
       )}
 
-      {attributesResource.data && (
-        <p>Attribute: {attributesResource.data[0]?.attributeType}</p>
+      {attributeOverviewResource.data && (
+        <p>
+          Attribute:{' '}
+          {attributeOverviewResource.data.attributes[0]?.attributeType}
+        </p>
       )}
 
       {habitsResource.data && (
@@ -162,11 +185,11 @@ function renderControls() {
 
 describe('WorkspaceDataProvider', () => {
   beforeEach(() => {
-    getAttributesMock.mockReset()
+    getAttributeOverviewMock.mockReset()
     getDashboardMock.mockReset()
     getHabitsMock.mockReset()
 
-    getAttributesMock.mockResolvedValue(attributeResponses)
+    getAttributeOverviewMock.mockResolvedValue(attributeOverviewResponse)
 
     getDashboardMock.mockResolvedValue(dashboardResponse)
 
@@ -213,7 +236,34 @@ describe('WorkspaceDataProvider', () => {
       expect(getDashboardMock).toHaveBeenCalledTimes(2)
     })
 
-    expect(getAttributesMock).not.toHaveBeenCalled()
+    expect(getAttributeOverviewMock).not.toHaveBeenCalled()
+    expect(getHabitsMock).not.toHaveBeenCalled()
+  })
+
+  test('refreshes a loaded attribute overview after progression changes', async () => {
+    const user = userEvent.setup()
+
+    renderControls()
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Load attributes',
+      }),
+    )
+
+    expect(await screen.findByText('Attribute: discipline')).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Refresh progress',
+      }),
+    )
+
+    await waitFor(() => {
+      expect(getAttributeOverviewMock).toHaveBeenCalledTimes(2)
+    })
+
+    expect(getDashboardMock).not.toHaveBeenCalled()
     expect(getHabitsMock).not.toHaveBeenCalled()
   })
 

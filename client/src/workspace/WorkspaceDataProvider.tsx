@@ -1,5 +1,5 @@
 import { useCallback, type PropsWithChildren } from 'react'
-import { getAttributes } from '../api/attributesApi'
+import { getAttributeOverview } from '../api/attributesApi'
 import { getDashboard } from '../api/dashboardApi'
 import { getHabits } from '../api/habitsApi'
 import { WorkspaceDataContext } from './WorkspaceDataContext'
@@ -11,10 +11,10 @@ function getDashboardErrorMessage(error: unknown): string {
     : 'An unknown dashboard-loading error occurred.'
 }
 
-function getAttributeErrorMessage(error: unknown): string {
+function getAttributeOverviewErrorMessage(error: unknown): string {
   return error instanceof Error
     ? error.message
-    : 'An unknown attribute-loading error occurred.'
+    : 'An unknown attribute-overview error occurred.'
 }
 
 function getHabitErrorMessage(error: unknown): string {
@@ -29,9 +29,9 @@ export function WorkspaceDataProvider({ children }: PropsWithChildren) {
     getErrorMessage: getDashboardErrorMessage,
   })
 
-  const attributesResource = useCachedResource({
-    load: getAttributes,
-    getErrorMessage: getAttributeErrorMessage,
+  const attributeOverviewResource = useCachedResource({
+    load: getAttributeOverview,
+    getErrorMessage: getAttributeOverviewErrorMessage,
   })
 
   const habitsResource = useCachedResource({
@@ -45,8 +45,8 @@ export function WorkspaceDataProvider({ children }: PropsWithChildren) {
     updateData: updateDashboard,
   } = dashboardResource
 
-  const { data: attributesData, refresh: refreshAttributes } =
-    attributesResource
+  const { data: attributeOverviewData, refresh: refreshAttributeOverview } =
+    attributeOverviewResource
 
   const { updateData: updateHabits } = habitsResource
 
@@ -95,18 +95,23 @@ export function WorkspaceDataProvider({ children }: PropsWithChildren) {
       refreshRequests.push(refreshDashboard())
     }
 
-    if (attributesData !== null) {
-      refreshRequests.push(refreshAttributes())
+    if (attributeOverviewData !== null) {
+      refreshRequests.push(refreshAttributeOverview())
     }
 
     await Promise.all(refreshRequests)
-  }, [attributesData, dashboardData, refreshAttributes, refreshDashboard])
+  }, [
+    attributeOverviewData,
+    dashboardData,
+    refreshAttributeOverview,
+    refreshDashboard,
+  ])
 
   return (
     <WorkspaceDataContext.Provider
       value={{
         dashboardResource,
-        attributesResource,
+        attributeOverviewResource,
         habitsResource,
         setHabitCompletionStatus,
         refreshProgress,

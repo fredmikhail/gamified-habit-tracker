@@ -1,12 +1,12 @@
 import { createContext } from 'react'
+import type { AttributeOverviewResponse } from '../types/AttributeOverviewResponse'
 import type { DashboardResponse } from '../types/DashboardResponse'
 import type { HabitResponse } from '../types/HabitResponse'
-import type { UserAttributeResponse } from '../types/UserAttributeResponse'
 import type { CachedResource } from './useCachedResource'
 
 export type WorkspaceDataContextValue = {
   dashboardResource: CachedResource<DashboardResponse>
-  attributesResource: CachedResource<UserAttributeResponse[]>
+  attributeOverviewResource: CachedResource<AttributeOverviewResponse>
   habitsResource: CachedResource<HabitResponse[]>
   setHabitCompletionStatus: (habitId: string, isCompletedToday: boolean) => void
   refreshProgress: () => Promise<void>
