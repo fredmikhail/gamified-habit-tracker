@@ -272,7 +272,7 @@ export function AppShell({
               className="app-route-scroll min-h-0 min-w-0"
               data-testid="route-content-region"
             >
-              <div className="min-w-0 pb-5 pr-1 lg:pb-7">
+              <div className="h-full min-w-0 pb-5 pr-1 lg:pb-7">
                 <Outlet />
               </div>
             </div>

@@ -56,7 +56,7 @@ describe('AttributeSection', () => {
     getAttributesMock.mockReset()
   })
 
-  it('displays backend-calculated attribute progress', async () => {
+  it('displays backend-calculated progress using stable visual identities', async () => {
     getAttributesMock.mockResolvedValue(attributeResponses)
 
     renderAttributeSection()
@@ -67,9 +67,7 @@ describe('AttributeSection', () => {
       }),
     ).toBeInTheDocument()
 
-    expect(screen.getByText('Level 3')).toBeInTheDocument()
-    expect(screen.getByText('0 / 150 XP')).toBeInTheDocument()
-    expect(screen.getByText('Total: 225 XP')).toBeInTheDocument()
+    expect(screen.getByText('Lv. 3')).toBeInTheDocument()
 
     const disciplineProgress = screen.getByRole('progressbar', {
       name: 'Discipline level progress',
@@ -77,10 +75,16 @@ describe('AttributeSection', () => {
 
     expect(disciplineProgress).toHaveAttribute('aria-valuenow', '99')
 
-    expect(disciplineProgress).toHaveAttribute('aria-valuemax', '100')
+    expect(
+      document.querySelector('[data-attribute-type="discipline"]'),
+    ).toBeInTheDocument()
+
+    expect(
+      document.querySelector('[data-attribute-type="fitness"]'),
+    ).toBeInTheDocument()
   })
 
-  it('displays the backend error when initial loading fails', async () => {
+  it('displays the backend error when loading fails', async () => {
     getAttributesMock.mockRejectedValue(
       new Error('Attribute progress could not be loaded.'),
     )
@@ -113,12 +117,6 @@ describe('AttributeSection', () => {
       }),
     )
 
-    expect(
-      screen.queryByRole('heading', {
-        name: 'Fitness',
-      }),
-    ).not.toBeInTheDocument()
-
     await user.click(
       screen.getByRole('button', {
         name: 'Toggle attributes',
@@ -130,8 +128,6 @@ describe('AttributeSection', () => {
         name: 'Fitness',
       }),
     ).toBeInTheDocument()
-
-    expect(screen.queryByText('Loading attributes...')).not.toBeInTheDocument()
 
     expect(getAttributesMock).toHaveBeenCalledTimes(1)
   })

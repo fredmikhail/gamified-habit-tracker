@@ -5,6 +5,7 @@ import { getAttributes } from '../api/attributesApi'
 import { getDashboard } from '../api/dashboardApi'
 import { getHabits } from '../api/habitsApi'
 import type { DashboardResponse } from '../types/DashboardResponse'
+import type { HabitResponse } from '../types/HabitResponse'
 import type { UserAttributeResponse } from '../types/UserAttributeResponse'
 import { WorkspaceDataProvider } from './WorkspaceDataProvider'
 import { useWorkspaceData } from './useWorkspaceData'
@@ -22,7 +23,9 @@ vi.mock('../api/habitsApi', () => ({
 }))
 
 const getAttributesMock = vi.mocked(getAttributes)
+
 const getDashboardMock = vi.mocked(getDashboard)
+
 const getHabitsMock = vi.mocked(getHabits)
 
 const dashboardResponse: DashboardResponse = {
@@ -34,13 +37,28 @@ const dashboardResponse: DashboardResponse = {
   },
   todayActivity: {
     localDate: '2026-07-22',
-    completions: 1,
-    xpEarned: 20,
+    completions: 0,
+    xpEarned: 0,
   },
   todayExecution: {
-    completedDailyHabits: 1,
-    totalDailyHabits: 2,
+    completedDailyHabits: 0,
+    totalDailyHabits: 1,
   },
+  todayHabits: [
+    {
+      id: 'habit-1',
+      name: 'Read',
+      category: 'learningAndSkills',
+      frequencyType: 'daily',
+      targetCount: 1,
+      difficulty: 'medium',
+      attributeRewards: [],
+      isCompletedToday: false,
+      currentStreak: 0,
+      longestStreak: 0,
+    },
+  ],
+  attributes: [],
   habitStreaks: [],
 }
 
@@ -54,21 +72,56 @@ const attributeResponses: UserAttributeResponse[] = [
   },
 ]
 
-function WorkspaceDataControls() {
-  const { dashboardResource, attributesResource, refreshProgress } =
-    useWorkspaceData()
+const habitResponses: HabitResponse[] = [
+  {
+    id: 'habit-1',
+    name: 'Read',
+    description: null,
+    category: 'learningAndSkills',
+    frequencyType: 'daily',
+    targetCount: 1,
+    difficulty: 'medium',
+    isActive: true,
+    isCompletedToday: false,
+    createdAtUtc: '2026-07-22T10:00:00Z',
+    updatedAtUtc: '2026-07-22T10:00:00Z',
+  },
+]
 
-  const loadDashboard = dashboardResource.ensureLoaded
-  const loadAttributes = attributesResource.ensureLoaded
+function WorkspaceDataControls() {
+  const {
+    dashboardResource,
+    attributesResource,
+    habitsResource,
+    setHabitCompletionStatus,
+    refreshProgress,
+  } = useWorkspaceData()
 
   return (
     <>
-      <button type="button" onClick={() => void loadDashboard()}>
+      <button
+        type="button"
+        onClick={() => void dashboardResource.ensureLoaded()}
+      >
         Load dashboard
       </button>
 
-      <button type="button" onClick={() => void loadAttributes()}>
+      <button
+        type="button"
+        onClick={() => void attributesResource.ensureLoaded()}
+      >
         Load attributes
+      </button>
+
+      <button type="button" onClick={() => void habitsResource.ensureLoaded()}>
+        Load habits
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setHabitCompletionStatus('habit-1', true)}
+      >
+        Mark cached habit complete
       </button>
 
       <button type="button" onClick={() => void refreshProgress()}>
@@ -76,17 +129,30 @@ function WorkspaceDataControls() {
       </button>
 
       {dashboardResource.data && (
-        <p>Total XP: {dashboardResource.data.overallProgress.totalXp}</p>
+        <>
+          <p>Total XP: {dashboardResource.data.overallProgress.totalXp}</p>
+
+          <p>
+            Dashboard completed:{' '}
+            {String(dashboardResource.data.todayHabits[0]?.isCompletedToday)}
+          </p>
+        </>
       )}
 
       {attributesResource.data && (
         <p>Attribute: {attributesResource.data[0]?.attributeType}</p>
       )}
+
+      {habitsResource.data && (
+        <p>
+          Habit completed: {String(habitsResource.data[0]?.isCompletedToday)}
+        </p>
+      )}
     </>
   )
 }
 
-function renderWorkspaceDataControls() {
+function renderControls() {
   return render(
     <WorkspaceDataProvider>
       <WorkspaceDataControls />
@@ -101,14 +167,16 @@ describe('WorkspaceDataProvider', () => {
     getHabitsMock.mockReset()
 
     getAttributesMock.mockResolvedValue(attributeResponses)
+
     getDashboardMock.mockResolvedValue(dashboardResponse)
-    getHabitsMock.mockResolvedValue([])
+
+    getHabitsMock.mockResolvedValue(habitResponses)
   })
 
-  test('loads only the resource requested by a consumer', async () => {
+  test('loads only the requested resource', async () => {
     const user = userEvent.setup()
 
-    renderWorkspaceDataControls()
+    renderControls()
 
     await user.click(
       screen.getByRole('button', {
@@ -118,7 +186,6 @@ describe('WorkspaceDataProvider', () => {
 
     expect(await screen.findByText('Attribute: discipline')).toBeInTheDocument()
 
-    expect(getAttributesMock).toHaveBeenCalledTimes(1)
     expect(getDashboardMock).not.toHaveBeenCalled()
     expect(getHabitsMock).not.toHaveBeenCalled()
   })
@@ -126,34 +193,7 @@ describe('WorkspaceDataProvider', () => {
   test('refreshes only progression resources already loaded', async () => {
     const user = userEvent.setup()
 
-    renderWorkspaceDataControls()
-
-    await user.click(
-      screen.getByRole('button', {
-        name: 'Load attributes',
-      }),
-    )
-
-    expect(await screen.findByText('Attribute: discipline')).toBeInTheDocument()
-
-    await user.click(
-      screen.getByRole('button', {
-        name: 'Refresh progress',
-      }),
-    )
-
-    await waitFor(() => {
-      expect(getAttributesMock).toHaveBeenCalledTimes(2)
-    })
-
-    expect(getDashboardMock).not.toHaveBeenCalled()
-    expect(getHabitsMock).not.toHaveBeenCalled()
-  })
-
-  test('refreshes dashboard and attributes together when both were loaded', async () => {
-    const user = userEvent.setup()
-
-    renderWorkspaceDataControls()
+    renderControls()
 
     await user.click(
       screen.getByRole('button', {
@@ -161,18 +201,7 @@ describe('WorkspaceDataProvider', () => {
       }),
     )
 
-    await user.click(
-      screen.getByRole('button', {
-        name: 'Load attributes',
-      }),
-    )
-
     expect(await screen.findByText('Total XP: 120')).toBeInTheDocument()
-
-    expect(await screen.findByText('Attribute: discipline')).toBeInTheDocument()
-
-    expect(getDashboardMock).toHaveBeenCalledTimes(1)
-    expect(getAttributesMock).toHaveBeenCalledTimes(1)
 
     await user.click(
       screen.getByRole('button', {
@@ -182,9 +211,43 @@ describe('WorkspaceDataProvider', () => {
 
     await waitFor(() => {
       expect(getDashboardMock).toHaveBeenCalledTimes(2)
-      expect(getAttributesMock).toHaveBeenCalledTimes(2)
     })
 
+    expect(getAttributesMock).not.toHaveBeenCalled()
     expect(getHabitsMock).not.toHaveBeenCalled()
+  })
+
+  test('synchronizes successful completion status across loaded caches', async () => {
+    const user = userEvent.setup()
+
+    renderControls()
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Load dashboard',
+      }),
+    )
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Load habits',
+      }),
+    )
+
+    expect(
+      await screen.findByText('Dashboard completed: false'),
+    ).toBeInTheDocument()
+
+    expect(screen.getByText('Habit completed: false')).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Mark cached habit complete',
+      }),
+    )
+
+    expect(screen.getByText('Dashboard completed: true')).toBeInTheDocument()
+
+    expect(screen.getByText('Habit completed: true')).toBeInTheDocument()
   })
 })

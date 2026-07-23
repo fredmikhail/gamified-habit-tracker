@@ -1,22 +1,9 @@
+import { Sparkles } from 'lucide-react'
 import { useEffect } from 'react'
-import type { AttributeType } from '../../types/AttributeType'
-import type { UserAttributeResponse } from '../../types/UserAttributeResponse'
 import { useWorkspaceData } from '../../workspace/useWorkspaceData'
-
-function getAttributeLabel(attributeType: AttributeType): string {
-  return attributeType.charAt(0).toUpperCase() + attributeType.slice(1)
-}
-
-function getProgressPercentage(attribute: UserAttributeResponse): number {
-  if (attribute.xpNeededForNextLevel <= 0) {
-    return 0
-  }
-
-  return Math.min(
-    100,
-    (attribute.xpIntoCurrentLevel / attribute.xpNeededForNextLevel) * 100,
-  )
-}
+import { CommandPanel } from '../ui/CommandPanel'
+import { AttributeCard } from './AttributeCard'
+import { attributeOrder } from './attributeVisuals'
 
 export function AttributeSection() {
   const { attributesResource } = useWorkspaceData()
@@ -24,6 +11,7 @@ export function AttributeSection() {
   const {
     data: attributes,
     errorMessage,
+    isInitialLoading,
     isRefreshing,
     ensureLoaded,
   } = attributesResource
@@ -32,86 +20,60 @@ export function AttributeSection() {
     void ensureLoaded()
   }, [ensureLoaded])
 
-  const isWaitingForInitialData = attributes === null && !errorMessage
+  const orderedAttributes =
+    attributes === null
+      ? []
+      : [...attributes].sort(
+          (first, second) =>
+            attributeOrder.indexOf(first.attributeType) -
+            attributeOrder.indexOf(second.attributeType),
+        )
 
   return (
-    <section
-      aria-labelledby="attribute-section-heading"
-      className="mt-8 rounded-lg bg-white p-6 text-left shadow-sm"
+    <CommandPanel
+      Icon={Sparkles}
+      className="min-h-full"
+      eyebrow="Character matrix"
+      title="Core attributes"
     >
-      <h2 id="attribute-section-heading" className="text-2xl font-bold">
-        Attributes
-      </h2>
-
-      <p className="mt-2 text-slate-600">
+      <p className="text-sm leading-6 text-content-muted">
         Complete related habits to develop specific areas of your character.
       </p>
 
-      {isWaitingForInitialData && (
-        <p className="mt-4 text-slate-600">Loading attributes...</p>
+      {isInitialLoading && (
+        <p className="mt-5 text-sm text-content-muted">Loading attributes...</p>
       )}
 
-      {isRefreshing && (
-        <p className="mt-4 text-sm text-slate-500" role="status">
+      {isRefreshing && attributes && (
+        <p className="mt-3 text-xs text-content-muted" role="status">
           Refreshing attributes...
         </p>
       )}
 
       {errorMessage && (
-        <p className="mt-4 text-red-700" role="alert">
+        <p
+          className="mt-4 rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger"
+          role="alert"
+        >
           Attribute loading error: {errorMessage}
         </p>
       )}
 
-      {attributes !== null && (
-        <ul className="mt-5 grid gap-4 sm:grid-cols-2">
-          {attributes.map((attribute) => {
-            const label = getAttributeLabel(attribute.attributeType)
+      {attributes !== null && attributes.length === 0 && (
+        <p className="mt-5 text-sm text-content-muted">
+          No attribute progression is available yet.
+        </p>
+      )}
 
-            const progressPercentage = getProgressPercentage(attribute)
-
-            return (
-              <li
-                key={attribute.attributeType}
-                className="rounded-lg border border-slate-200 p-4"
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <h3 className="font-semibold">{label}</h3>
-
-                  <span className="rounded bg-slate-100 px-2 py-1 text-sm font-semibold">
-                    Level {attribute.level}
-                  </span>
-                </div>
-
-                <div
-                  aria-label={`${label} level progress`}
-                  aria-valuemax={attribute.xpNeededForNextLevel}
-                  aria-valuemin={0}
-                  aria-valuenow={attribute.xpIntoCurrentLevel}
-                  className="mt-4 h-3 overflow-hidden rounded-full bg-slate-200"
-                  role="progressbar"
-                >
-                  <div
-                    className="h-full rounded-full bg-slate-700"
-                    style={{
-                      width: `${progressPercentage}%`,
-                    }}
-                  />
-                </div>
-
-                <div className="mt-2 flex justify-between gap-4 text-sm text-slate-600">
-                  <span>
-                    {attribute.xpIntoCurrentLevel} /{' '}
-                    {attribute.xpNeededForNextLevel} XP
-                  </span>
-
-                  <span>Total: {attribute.currentXp} XP</span>
-                </div>
-              </li>
-            )
-          })}
+      {orderedAttributes.length > 0 && (
+        <ul className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
+          {orderedAttributes.map((attribute) => (
+            <li key={attribute.attributeType}>
+              <AttributeCard attribute={attribute} />
+            </li>
+          ))}
         </ul>
       )}
-    </section>
+    </CommandPanel>
   )
 }

@@ -39,10 +39,54 @@ export function WorkspaceDataProvider({ children }: PropsWithChildren) {
     getErrorMessage: getHabitErrorMessage,
   })
 
-  const { data: dashboardData, refresh: refreshDashboard } = dashboardResource
+  const {
+    data: dashboardData,
+    refresh: refreshDashboard,
+    updateData: updateDashboard,
+  } = dashboardResource
 
   const { data: attributesData, refresh: refreshAttributes } =
     attributesResource
+
+  const { updateData: updateHabits } = habitsResource
+
+  const setHabitCompletionStatus = useCallback(
+    (habitId: string, isCompletedToday: boolean): void => {
+      updateDashboard((currentDashboard) => {
+        if (currentDashboard === null) {
+          return null
+        }
+
+        return {
+          ...currentDashboard,
+          todayHabits: currentDashboard.todayHabits.map((habit) =>
+            habit.id === habitId
+              ? {
+                  ...habit,
+                  isCompletedToday,
+                }
+              : habit,
+          ),
+        }
+      })
+
+      updateHabits((currentHabits) => {
+        if (currentHabits === null) {
+          return null
+        }
+
+        return currentHabits.map((habit) =>
+          habit.id === habitId
+            ? {
+                ...habit,
+                isCompletedToday,
+              }
+            : habit,
+        )
+      })
+    },
+    [updateDashboard, updateHabits],
+  )
 
   const refreshProgress = useCallback(async (): Promise<void> => {
     const refreshRequests: Promise<void>[] = []
@@ -64,6 +108,7 @@ export function WorkspaceDataProvider({ children }: PropsWithChildren) {
         dashboardResource,
         attributesResource,
         habitsResource,
+        setHabitCompletionStatus,
         refreshProgress,
       }}
     >

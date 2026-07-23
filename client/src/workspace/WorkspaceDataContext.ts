@@ -8,6 +8,7 @@ export type WorkspaceDataContextValue = {
   dashboardResource: CachedResource<DashboardResponse>
   attributesResource: CachedResource<UserAttributeResponse[]>
   habitsResource: CachedResource<HabitResponse[]>
+  setHabitCompletionStatus: (habitId: string, isCompletedToday: boolean) => void
   refreshProgress: () => Promise<void>
 }
 

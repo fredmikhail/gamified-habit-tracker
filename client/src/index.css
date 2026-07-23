@@ -1,11 +1,5 @@
 @import 'tailwindcss';
 
-/*
- * Canonical theme: Abyss
- *
- * The :root declaration ensures the application still has usable colors
- * if the data-theme attribute is ever absent.
- */
 :root,
 [data-theme='abyss'] {
   --theme-canvas: #050914;
@@ -37,6 +31,15 @@
   --theme-danger: #fb7185;
   --theme-focus-ring: #7dd3fc;
 
+  --theme-attribute-discipline: #10b981;
+  --theme-attribute-fitness: #f97316;
+  --theme-attribute-vitality: #ef4444;
+  --theme-attribute-focus: #3b82f6;
+  --theme-attribute-mind: #8b5cf6;
+  --theme-attribute-resilience: #eab308;
+  --theme-attribute-social: #06b6d4;
+  --theme-attribute-purpose: #ec4899;
+
   --theme-backdrop: rgb(1 5 14 / 0.78);
 
   --theme-progress-gradient: linear-gradient(
@@ -62,12 +65,6 @@
     0 0 24px rgb(59 130 246 / 0.2), 0 0 52px rgb(139 92 246 / 0.08);
 }
 
-/*
- * Restrained dark alternative.
- *
- * Obsidian keeps the command-center character while reducing saturation,
- * glow, and blue atmospheric lighting.
- */
 [data-theme='obsidian'] {
   --theme-canvas: #090b10;
   --theme-sidebar: #0b0e14;
@@ -98,6 +95,15 @@
   --theme-danger: #e77c89;
   --theme-focus-ring: #8db4ff;
 
+  --theme-attribute-discipline: #34d399;
+  --theme-attribute-fitness: #fb923c;
+  --theme-attribute-vitality: #f87171;
+  --theme-attribute-focus: #60a5fa;
+  --theme-attribute-mind: #a78bfa;
+  --theme-attribute-resilience: #facc15;
+  --theme-attribute-social: #22d3ee;
+  --theme-attribute-purpose: #f472b6;
+
   --theme-backdrop: rgb(3 5 9 / 0.8);
 
   --theme-progress-gradient: linear-gradient(
@@ -127,12 +133,6 @@
     0 0 20px rgb(91 140 255 / 0.12), 0 0 44px rgb(139 120 215 / 0.05);
 }
 
-/*
- * Premium light alternative.
- *
- * Lumen uses cool silver surfaces and crisp navy text rather than merely
- * inverting the dark palette.
- */
 [data-theme='lumen'] {
   --theme-canvas: #eef3f8;
   --theme-sidebar: #e6edf6;
@@ -163,6 +163,15 @@
   --theme-danger: #d43f5e;
   --theme-focus-ring: #2563eb;
 
+  --theme-attribute-discipline: #047857;
+  --theme-attribute-fitness: #c2410c;
+  --theme-attribute-vitality: #b91c1c;
+  --theme-attribute-focus: #1d4ed8;
+  --theme-attribute-mind: #6d28d9;
+  --theme-attribute-resilience: #a16207;
+  --theme-attribute-social: #0e7490;
+  --theme-attribute-purpose: #be185d;
+
   --theme-backdrop: rgb(14 25 42 / 0.42);
 
   --theme-progress-gradient: linear-gradient(
@@ -188,19 +197,6 @@
     0 0 22px rgb(37 99 235 / 0.11), 0 0 46px rgb(124 58 237 / 0.05);
 }
 
-/*
- * Tailwind semantic tokens.
- *
- * Components use these generated utility names instead of literal colors:
- *
- * bg-canvas
- * bg-surface
- * bg-surface-raised
- * text-content
- * text-content-muted
- * border-line
- * text-accent
- */
 @theme inline {
   --color-canvas: var(--theme-canvas);
   --color-sidebar: var(--theme-sidebar);
@@ -230,6 +226,15 @@
   --color-streak: var(--theme-streak);
   --color-danger: var(--theme-danger);
   --color-focus-ring: var(--theme-focus-ring);
+
+  --color-attribute-discipline: var(--theme-attribute-discipline);
+  --color-attribute-fitness: var(--theme-attribute-fitness);
+  --color-attribute-vitality: var(--theme-attribute-vitality);
+  --color-attribute-focus: var(--theme-attribute-focus);
+  --color-attribute-mind: var(--theme-attribute-mind);
+  --color-attribute-resilience: var(--theme-attribute-resilience);
+  --color-attribute-social: var(--theme-attribute-social);
+  --color-attribute-purpose: var(--theme-attribute-purpose);
 
   --color-backdrop: var(--theme-backdrop);
 

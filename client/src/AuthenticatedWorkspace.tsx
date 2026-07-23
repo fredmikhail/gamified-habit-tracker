@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AttributeSection } from './components/attributes/AttributeSection'
-import { OverallProgressSection } from './components/dashboard/OverallProgressSection'
+import { DashboardPage } from './components/dashboard/DashboardPage'
 import { HabitSection } from './components/habits/HabitSection'
 import { AppShell } from './components/layout/AppShell'
 import type { CurrentUserResponse } from './types/CurrentUserResponse'
@@ -37,15 +37,7 @@ function AuthenticatedRoutes({
       >
         <Route index element={<Navigate replace to="/dashboard" />} />
 
-        <Route
-          path="/dashboard"
-          element={
-            <div className="space-y-6">
-              <OverallProgressSection />
-              <AttributeSection />
-            </div>
-          }
-        />
+        <Route path="/dashboard" element={<DashboardPage />} />
 
         <Route
           path="/habits"

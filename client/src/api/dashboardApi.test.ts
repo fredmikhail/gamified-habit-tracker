@@ -8,7 +8,7 @@ describe('dashboardApi', () => {
     vi.unstubAllGlobals()
   })
 
-  it('requests the authenticated users dashboard', async () => {
+  it('requests the authenticated users aggregate dashboard', async () => {
     const responseBody = {
       overallProgress: {
         totalXp: 300,
@@ -23,17 +23,41 @@ describe('dashboardApi', () => {
       },
       todayExecution: {
         completedDailyHabits: 0,
-        totalDailyHabits: 0,
+        totalDailyHabits: 1,
       },
-      habitStreaks: [
+      todayHabits: [
         {
-          habitId: '019c0000-0000-7000-8000-000000000001',
-          habitName: 'Read C# textbook',
+          id: 'habit-1',
+          name: 'Read C# textbook',
+          category: 'learningAndSkills',
           frequencyType: 'daily',
+          targetCount: 1,
+          difficulty: 'medium',
+          attributeRewards: [
+            {
+              attributeType: 'mind',
+              xpAmount: 14,
+            },
+            {
+              attributeType: 'focus',
+              xpAmount: 6,
+            },
+          ],
+          isCompletedToday: false,
           currentStreak: 2,
           longestStreak: 5,
         },
       ],
+      attributes: [
+        {
+          attributeType: 'discipline',
+          currentXp: 99,
+          level: 1,
+          xpIntoCurrentLevel: 99,
+          xpNeededForNextLevel: 100,
+        },
+      ],
+      habitStreaks: [],
     }
 
     const fetchMock = vi.fn<typeof fetch>()
