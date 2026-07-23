@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { UserAttributeResponse } from '../../types/UserAttributeResponse'
 import { AttributeCard } from './AttributeCard'
@@ -43,5 +43,77 @@ describe('AttributeCard', () => {
         name: 'Resilience level progress',
       }),
     ).toHaveAttribute('aria-valuenow', '61')
+  })
+
+  it('pulses once when authoritative attribute XP increases', async () => {
+    const { rerender } = render(
+      <AttributeCard compact attribute={resilienceAttribute} />,
+    )
+
+    expect(screen.getByTestId('compact-attribute-card')).toHaveAttribute(
+      'data-feedback',
+      'none',
+    )
+
+    rerender(
+      <AttributeCard
+        compact
+        attribute={{
+          ...resilienceAttribute,
+          currentXp: 181,
+          xpIntoCurrentLevel: 81,
+        }}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('compact-attribute-card')).toHaveAttribute(
+        'data-feedback',
+        'xpGain',
+      )
+    })
+
+    expect(screen.getByTestId('attribute-progress-fill')).toHaveStyle({
+      width: '64.8%',
+    })
+  })
+
+  it('shows a level-up state only after the backend level increases', async () => {
+    const { rerender } = render(
+      <AttributeCard compact attribute={resilienceAttribute} />,
+    )
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+
+    rerender(
+      <AttributeCard
+        compact
+        attribute={{
+          ...resilienceAttribute,
+          currentXp: 230,
+          level: 3,
+          xpIntoCurrentLevel: 5,
+          xpNeededForNextLevel: 150,
+        }}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('compact-attribute-card')).toHaveAttribute(
+        'data-feedback',
+        'levelUp',
+      )
+    })
+
+    expect(
+      screen.getByRole('status', {
+        name: 'Resilience leveled up to level 3',
+      }),
+    ).toHaveTextContent('Lv. 3 ↑')
+
+    expect(screen.getByTestId('attribute-progress-fill')).toHaveAttribute(
+      'data-level-up',
+      'true',
+    )
   })
 })

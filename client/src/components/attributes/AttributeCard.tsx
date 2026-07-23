@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { AttributeType } from '../../types/AttributeType'
 import type { UserAttributeResponse } from '../../types/UserAttributeResponse'
+import { useProgressionFeedback } from '../progression/useProgressionFeedback'
 import { getAttributeVisual } from './attributeVisuals'
 
 type AttributeCardProps = {
@@ -134,15 +135,33 @@ export function AttributeCard({
   const visual = getAttributeVisual(attribute.attributeType)
   const progressPercentage = getProgressPercentage(attribute)
 
+  const progressionFeedback = useProgressionFeedback({
+    level: attribute.level,
+    currentXp: attribute.currentXp,
+    progressPercentage,
+  })
+
+  const feedbackClassName =
+    progressionFeedback.kind === 'levelUp'
+      ? 'progression-feedback-level'
+      : progressionFeedback.kind === 'xpGain'
+        ? 'progression-feedback-xp'
+        : ''
+
   const style = {
     '--attribute-accent': visual.colorVariable,
+    '--progression-accent': visual.colorVariable,
   } as CSSProperties
 
   if (compact) {
     return (
       <article
-        className="relative flex h-full min-h-[6.5rem] flex-col overflow-hidden rounded-xl border bg-surface"
+        className={[
+          'relative flex h-full min-h-[6.5rem] flex-col overflow-hidden rounded-xl border bg-surface',
+          feedbackClassName,
+        ].join(' ')}
         data-attribute-type={attribute.attributeType}
+        data-feedback={progressionFeedback.kind}
         data-testid="compact-attribute-card"
         style={{
           ...style,
@@ -178,7 +197,18 @@ export function AttributeCard({
           </div>
 
           <span
-            className="shrink-0 rounded-md border px-1.5 py-0.5 font-bold"
+            aria-label={
+              progressionFeedback.kind === 'levelUp'
+                ? `${visual.label} leveled up to level ${attribute.level}`
+                : undefined
+            }
+            className={[
+              'shrink-0 rounded-md border px-1.5 py-0.5 font-bold',
+              progressionFeedback.kind === 'levelUp'
+                ? 'progression-level-up-badge'
+                : '',
+            ].join(' ')}
+            role={progressionFeedback.kind === 'levelUp' ? 'status' : undefined}
             style={{
               fontSize: 'clamp(0.5rem, 4.7cqi, 0.625rem)',
               borderColor:
@@ -188,7 +218,9 @@ export function AttributeCard({
               color: 'var(--attribute-accent)',
             }}
           >
-            Lv. {attribute.level}
+            {progressionFeedback.kind === 'levelUp'
+              ? `Lv. ${attribute.level} ↑`
+              : `Lv. ${attribute.level}`}
           </span>
         </div>
 
@@ -238,13 +270,26 @@ export function AttributeCard({
             }}
           >
             <div
-              className="h-full rounded-full"
-              style={{
-                width: `${progressPercentage}%`,
-                backgroundColor: 'var(--attribute-accent)',
-                boxShadow:
-                  '0 0 12px color-mix(in srgb, var(--attribute-accent) 45%, transparent)',
-              }}
+              className="progression-progress-fill h-full rounded-full"
+              data-level-up={
+                progressionFeedback.kind === 'levelUp' ? 'true' : undefined
+              }
+              data-testid="attribute-progress-fill"
+              key={
+                progressionFeedback.kind === 'levelUp'
+                  ? progressionFeedback.animationKey
+                  : 'steady'
+              }
+              style={
+                {
+                  '--progress-from': `${progressionFeedback.previousProgressPercentage}%`,
+                  '--progress-to': `${progressPercentage}%`,
+                  width: `${progressPercentage}%`,
+                  backgroundColor: 'var(--attribute-accent)',
+                  boxShadow:
+                    '0 0 12px color-mix(in srgb, var(--attribute-accent) 45%, transparent)',
+                } as CSSProperties
+              }
             />
           </div>
 
@@ -266,6 +311,7 @@ export function AttributeCard({
 
   const className = [
     'relative flex min-h-[9.25rem] w-full flex-col overflow-hidden rounded-2xl border p-[clamp(0.75rem,0.66rem_+_0.1vw,0.9375rem)] text-left shadow-[var(--theme-panel-shadow)] transition-[border-color,box-shadow,transform,background-color] duration-200',
+    feedbackClassName,
     onSelect ? 'cursor-pointer hover:-translate-y-0.5' : '',
   ].join(' ')
 
@@ -295,6 +341,7 @@ export function AttributeCard({
       <article
         className={className}
         data-attribute-type={attribute.attributeType}
+        data-feedback={progressionFeedback.kind}
         style={interactiveStyle}
       >
         {content}
@@ -308,6 +355,7 @@ export function AttributeCard({
       aria-pressed={isSpotlighted}
       className={className}
       data-attribute-type={attribute.attributeType}
+      data-feedback={progressionFeedback.kind}
       style={interactiveStyle}
       type="button"
       onBlur={() => onSpotlightChange?.(null)}

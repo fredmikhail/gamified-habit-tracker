@@ -11,6 +11,10 @@ import {
 import type { CSSProperties, ReactNode } from 'react'
 import type { DashboardResponse } from '../../types/DashboardResponse'
 import type { HabitStreakResponse } from '../../types/HabitStreakResponse'
+import {
+  useProgressionFeedback,
+  type ProgressionFeedbackKind,
+} from '../progression/useProgressionFeedback'
 
 type DashboardSummaryRailProps = {
   dashboard: DashboardResponse
@@ -22,6 +26,7 @@ type ProgressionMetricCardProps = {
   accentVariable: string
   className?: string
   status?: string
+  feedbackKind?: ProgressionFeedbackKind
   children: ReactNode
 }
 
@@ -58,10 +63,12 @@ function ProgressionMetricCard({
   accentVariable,
   className = '',
   status,
+  feedbackKind = 'none',
   children,
 }: ProgressionMetricCardProps) {
   const style = {
     '--metric-accent': accentVariable,
+    '--progression-accent': accentVariable,
     borderColor:
       'color-mix(in srgb, var(--metric-accent) 34%, var(--theme-border))',
     backgroundImage:
@@ -73,8 +80,14 @@ function ProgressionMetricCard({
       aria-label={label}
       className={[
         'ui-adaptive-panel relative min-h-0 overflow-hidden rounded-2xl border bg-surface-raised p-[clamp(0.7rem,0.62rem_+_0.08vw,0.9rem)] shadow-[var(--theme-panel-shadow)]',
+        feedbackKind === 'levelUp'
+          ? 'progression-feedback-level'
+          : feedbackKind === 'xpGain'
+            ? 'progression-feedback-xp'
+            : '',
         className,
       ].join(' ')}
+      data-feedback={feedbackKind}
       style={style}
     >
       <span
@@ -131,7 +144,11 @@ function ProgressionMetricCard({
 
           {status && (
             <span
-              className="shrink-0 rounded-full border px-2 py-0.5 text-[clamp(0.48rem,1.9cqi,0.6rem)] font-bold tracking-[0.08em] uppercase"
+              className={[
+                'shrink-0 rounded-full border px-2 py-0.5 text-[clamp(0.48rem,1.9cqi,0.6rem)] font-bold tracking-[0.08em] uppercase',
+                status === 'Level up' ? 'progression-level-up-badge' : '',
+              ].join(' ')}
+              role={status === 'Level up' ? 'status' : undefined}
               style={{
                 borderColor:
                   'color-mix(in srgb, var(--metric-accent) 35%, transparent)',
@@ -182,6 +199,35 @@ export function DashboardSummaryRail({ dashboard }: DashboardSummaryRailProps) {
   const nextLevel = dashboard.overallProgress.level + 1
   const featuredStreak = getFeaturedStreak(dashboard)
 
+  const completionFeedback = useProgressionFeedback({
+    level: 0,
+    currentXp: completedDailyHabits,
+    progressPercentage: executionPercentage,
+  })
+
+  const streakFeedback = useProgressionFeedback({
+    level: 0,
+    currentXp: featuredStreak?.currentStreak ?? 0,
+    progressPercentage: featuredStreak
+      ? getPercentage(
+          featuredStreak.currentStreak,
+          Math.max(featuredStreak.longestStreak, 1),
+        )
+      : 0,
+  })
+
+  const xpFeedback = useProgressionFeedback({
+    level: 0,
+    currentXp: dashboard.todayActivity.xpEarned,
+    progressPercentage: 0,
+  })
+
+  const levelFeedback = useProgressionFeedback({
+    level: dashboard.overallProgress.level,
+    currentXp: dashboard.overallProgress.totalXp,
+    progressPercentage: levelPercentage,
+  })
+
   return (
     <div
       className="grid h-full min-h-0 gap-2.5 sm:grid-cols-2 xl:grid-cols-[1.18fr_1.02fr_0.88fr_0.82fr_1.28fr]"
@@ -191,6 +237,7 @@ export function DashboardSummaryRail({ dashboard }: DashboardSummaryRailProps) {
         Icon={CircleGauge}
         accentVariable="var(--theme-success)"
         className="xl:shadow-[var(--theme-panel-shadow),0_0_24px_color-mix(in_srgb,var(--theme-success)_8%,transparent)]"
+        feedbackKind={completionFeedback.kind}
         label="Today's summary"
         status={`${completedDailyHabits}/${totalDailyHabits}`}
       >
@@ -245,6 +292,7 @@ export function DashboardSummaryRail({ dashboard }: DashboardSummaryRailProps) {
       <ProgressionMetricCard
         Icon={Flame}
         accentVariable="var(--theme-streak)"
+        feedbackKind={streakFeedback.kind}
         label="Current streak"
         status={
           featuredStreak ? `Best ${featuredStreak.longestStreak}` : 'Unstarted'
@@ -269,7 +317,7 @@ export function DashboardSummaryRail({ dashboard }: DashboardSummaryRailProps) {
           <div className="mt-auto pt-2">
             <div className="h-1.5 overflow-hidden rounded-full bg-surface-muted">
               <div
-                className="h-full rounded-full bg-streak"
+                className="progression-progress-fill h-full rounded-full bg-streak"
                 style={{
                   width: featuredStreak
                     ? `${getPercentage(
@@ -289,6 +337,7 @@ export function DashboardSummaryRail({ dashboard }: DashboardSummaryRailProps) {
       <ProgressionMetricCard
         Icon={Zap}
         accentVariable="var(--theme-energy-violet)"
+        feedbackKind={xpFeedback.kind}
         label="XP today"
         status={`${dashboard.todayActivity.completions} done`}
       >
@@ -316,8 +365,9 @@ export function DashboardSummaryRail({ dashboard }: DashboardSummaryRailProps) {
       <ProgressionMetricCard
         Icon={Shield}
         accentVariable="var(--theme-energy-cyan)"
+        feedbackKind={levelFeedback.kind}
         label="Total level"
-        status="Lifetime"
+        status={levelFeedback.kind === 'levelUp' ? 'Level up' : 'Lifetime'}
       >
         <div className="flex h-full min-h-0 items-end gap-[clamp(0.45rem,3cqi,0.75rem)]">
           <div
@@ -329,7 +379,12 @@ export function DashboardSummaryRail({ dashboard }: DashboardSummaryRailProps) {
                 '0 0 20px color-mix(in srgb, var(--theme-energy-cyan) 16%, transparent)',
             }}
           >
-            <span className="text-[clamp(1.35rem,9cqi,2.1rem)] leading-none font-black">
+            <span
+              className="progression-level-number text-[clamp(1.35rem,9cqi,2.1rem)] leading-none font-black"
+              data-level-up={
+                levelFeedback.kind === 'levelUp' ? 'true' : undefined
+              }
+            >
               {dashboard.overallProgress.level}
             </span>
           </div>
@@ -349,6 +404,7 @@ export function DashboardSummaryRail({ dashboard }: DashboardSummaryRailProps) {
       <ProgressionMetricCard
         Icon={Target}
         accentVariable="var(--theme-accent-primary)"
+        feedbackKind={levelFeedback.kind}
         label="Next level"
         status={`${Math.round(levelPercentage)}%`}
       >
@@ -384,13 +440,26 @@ export function DashboardSummaryRail({ dashboard }: DashboardSummaryRailProps) {
               role="progressbar"
             >
               <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${levelPercentage}%`,
-                  background: 'var(--theme-progress-gradient)',
-                  boxShadow:
-                    '0 0 16px color-mix(in srgb, var(--theme-accent-primary) 48%, transparent)',
-                }}
+                className="progression-progress-fill h-full rounded-full"
+                data-level-up={
+                  levelFeedback.kind === 'levelUp' ? 'true' : undefined
+                }
+                data-testid="overall-level-progress-fill"
+                key={
+                  levelFeedback.kind === 'levelUp'
+                    ? levelFeedback.animationKey
+                    : 'steady'
+                }
+                style={
+                  {
+                    '--progress-from': `${levelFeedback.previousProgressPercentage}%`,
+                    '--progress-to': `${levelPercentage}%`,
+                    width: `${levelPercentage}%`,
+                    background: 'var(--theme-progress-gradient)',
+                    boxShadow:
+                      '0 0 16px color-mix(in srgb, var(--theme-accent-primary) 48%, transparent)',
+                  } as CSSProperties
+                }
               />
             </div>
           </div>

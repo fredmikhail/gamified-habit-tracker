@@ -319,6 +319,179 @@
   }
 }
 
+@layer components {
+  .progression-feedback-xp {
+    animation: progression-xp-pulse 650ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .progression-feedback-level {
+    animation: progression-level-up-card 1100ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .progression-level-up-badge {
+    animation: progression-level-up-badge 1100ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .progression-level-number[data-level-up='true'] {
+    animation: progression-level-number-pop 1100ms
+      cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .progression-progress-fill {
+    transition:
+      width 700ms cubic-bezier(0.22, 1, 0.36, 1),
+      filter 220ms ease;
+  }
+
+  .progression-progress-fill[data-level-up='true'] {
+    animation: progression-level-progress 1100ms cubic-bezier(0.22, 1, 0.36, 1)
+      both;
+  }
+}
+
+@keyframes progression-xp-pulse {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+
+  42% {
+    transform: translateY(-1px) scale(1.008);
+    filter: brightness(1.12)
+      drop-shadow(
+        0 0 12px
+          color-mix(
+            in srgb,
+            var(--progression-accent, var(--theme-accent-primary)) 30%,
+            transparent
+          )
+      );
+  }
+}
+
+@keyframes progression-level-up-card {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+
+  24% {
+    transform: translateY(-2px) scale(1.014);
+    filter: brightness(1.2)
+      drop-shadow(
+        0 0 18px
+          color-mix(
+            in srgb,
+            var(--progression-accent, var(--theme-accent-primary)) 42%,
+            transparent
+          )
+      );
+  }
+
+  52% {
+    transform: translateY(-1px) scale(1.006);
+    filter: brightness(1.08)
+      drop-shadow(
+        0 0 10px
+          color-mix(
+            in srgb,
+            var(--progression-accent, var(--theme-accent-primary)) 24%,
+            transparent
+          )
+      );
+  }
+}
+
+@keyframes progression-level-up-badge {
+  0% {
+    opacity: 0;
+    transform: translateY(3px) scale(0.88);
+  }
+
+  20%,
+  72% {
+    opacity: 1;
+    transform: translateY(0) scale(1.05);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes progression-level-number-pop {
+  0%,
+  100% {
+    transform: scale(1);
+    text-shadow: none;
+  }
+
+  28% {
+    transform: scale(1.18);
+    text-shadow:
+      0 0 10px
+        color-mix(
+          in srgb,
+          var(--progression-accent, var(--theme-accent-primary)) 72%,
+          transparent
+        ),
+      0 0 22px
+        color-mix(
+          in srgb,
+          var(--progression-accent, var(--theme-accent-primary)) 36%,
+          transparent
+        );
+  }
+
+  55% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes progression-level-progress {
+  0% {
+    width: var(--progress-from);
+    filter: brightness(1);
+  }
+
+  38% {
+    width: 100%;
+    filter: brightness(1.08);
+  }
+
+  46% {
+    width: 100%;
+    filter: brightness(1.55);
+  }
+
+  46.1% {
+    width: 0%;
+    filter: brightness(1.2);
+  }
+
+  100% {
+    width: var(--progress-to);
+    filter: brightness(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progression-feedback-xp,
+  .progression-feedback-level,
+  .progression-level-up-badge,
+  .progression-level-number[data-level-up='true'],
+  .progression-progress-fill[data-level-up='true'] {
+    animation: none !important;
+  }
+
+  .progression-progress-fill {
+    transition: none !important;
+  }
+}
+
 @layer base {
   *,
   *::before,
