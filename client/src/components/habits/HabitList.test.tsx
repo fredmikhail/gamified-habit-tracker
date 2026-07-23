@@ -1,5 +1,5 @@
 import { useState, type ComponentProps } from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -14,6 +14,7 @@ import { HabitList } from './HabitList'
 
 vi.mock('../../api/habitsApi', () => ({
   completeHabit: vi.fn(),
+  createHabit: vi.fn(),
   deactivateHabit: vi.fn(),
   getHabits: vi.fn(),
   undoHabitCompletion: vi.fn(),
@@ -97,13 +98,17 @@ describe('HabitList', () => {
 
     renderHabitList()
 
-    await screen.findByRole('heading', {
-      name: 'Read C# textbook',
-    })
+    const habitList = await screen.findByRole('list')
+
+    expect(
+      within(habitList).getByRole('heading', {
+        name: 'Read C# textbook',
+      }),
+    ).toBeInTheDocument()
 
     await user.click(
       screen.getByRole('button', {
-        name: 'Mark complete',
+        name: 'Complete Read C# textbook',
       }),
     )
 
@@ -113,14 +118,13 @@ describe('HabitList', () => {
 
     expect(
       screen.getByRole('button', {
-        name: 'Undo completion',
+        name: 'Undo completion for Read C# textbook',
       }),
     ).toHaveAttribute('aria-pressed', 'true')
 
     expect(getHabitsMock).toHaveBeenCalledTimes(1)
 
     expect(screen.getByRole('status')).toHaveTextContent('+14 Mind XP')
-
     expect(screen.getByRole('status')).toHaveTextContent('+6 Focus XP')
   })
 
@@ -156,7 +160,7 @@ describe('HabitList', () => {
     ).toBeInTheDocument()
 
     expect(getHabitsMock).toHaveBeenCalledTimes(1)
-    expect(getHabitsMock).toHaveBeenCalledWith()
+    expect(getHabitsMock).toHaveBeenCalledWith(true)
   })
 
   it('renders the loaded habits', async () => {
@@ -179,30 +183,38 @@ describe('HabitList', () => {
 
     renderHabitList()
 
+    const habitList = await screen.findByRole('list')
+
     expect(
-      await screen.findByRole('heading', {
+      within(habitList).getByRole('heading', {
         name: 'Read C# textbook',
       }),
     ).toBeInTheDocument()
 
     expect(
-      screen.getByRole('heading', {
+      within(habitList).getByRole('heading', {
         name: 'Go to gym',
       }),
     ).toBeInTheDocument()
 
-    expect(screen.getByText('Read one chapter.')).toBeInTheDocument()
+    expect(within(habitList).getByText('Read one chapter.')).toBeInTheDocument()
 
-    expect(screen.getByText('Frequency: Daily')).toBeInTheDocument()
+    expect(within(habitList).getByText('Frequency: Daily')).toBeInTheDocument()
 
-    expect(screen.getByText('Frequency: 3 times per week')).toBeInTheDocument()
+    expect(
+      within(habitList).getByText('Frequency: 3 times per week'),
+    ).toBeInTheDocument()
 
-    expect(screen.getByText('Category: Learning & Skills')).toBeInTheDocument()
+    expect(
+      within(habitList).getByText('Category: Learning & Skills'),
+    ).toBeInTheDocument()
 
-    expect(screen.getByText('Category: Fitness & Movement')).toBeInTheDocument()
+    expect(
+      within(habitList).getByText('Category: Fitness & Movement'),
+    ).toBeInTheDocument()
 
-    expect(screen.getByText('Medium')).toBeInTheDocument()
-    expect(screen.getByText('Elite')).toBeInTheDocument()
+    expect(within(habitList).getByText('Medium')).toBeInTheDocument()
+    expect(within(habitList).getByText('Elite')).toBeInTheDocument()
   })
 
   it('reuses cached habits when the list returns', async () => {
@@ -291,12 +303,16 @@ describe('HabitList', () => {
       onHabitUpdated,
     })
 
-    await screen.findByRole('heading', {
-      name: 'Read C# textbook',
-    })
+    const habitList = await screen.findByRole('list')
+
+    expect(
+      within(habitList).getByRole('heading', {
+        name: 'Read C# textbook',
+      }),
+    ).toBeInTheDocument()
 
     await user.click(
-      screen.getByRole('button', {
+      await screen.findByRole('button', {
         name: 'Edit',
       }),
     )
@@ -339,20 +355,33 @@ describe('HabitList', () => {
     ).not.toBeInTheDocument()
 
     expect(
-      screen.getByRole('heading', {
+      within(habitList).getByRole('heading', {
         name: 'Read TypeScript book',
       }),
     ).toBeInTheDocument()
 
-    expect(screen.getByText('Scheduled for July 27, 2026')).toBeInTheDocument()
+    const inspector = screen.getByRole('complementary')
 
-    expect(screen.getByText('Difficulty: Hard')).toBeInTheDocument()
+    expect(
+      within(inspector).getByRole('heading', {
+        name: 'Read TypeScript book',
+      }),
+    ).toBeInTheDocument()
+
+    const scheduledChanges = screen.getByRole('region', {
+      name: 'Scheduled changes for Read TypeScript book',
+    })
+
+    expect(scheduledChanges).toHaveTextContent('Scheduled for July 27, 2026')
+
+    expect(scheduledChanges).toHaveTextContent('Difficulty: Hard')
 
     expect(getHabitsMock).toHaveBeenCalledTimes(1)
   })
 
   it('closes the edit form without updating when canceled', async () => {
     const user = userEvent.setup()
+
     const habit = createHabitFixture({
       description: null,
     })
@@ -361,12 +390,16 @@ describe('HabitList', () => {
 
     renderHabitList()
 
-    await screen.findByRole('heading', {
-      name: 'Read C# textbook',
-    })
+    const habitList = await screen.findByRole('list')
+
+    expect(
+      within(habitList).getByRole('heading', {
+        name: 'Read C# textbook',
+      }),
+    ).toBeInTheDocument()
 
     await user.click(
-      screen.getByRole('button', {
+      await screen.findByRole('button', {
         name: 'Edit',
       }),
     )
@@ -392,7 +425,7 @@ describe('HabitList', () => {
     expect(updateHabitMock).not.toHaveBeenCalled()
   })
 
-  it('removes a deactivated habit and reports the change', async () => {
+  it('moves a deactivated habit from the active tab to the inactive tab', async () => {
     const user = userEvent.setup()
     const onHabitDeactivated = vi.fn()
     const habit = createHabitFixture()
@@ -409,12 +442,16 @@ describe('HabitList', () => {
       onHabitDeactivated,
     })
 
-    await screen.findByRole('heading', {
-      name: 'Read C# textbook',
-    })
+    const activeHabitList = await screen.findByRole('list')
+
+    expect(
+      within(activeHabitList).getByRole('heading', {
+        name: 'Read C# textbook',
+      }),
+    ).toBeInTheDocument()
 
     await user.click(
-      screen.getByRole('button', {
+      await screen.findByRole('button', {
         name: 'Deactivate',
       }),
     )
@@ -429,12 +466,27 @@ describe('HabitList', () => {
     expect(deactivateHabitMock).toHaveBeenCalledWith(habit.id)
 
     expect(onHabitDeactivated).toHaveBeenCalledTimes(1)
-
     expect(onHabitDeactivated).toHaveBeenCalledWith(deactivatedHabit)
 
     expect(
       await screen.findByText('You do not have any habits yet.'),
     ).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('tab', {
+        name: /Inactive Habits/,
+      }),
+    )
+
+    const inactiveHabitList = await screen.findByRole('list')
+
+    expect(
+      within(inactiveHabitList).getByRole('heading', {
+        name: 'Read C# textbook',
+      }),
+    ).toBeInTheDocument()
+
+    expect(screen.getByLabelText('Inactive habit')).toBeInTheDocument()
 
     expect(getHabitsMock).toHaveBeenCalledTimes(1)
   })

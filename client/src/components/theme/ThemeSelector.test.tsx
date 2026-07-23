@@ -1,57 +1,90 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, test } from 'vitest'
-import { ThemeProvider } from '../../theme/ThemeProvider'
-import { themeStorageKey } from '../../theme/themeStorage'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ThemeSelector } from './ThemeSelector'
 
-function renderThemeSelector() {
-  return render(
-    <ThemeProvider>
-      <ThemeSelector />
-    </ThemeProvider>,
-  )
-}
+const { setThemePreferenceMock, useThemeMock } = vi.hoisted(() => ({
+  setThemePreferenceMock: vi.fn(),
+  useThemeMock: vi.fn(),
+}))
 
-afterEach(() => {
-  window.localStorage.clear()
-  document.documentElement.removeAttribute('data-theme')
-  document.documentElement.style.colorScheme = ''
-})
+vi.mock('../../theme/useTheme', () => ({
+  useTheme: useThemeMock,
+}))
 
 describe('ThemeSelector', () => {
-  test('opens the appearance chooser', async () => {
-    const user = userEvent.setup()
+  beforeEach(() => {
+    setThemePreferenceMock.mockReset()
 
-    renderThemeSelector()
+    useThemeMock.mockReturnValue({
+      themePreference: 'abyss',
+      resolvedTheme: 'abyss',
+      setThemePreference: setThemePreferenceMock,
+    })
+  })
+
+  it('renders an icon-sized appearance trigger', () => {
+    render(<ThemeSelector />)
 
     const trigger = screen.getByRole('button', {
       name: 'Choose appearance theme',
     })
 
-    expect(trigger).toHaveAttribute('aria-expanded', 'false')
-    expect(
-      screen.queryByRole('dialog', { name: 'Appearance' }),
-    ).not.toBeInTheDocument()
+    expect(trigger).toHaveClass('size-11')
 
-    await user.click(trigger)
-
-    expect(trigger).toHaveAttribute('aria-expanded', 'true')
-
-    expect(
-      screen.getByRole('dialog', { name: 'Appearance' }),
-    ).toBeInTheDocument()
-
-    expect(screen.getByRole('button', { name: /Abyss/ })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
+    expect(trigger).toHaveAttribute('title', 'Appearance')
   })
 
-  test('selects and stores another theme', async () => {
+  it('opens the appearance dialog', async () => {
     const user = userEvent.setup()
 
-    renderThemeSelector()
+    render(<ThemeSelector />)
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Choose appearance theme',
+      }),
+    )
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Appearance',
+      }),
+    ).toBeInTheDocument()
+
+    expect(screen.getByText('Rendering Abyss')).toBeInTheDocument()
+  })
+
+  it('marks the current theme as selected', async () => {
+    const user = userEvent.setup()
+
+    render(<ThemeSelector />)
+
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Choose appearance theme',
+      }),
+    )
+
+    expect(
+      screen.getByRole('button', {
+        name: /Abyss/,
+      }),
+    ).toHaveAttribute('aria-pressed', 'true')
+
+    expect(
+      screen.getByRole('button', {
+        name: /Obsidian/,
+      }),
+    ).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('changes the selected theme and closes the dialog', async () => {
+    const user = userEvent.setup()
+
+    render(<ThemeSelector />)
 
     await user.click(
       screen.getByRole('button', {
@@ -65,19 +98,15 @@ describe('ThemeSelector', () => {
       }),
     )
 
-    expect(window.localStorage.getItem(themeStorageKey)).toBe('obsidian')
+    expect(setThemePreferenceMock).toHaveBeenCalledWith('obsidian')
 
-    expect(document.documentElement).toHaveAttribute('data-theme', 'obsidian')
-
-    expect(
-      screen.queryByRole('dialog', { name: 'Appearance' }),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  test('closes the chooser with Escape and returns focus', async () => {
+  it('closes the dialog with Escape', async () => {
     const user = userEvent.setup()
 
-    renderThemeSelector()
+    render(<ThemeSelector />)
 
     const trigger = screen.getByRole('button', {
       name: 'Choose appearance theme',
@@ -85,15 +114,11 @@ describe('ThemeSelector', () => {
 
     await user.click(trigger)
 
-    expect(
-      screen.getByRole('dialog', { name: 'Appearance' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
 
     await user.keyboard('{Escape}')
 
-    expect(
-      screen.queryByRole('dialog', { name: 'Appearance' }),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     expect(trigger).toHaveFocus()
   })

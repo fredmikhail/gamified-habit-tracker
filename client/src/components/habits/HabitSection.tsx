@@ -1,6 +1,4 @@
 import type { HabitResponse } from '../../types/HabitResponse'
-import { useWorkspaceData } from '../../workspace/useWorkspaceData'
-import { HabitForm } from './HabitForm'
 import { HabitList } from './HabitList'
 
 type HabitSectionProps = {
@@ -8,44 +6,20 @@ type HabitSectionProps = {
 }
 
 export function HabitSection({ onProgressChanged }: HabitSectionProps) {
-  const { habitsResource } = useWorkspaceData()
-  const { updateData: updateHabits } = habitsResource
-
-  function handleHabitCreated(createdHabit: HabitResponse): void {
-    updateHabits((currentHabits) => {
-      if (currentHabits === null) {
-        return [createdHabit]
-      }
-
-      const habitAlreadyExists = currentHabits.some(
-        (habit) => habit.id === createdHabit.id,
-      )
-
-      if (habitAlreadyExists) {
-        return currentHabits.map((habit) =>
-          habit.id === createdHabit.id ? createdHabit : habit,
-        )
-      }
-
-      return [...currentHabits, createdHabit]
-    })
-
-    onProgressChanged()
-  }
-
-  function handleHabitChanged(): void {
+  function handleHabitChanged(_habit: HabitResponse): void {
     onProgressChanged()
   }
 
   return (
-    <>
-      <HabitForm onHabitCreated={handleHabitCreated} />
-
+    <section
+      aria-label="Habit workspace"
+      className="h-full min-h-0 min-w-0 overflow-hidden"
+    >
       <HabitList
-        onHabitUpdated={handleHabitChanged}
         onHabitDeactivated={handleHabitChanged}
+        onHabitUpdated={handleHabitChanged}
         onProgressChanged={onProgressChanged}
       />
-    </>
+    </section>
   )
 }

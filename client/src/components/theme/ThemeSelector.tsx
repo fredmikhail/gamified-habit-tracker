@@ -107,20 +107,21 @@ export function ThemeSelector() {
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative shrink-0">
       <button
         ref={triggerRef}
         aria-controls={panelId}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label="Choose appearance theme"
-        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface-raised px-3.5 py-2.5 text-sm font-semibold text-content shadow-[var(--theme-panel-shadow)] transition-colors hover:border-line-strong hover:bg-surface-hover"
+        className="grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-surface-raised text-content-muted shadow-[var(--theme-panel-shadow)] transition-colors hover:border-accent/45 hover:bg-surface-hover hover:text-accent"
+        title="Appearance"
         type="button"
         onClick={() => setIsOpen((currentValue) => !currentValue)}
       >
         <Palette aria-hidden="true" size={18} strokeWidth={1.8} />
 
-        <span className="hidden sm:inline">Appearance</span>
+        <span className="sr-only">Appearance</span>
       </button>
 
       {isOpen && (
@@ -152,6 +153,7 @@ export function ThemeSelector() {
           <div className="mt-4 grid grid-cols-2 gap-3">
             {themeOptions.map((option) => {
               const isSelected = themePreference === option.value
+
               const OptionIcon = option.Icon
 
               return (

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createHabit, deactivateHabit, getHabits } from '../../api/habitsApi'
@@ -68,6 +68,18 @@ describe('HabitSection', () => {
       await screen.findByText('You do not have any habits yet.'),
     ).toBeInTheDocument()
 
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Create Habit',
+      }),
+    )
+
+    expect(
+      screen.getByRole('form', {
+        name: 'Create habit',
+      }),
+    ).toBeInTheDocument()
+
     await user.type(
       screen.getByRole('textbox', {
         name: 'Name',
@@ -88,8 +100,18 @@ describe('HabitSection', () => {
       }),
     )
 
+    const habitList = await screen.findByRole('list')
+
     expect(
-      await screen.findByRole('heading', {
+      within(habitList).getByRole('heading', {
+        name: 'Read C# textbook',
+      }),
+    ).toBeInTheDocument()
+
+    const inspector = screen.getByRole('complementary')
+
+    expect(
+      within(inspector).getByRole('heading', {
         name: 'Read C# textbook',
       }),
     ).toBeInTheDocument()
@@ -106,13 +128,14 @@ describe('HabitSection', () => {
     })
 
     expect(getHabitsMock).toHaveBeenCalledTimes(1)
+    expect(getHabitsMock).toHaveBeenCalledWith(true)
 
     await waitFor(() => {
       expect(onProgressChanged).toHaveBeenCalledTimes(1)
     })
   })
 
-  it('removes a deactivated habit without reloading the habit list', async () => {
+  it('moves a deactivated habit out of the active view without reloading', async () => {
     const user = userEvent.setup()
     const activeHabit = createHabitFixture()
 
@@ -126,14 +149,16 @@ describe('HabitSection', () => {
 
     renderHabitSection()
 
+    const activeHabitList = await screen.findByRole('list')
+
     expect(
-      await screen.findByRole('heading', {
+      within(activeHabitList).getByRole('heading', {
         name: 'Read C# textbook',
       }),
     ).toBeInTheDocument()
 
     await user.click(
-      screen.getByRole('button', {
+      await screen.findByRole('button', {
         name: 'Deactivate',
       }),
     )
@@ -152,6 +177,7 @@ describe('HabitSection', () => {
     expect(deactivateHabitMock).toHaveBeenCalledWith(activeHabit.id)
 
     expect(getHabitsMock).toHaveBeenCalledTimes(1)
+    expect(getHabitsMock).toHaveBeenCalledWith(true)
 
     await waitFor(() => {
       expect(onProgressChanged).toHaveBeenCalledTimes(1)

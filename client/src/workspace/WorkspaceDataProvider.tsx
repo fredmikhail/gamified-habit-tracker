@@ -35,7 +35,7 @@ export function WorkspaceDataProvider({ children }: PropsWithChildren) {
   })
 
   const habitsResource = useCachedResource({
-    load: getHabits,
+    load: () => getHabits(true),
     getErrorMessage: getHabitErrorMessage,
   })
 

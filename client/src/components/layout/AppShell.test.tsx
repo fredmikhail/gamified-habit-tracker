@@ -1,12 +1,56 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CurrentUserResponse } from '../../types/CurrentUserResponse'
 import { AppShell } from './AppShell'
 
+const { ensureDashboardLoadedMock } = vi.hoisted(() => ({
+  ensureDashboardLoadedMock: vi.fn().mockResolvedValue(undefined),
+}))
+
 vi.mock('../theme/ThemeSelector', () => ({
-  ThemeSelector: () => <button type="button">Appearance</button>,
+  ThemeSelector: () => (
+    <button
+      aria-label="Choose appearance theme"
+      className="size-11"
+      type="button"
+    >
+      Appearance
+    </button>
+  ),
+}))
+
+vi.mock('../../workspace/useWorkspaceData', () => ({
+  useWorkspaceData: () => ({
+    dashboardResource: {
+      data: {
+        overallProgress: {
+          totalXp: 18450,
+          level: 27,
+          xpIntoCurrentLevel: 100,
+          xpNeededForNextLevel: 200,
+        },
+        todayActivity: {
+          localDate: '2026-07-23',
+          completions: 2,
+          xpEarned: 40,
+        },
+        todayExecution: {
+          completedDailyHabits: 2,
+          totalDailyHabits: 4,
+        },
+        todayHabits: [],
+        attributes: [],
+        habitStreaks: [],
+      },
+      errorMessage: null,
+      isRefreshing: false,
+      ensureLoaded: ensureDashboardLoadedMock,
+      refresh: vi.fn(),
+      updateData: vi.fn(),
+    },
+  }),
 }))
 
 const currentUser: CurrentUserResponse = {
@@ -42,7 +86,11 @@ function renderAppShell(initialPath: string, onLogout = vi.fn()) {
 }
 
 describe('AppShell', () => {
-  it('renders the current route inside a viewport-sized shell', () => {
+  beforeEach(() => {
+    ensureDashboardLoadedMock.mockClear()
+  })
+
+  it('renders the current route inside the fluid application shell', async () => {
     renderAppShell('/habits')
 
     expect(screen.getByTestId('app-shell')).toHaveClass('app-viewport')
@@ -56,9 +104,7 @@ describe('AppShell', () => {
     expect(screen.getByText('Habit route content')).toBeInTheDocument()
 
     expect(
-      screen.getByText(
-        'Create, complete, edit, and manage your active habits.',
-      ),
+      screen.getByText('Create, complete, edit, and manage your habits.'),
     ).toBeInTheDocument()
 
     const habitLinks = screen.getAllByRole('link', {
@@ -70,6 +116,76 @@ describe('AppShell', () => {
     for (const habitLink of habitLinks) {
       expect(habitLink).toHaveAttribute('aria-current', 'page')
     }
+
+    await waitFor(() => {
+      expect(ensureDashboardLoadedMock).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('shows authoritative XP, level, and progress in the global header', () => {
+    renderAppShell('/dashboard')
+
+    const progressCluster = screen.getByTestId('global-progress-cluster')
+
+    expect(within(progressCluster).getByText('18,450')).toBeInTheDocument()
+
+    expect(
+      within(progressCluster).getByLabelText('Level 27'),
+    ).toBeInTheDocument()
+
+    const progressBar = within(progressCluster).getByRole('progressbar', {
+      name: 'Overall level progress',
+    })
+
+    expect(progressBar).toHaveAttribute('aria-valuenow', '100')
+
+    expect(progressBar).toHaveAttribute('aria-valuemax', '200')
+
+    expect(progressBar.firstElementChild).toHaveStyle({
+      width: '50%',
+    })
+  })
+
+  it('shows the account identity without a surrounding account card', () => {
+    renderAppShell('/attributes')
+
+    const accountStatus = screen.getByTestId('global-account-status')
+
+    expect(accountStatus).toHaveAccessibleName('Fred Mikhail is online')
+
+    expect(within(accountStatus).getByText('Fred Mikhail')).toBeInTheDocument()
+
+    expect(within(accountStatus).getByText('Online')).toBeInTheDocument()
+
+    expect(accountStatus).not.toHaveClass('border')
+
+    expect(accountStatus).not.toHaveClass('bg-surface-raised')
+  })
+
+  it('renders matching appearance and sign-out controls', () => {
+    renderAppShell('/dashboard')
+
+    const appearanceButton = screen.getByRole('button', {
+      name: 'Choose appearance theme',
+    })
+
+    const signOutButton = screen.getByRole('button', {
+      name: 'Sign out',
+    })
+
+    expect(appearanceButton).toHaveClass('size-11')
+
+    expect(signOutButton).toHaveClass('size-11')
+  })
+
+  it('renders the global application footer on every route', () => {
+    renderAppShell('/dashboard')
+
+    expect(screen.getByText('Gamified Habit Tracker')).toBeInTheDocument()
+
+    expect(
+      screen.getByText('Stay consistent. Earn XP. Become Legendary.'),
+    ).toBeInTheDocument()
   })
 
   it('uses a fixed mobile navigation grid instead of horizontal scrolling', () => {

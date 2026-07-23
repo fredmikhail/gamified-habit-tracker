@@ -1,13 +1,17 @@
 import {
   BrainCircuit,
+  ChevronRight,
   LayoutDashboard,
   ListChecks,
   LogOut,
   Sparkles,
+  Zap,
   type LucideIcon,
 } from 'lucide-react'
+import { useEffect } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { CurrentUserResponse } from '../../types/CurrentUserResponse'
+import { useWorkspaceData } from '../../workspace/useWorkspaceData'
 import { ThemeSelector } from '../theme/ThemeSelector'
 
 type AppShellProps = {
@@ -23,6 +27,10 @@ type NavigationItem = {
 }
 
 type NavigationLinkProps = NavigationItem & {
+  compact?: boolean
+}
+
+type BrandMarkProps = {
   compact?: boolean
 }
 
@@ -53,7 +61,7 @@ const pageDetails = {
   habits: {
     eyebrow: 'Habit workspace',
     title: 'Habits',
-    description: 'Create, complete, edit, and manage your active habits.',
+    description: 'Create, complete, edit, and manage your habits.',
   },
   attributes: {
     eyebrow: 'Character progression',
@@ -87,17 +95,37 @@ function getUserInitials(displayName: string): string {
     .join('')
 }
 
-function BrandMark() {
+function getPercentage(value: number, total: number): number {
+  if (total <= 0) {
+    return 0
+  }
+
+  return Math.min(100, Math.max(0, (value / total) * 100))
+}
+
+function BrandMark({ compact = false }: BrandMarkProps) {
+  const outerClassName = compact
+    ? 'relative grid size-6 shrink-0 place-items-center text-accent'
+    : 'relative grid size-11 shrink-0 place-items-center text-accent'
+
+  const outerDiamondClassName = compact
+    ? 'absolute inset-1 rotate-45 rounded-[5px] border border-accent/70 bg-accent-soft'
+    : 'absolute inset-1 rotate-45 rounded-[11px] border border-accent/70 bg-accent-soft shadow-[var(--theme-energy-shadow)]'
+
+  const innerDiamondClassName = compact
+    ? 'absolute inset-2 rotate-45 rounded-[3px] border border-energy-cyan/40'
+    : 'absolute inset-2.5 rotate-45 rounded-[7px] border border-energy-cyan/40'
+
   return (
-    <div
-      aria-hidden="true"
-      className="relative grid size-11 shrink-0 place-items-center text-accent"
-    >
-      <span className="absolute inset-1 rotate-45 rounded-[11px] border border-accent/70 bg-accent-soft shadow-[var(--theme-energy-shadow)]" />
+    <div aria-hidden="true" className={outerClassName}>
+      <span className={outerDiamondClassName} />
+      <span className={innerDiamondClassName} />
 
-      <span className="absolute inset-2.5 rotate-45 rounded-[7px] border border-energy-cyan/40" />
-
-      <Sparkles className="relative" size={20} strokeWidth={1.8} />
+      <Sparkles
+        className="relative"
+        size={compact ? 11 : 20}
+        strokeWidth={1.8}
+      />
     </div>
   )
 }
@@ -147,13 +175,42 @@ export function AppShell({
   const location = useLocation()
   const currentPage = getPageDetails(location.pathname)
 
+  const { dashboardResource } = useWorkspaceData()
+
+  const {
+    data: dashboard,
+    errorMessage: dashboardErrorMessage,
+    ensureLoaded: ensureDashboardLoaded,
+  } = dashboardResource
+
+  useEffect(() => {
+    void ensureDashboardLoaded()
+  }, [ensureDashboardLoaded])
+
+  const overallProgress = dashboard?.overallProgress ?? null
+
+  const levelPercentage = overallProgress
+    ? getPercentage(
+        overallProgress.xpIntoCurrentLevel,
+        overallProgress.xpNeededForNextLevel,
+      )
+    : 0
+
+  const totalXpLabel = overallProgress
+    ? overallProgress.totalXp.toLocaleString()
+    : '—'
+
+  const levelLabel = overallProgress
+    ? overallProgress.level.toLocaleString()
+    : '—'
+
   return (
     <div
-      className="app-viewport grid min-h-0 min-w-0 bg-canvas text-content lg:grid-cols-[18rem_minmax(0,1fr)]"
+      className="app-viewport grid min-h-0 min-w-0 bg-canvas text-content lg:grid-cols-[clamp(18rem,15vw,23rem)_minmax(0,1fr)]"
       data-testid="app-shell"
     >
       <aside className="hidden h-full min-h-0 flex-col overflow-hidden border-r border-line bg-sidebar lg:flex">
-        <div className="flex shrink-0 items-center gap-3 border-b border-line px-6 py-5">
+        <div className="flex shrink-0 items-center gap-3 border-b border-line px-[clamp(1.25rem,1.4vw,2rem)] py-5">
           <BrandMark />
 
           <div className="min-w-0">
@@ -167,7 +224,7 @@ export function AppShell({
           </div>
         </div>
 
-        <div className="shrink-0 px-6 pt-6">
+        <div className="shrink-0 px-[clamp(1.25rem,1.4vw,2rem)] pt-6">
           <p className="text-[11px] font-semibold tracking-[0.2em] text-content-subtle uppercase">
             Navigation
           </p>
@@ -212,40 +269,149 @@ export function AppShell({
         </div>
       </aside>
 
-      <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
+      <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_2.5rem] overflow-hidden">
         <header className="z-30 shrink-0 border-b border-line bg-canvas shadow-[0_10px_35px_rgb(0_0_0/0.12)]">
-          <div className="mx-auto flex min-h-[72px] max-w-[1600px] items-center justify-between gap-3 px-3 sm:px-6 lg:px-8">
+          <div className="flex min-h-[72px] w-full items-center justify-between gap-[clamp(0.75rem,1vw,1.25rem)] px-[clamp(1rem,1.6vw,2.75rem)]">
             <div className="flex min-w-0 items-center gap-3">
               <div className="lg:hidden">
                 <BrandMark />
               </div>
 
-              <div className="hidden min-w-0 min-[430px]:block">
-                <p className="text-[10px] font-semibold tracking-[0.2em] text-accent uppercase">
+              <div className="min-w-0">
+                <p className="hidden text-[9px] font-semibold tracking-[0.2em] text-accent uppercase min-[430px]:block">
                   {currentPage.eyebrow}
                 </p>
 
-                <h1 className="mt-1 truncate text-xl font-semibold sm:text-2xl">
-                  {currentPage.title}
-                </h1>
+                <div className="flex min-w-0 items-baseline gap-3">
+                  <h1 className="truncate text-xl font-semibold sm:text-2xl">
+                    {currentPage.title}
+                  </h1>
+
+                  <p className="hidden truncate text-xs text-content-muted 2xl:block">
+                    {currentPage.description}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div
+              className="flex min-w-0 shrink-0 items-center gap-[clamp(0.5rem,0.75vw,0.875rem)]"
+              data-testid="global-header-controls"
+            >
+              <div
+                aria-busy={overallProgress === null}
+                aria-label="Overall progression"
+                className="relative hidden h-11 min-w-[clamp(12.5rem,16vw,17rem)] items-center gap-2.5 px-1 min-[760px]:flex"
+                data-testid="global-progress-cluster"
+                title={
+                  dashboardErrorMessage
+                    ? 'Overall progression is temporarily unavailable.'
+                    : undefined
+                }
+              >
+                <Zap
+                  aria-hidden="true"
+                  className="shrink-0 text-warning"
+                  fill="currentColor"
+                  size={17}
+                  strokeWidth={1.8}
+                />
+
+                <div className="min-w-0">
+                  <p className="text-[8px] font-bold tracking-[0.12em] text-content-subtle uppercase">
+                    Total XP
+                  </p>
+
+                  <p className="text-sm font-semibold tabular-nums text-content">
+                    {totalXpLabel}
+                  </p>
+                </div>
+
+                <ChevronRight
+                  aria-hidden="true"
+                  className="shrink-0 text-content-subtle"
+                  size={13}
+                />
+
+                <span
+                  aria-label={`Level ${levelLabel}`}
+                  className="min-w-6 text-center text-sm font-semibold tabular-nums text-content"
+                >
+                  {levelLabel}
+                </span>
+
+                <div className="min-w-[4.5rem] flex-1">
+                  <div
+                    aria-label="Overall level progress"
+                    aria-valuemax={
+                      overallProgress?.xpNeededForNextLevel ?? undefined
+                    }
+                    aria-valuemin={0}
+                    aria-valuenow={
+                      overallProgress?.xpIntoCurrentLevel ?? undefined
+                    }
+                    className="h-1.5 overflow-hidden rounded-full bg-surface-muted"
+                    role="progressbar"
+                  >
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${levelPercentage}%`,
+                        background: 'var(--theme-progress-gradient)',
+                        boxShadow:
+                          '0 0 12px color-mix(in srgb, var(--theme-energy-violet) 38%, transparent)',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 bottom-0 h-px"
+                  style={{
+                    background:
+                      'linear-gradient(90deg, transparent, var(--theme-accent-primary), var(--theme-energy-violet), transparent)',
+                  }}
+                />
+              </div>
+
+              <span
+                aria-hidden="true"
+                className="hidden h-7 w-px bg-line min-[900px]:block"
+              />
+
+              <div
+                aria-label={`${currentUser.displayName} is online`}
+                className="hidden min-w-0 items-center gap-2 min-[900px]:flex"
+                data-testid="global-account-status"
+              >
+                <span
+                  aria-hidden="true"
+                  className="size-2.5 shrink-0 rounded-full bg-success shadow-[0_0_10px_color-mix(in_srgb,var(--theme-success)_45%,transparent)]"
+                />
+
+                <div className="min-w-0">
+                  <p className="max-w-[clamp(6rem,9vw,10rem)] truncate text-xs font-semibold text-content">
+                    {currentUser.displayName}
+                  </p>
+
+                  <p className="text-[8px] font-bold tracking-[0.12em] text-success uppercase">
+                    Online
+                  </p>
+                </div>
+              </div>
+
               <ThemeSelector />
 
               <button
                 aria-label="Sign out"
-                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface-raised px-3 py-2.5 text-sm font-semibold text-content transition-colors hover:border-danger/50 hover:bg-surface-hover hover:text-danger disabled:cursor-not-allowed disabled:opacity-50 sm:px-3.5"
+                className="grid size-11 shrink-0 place-items-center rounded-xl border border-line bg-surface-raised text-content-muted shadow-[var(--theme-panel-shadow)] transition-colors hover:border-danger/50 hover:bg-surface-hover hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isLogoutPending}
+                title={isLogoutPending ? 'Signing out...' : 'Sign out'}
                 type="button"
                 onClick={onLogout}
               >
                 <LogOut aria-hidden="true" size={18} strokeWidth={1.8} />
-
-                <span className="hidden sm:inline">
-                  {isLogoutPending ? 'Signing out...' : 'Sign out'}
-                </span>
               </button>
             </div>
           </div>
@@ -261,23 +427,44 @@ export function AppShell({
         </header>
 
         <main className="min-h-0 min-w-0 overflow-hidden">
-          <div className="mx-auto grid h-full min-h-0 w-full max-w-[1600px] grid-rows-[auto_minmax(0,1fr)] px-4 pt-4 sm:px-6 sm:pt-5 lg:px-8 lg:pt-6">
-            <div className="shrink-0 pb-4 lg:pb-5">
-              <p className="max-w-2xl text-sm leading-6 text-content-muted">
-                {currentPage.description}
-              </p>
-            </div>
-
+          <div className="grid h-full min-h-0 w-full px-[clamp(1rem,1.6vw,2.75rem)] py-[clamp(0.875rem,1.15vw,1.5rem)]">
             <div
               className="app-route-scroll min-h-0 min-w-0"
               data-testid="route-content-region"
             >
-              <div className="h-full min-w-0 pb-5 pr-1 lg:pb-7">
+              <div className="h-full min-w-0">
                 <Outlet />
               </div>
             </div>
           </div>
         </main>
+
+        <footer className="flex min-w-0 items-center border-t border-line bg-sidebar px-[clamp(1rem,1.6vw,2.75rem)]">
+          <div className="flex min-w-0 items-center gap-2">
+            <BrandMark compact />
+
+            <span className="hidden truncate text-[8px] font-semibold tracking-[0.16em] text-content-subtle uppercase sm:inline">
+              Gamified Habit Tracker
+            </span>
+
+            <span
+              aria-hidden="true"
+              className="hidden h-3 w-px bg-line sm:block"
+            />
+
+            <p
+              className="truncate text-[9px] font-semibold tracking-[0.04em] text-accent sm:text-[10px]"
+              style={{
+                background: 'var(--theme-progress-gradient)',
+                backgroundClip: 'text',
+                color: 'transparent',
+                WebkitBackgroundClip: 'text',
+              }}
+            >
+              Stay consistent. Earn XP. Become Legendary.
+            </p>
+          </div>
+        </footer>
       </section>
     </div>
   )
