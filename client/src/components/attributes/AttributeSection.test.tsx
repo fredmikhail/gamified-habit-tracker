@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getAttributeOverview } from '../../api/attributesApi'
@@ -88,7 +88,23 @@ const overviewResponse: AttributeOverviewResponse = {
     xpIntoCurrentLevel: 25,
     xpNeededForNextLevel: 250,
   },
-  closestToLevelUp: [],
+  closestToLevelUp: [
+    {
+      attributeType: 'purpose',
+      currentLevel: 12,
+      xpRemaining: 80,
+    },
+    {
+      attributeType: 'vitality',
+      currentLevel: 9,
+      xpRemaining: 85,
+    },
+    {
+      attributeType: 'mind',
+      currentLevel: 13,
+      xpRemaining: 90,
+    },
+  ],
   recentXpTransactions: [
     {
       id: 'transaction-1',
@@ -128,7 +144,7 @@ describe('AttributeSection', () => {
     getAttributeOverviewMock.mockReset()
   })
 
-  it('fits the character command center into one bounded page layout', async () => {
+  it('fits the character command center and level-up strip into one bounded page', async () => {
     getAttributeOverviewMock.mockResolvedValue(overviewResponse)
 
     renderAttributeSection()
@@ -167,6 +183,29 @@ describe('AttributeSection', () => {
         name: 'Attribute XP Distribution',
       }),
     ).toBeInTheDocument()
+
+    expect(
+      screen.getByRole('region', {
+        name: 'Next attribute levels',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('renders the backend-ranked next-level queue without recalculating it', async () => {
+    getAttributeOverviewMock.mockResolvedValue(overviewResponse)
+
+    renderAttributeSection()
+
+    const levelUpStrip = await screen.findByRole('region', {
+      name: 'Next attribute levels',
+    })
+
+    expect(within(levelUpStrip).getByText('Purpose')).toBeInTheDocument()
+    expect(within(levelUpStrip).getByText('80 XP')).toBeInTheDocument()
+    expect(within(levelUpStrip).getByText('Vitality')).toBeInTheDocument()
+    expect(within(levelUpStrip).getByText('85 XP')).toBeInTheDocument()
+    expect(within(levelUpStrip).getByText('Mind')).toBeInTheDocument()
+    expect(within(levelUpStrip).getByText('90 XP')).toBeInTheDocument()
   })
 
   it('renders real overview data without interactive radar hover controls', async () => {

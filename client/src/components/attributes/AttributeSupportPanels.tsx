@@ -35,48 +35,86 @@ function AttributeMeaningPanel() {
       className="h-full min-h-0"
       eyebrow="Character guide"
       title="What Each Attribute Means"
-      bodyClassName="min-h-0 overflow-y-auto"
+      bodyClassName="min-h-0 overflow-hidden p-0"
     >
-      <div className="space-y-2">
-        {attributeOrder.map((attributeType) => {
-          const visual = getAttributeVisual(attributeType)
+      <div
+        className="h-full min-h-0"
+        data-testid="attribute-meaning-container"
+        style={{ containerType: 'size' }}
+      >
+        <div
+          className="grid h-full min-h-0 grid-rows-[repeat(8,minmax(0,1fr))]"
+          data-testid="attribute-meaning-grid"
+          style={{
+            gap: 'clamp(0.375rem, 1cqh, 0.65rem)',
+            padding: 'clamp(0.5rem, 1.3cqh, 0.875rem)',
+          }}
+        >
+          {attributeOrder.map((attributeType) => {
+            const visual = getAttributeVisual(attributeType)
 
-          const style = {
-            '--attribute-accent': visual.colorVariable,
-          } as CSSProperties
+            const style = {
+              '--attribute-accent': visual.colorVariable,
+              gap: 'clamp(0.5rem, 1.2cqh, 0.75rem)',
+              paddingInline: 'clamp(0.5rem, 1.3cqh, 0.85rem)',
+              paddingBlock: 'clamp(0.25rem, 0.7cqh, 0.5rem)',
+            } as CSSProperties
 
-          return (
-            <article
-              key={attributeType}
-              className="flex gap-2.5 rounded-xl border border-line bg-surface px-2.5 py-2"
-              data-attribute-type={attributeType}
-              style={style}
-            >
-              <span
-                className="grid size-8 shrink-0 place-items-center rounded-lg border"
-                style={{
-                  borderColor:
-                    'color-mix(in srgb, var(--attribute-accent) 38%, transparent)',
-                  backgroundColor:
-                    'color-mix(in srgb, var(--attribute-accent) 11%, transparent)',
-                  color: 'var(--attribute-accent)',
-                }}
+            return (
+              <article
+                key={attributeType}
+                className="flex min-h-0 items-center rounded-[0.7rem] border border-line bg-surface"
+                data-attribute-type={attributeType}
+                style={style}
               >
-                <visual.Icon aria-hidden="true" size={15} strokeWidth={1.9} />
-              </span>
-
-              <span className="min-w-0">
-                <span className="block text-xs font-semibold">
-                  {visual.label}
+                <span
+                  className="grid shrink-0 place-items-center rounded-lg border"
+                  style={{
+                    width: 'clamp(1.75rem, 5.5cqh, 2.5rem)',
+                    height: 'clamp(1.75rem, 5.5cqh, 2.5rem)',
+                    borderColor:
+                      'color-mix(in srgb, var(--attribute-accent) 38%, transparent)',
+                    backgroundColor:
+                      'color-mix(in srgb, var(--attribute-accent) 11%, transparent)',
+                    color: 'var(--attribute-accent)',
+                  }}
+                >
+                  <visual.Icon
+                    aria-hidden="true"
+                    strokeWidth={1.9}
+                    style={{
+                      width: 'clamp(0.8125rem, 2.5cqh, 1.125rem)',
+                      height: 'clamp(0.8125rem, 2.5cqh, 1.125rem)',
+                    }}
+                  />
                 </span>
 
-                <span className="mt-0.5 block text-[10px] leading-4 text-content-muted">
-                  {visual.description}
+                <span className="min-w-0">
+                  <span
+                    className="block font-semibold"
+                    style={{
+                      fontSize: 'clamp(0.6875rem, 2cqh, 0.875rem)',
+                      lineHeight: 1.15,
+                    }}
+                  >
+                    {visual.label}
+                  </span>
+
+                  <span
+                    className="block text-content-muted"
+                    style={{
+                      marginTop: 'clamp(0rem, 0.25cqh, 0.125rem)',
+                      fontSize: 'clamp(0.53125rem, 1.55cqh, 0.6875rem)',
+                      lineHeight: 1.22,
+                    }}
+                  >
+                    {visual.description}
+                  </span>
                 </span>
-              </span>
-            </article>
-          )
-        })}
+              </article>
+            )
+          })}
+        </div>
       </div>
     </CommandPanel>
   )

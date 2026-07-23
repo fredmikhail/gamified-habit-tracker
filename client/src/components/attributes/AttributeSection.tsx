@@ -4,6 +4,7 @@ import type { UserAttributeResponse } from '../../types/UserAttributeResponse'
 import { useWorkspaceData } from '../../workspace/useWorkspaceData'
 import { CommandPanel } from '../ui/CommandPanel'
 import { AttributeCard } from './AttributeCard'
+import { AttributeLevelUpStrip } from './AttributeLevelUpStrip'
 import { AttributeRadarChart } from './AttributeRadarChart'
 import { AttributeSupportPanels } from './AttributeSupportPanels'
 import { attributeOrder, getAttributeVisual } from './attributeVisuals'
@@ -89,7 +90,7 @@ export function AttributeSection() {
 
   return (
     <section
-      className="relative grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] gap-[clamp(0.6rem,0.48rem_+_0.12vw,0.875rem)] overflow-hidden"
+      className="relative grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-[clamp(0.5rem,0.4rem_+_0.1vw,0.75rem)] overflow-hidden"
       data-testid="attribute-page"
     >
       <div
@@ -242,6 +243,8 @@ export function AttributeSection() {
           <AttributeSupportPanels overview={overview} />
         </div>
       )}
+
+      {overview && <AttributeLevelUpStrip items={overview.closestToLevelUp} />}
     </section>
   )
 }
