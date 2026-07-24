@@ -160,6 +160,12 @@ app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
 
+if (app.Environment.IsProduction())
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
+
 app.UseCors(frontendCorsPolicy);
 
 app.UseAuthentication();
@@ -167,6 +173,11 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+if (app.Environment.IsProduction())
+{
+    app.MapFallbackToFile("index.html");
+}
 
 app.Run();
 
