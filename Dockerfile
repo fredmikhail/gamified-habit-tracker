@@ -17,6 +17,10 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS backend-build
 
 WORKDIR /src
 
+COPY dotnet-tools.json ./
+
+RUN dotnet tool restore
+
 COPY server/HabitTracker.Api/HabitTracker.Api.csproj server/HabitTracker.Api/
 
 RUN dotnet restore server/HabitTracker.Api/HabitTracker.Api.csproj
@@ -27,6 +31,12 @@ RUN dotnet publish server/HabitTracker.Api/HabitTracker.Api.csproj \
     --configuration Release \
     --output /app/publish \
     --no-restore
+
+RUN dotnet ef migrations bundle \
+    --project server/HabitTracker.Api/HabitTracker.Api.csproj \
+    --startup-project server/HabitTracker.Api/HabitTracker.Api.csproj \
+    --configuration Release \
+    --output /app/publish/efbundle
 
 COPY --from=frontend-build /src/client/dist/ /app/publish/wwwroot/
 
