@@ -1,14 +1,20 @@
 using HabitTracker.Api.Domain.Entities;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+
 
 namespace HabitTracker.Api.Data;
 
-public sealed class AppDbContext : DbContext
+public sealed class AppDbContext
+    : DbContext, IDataProtectionKeyContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
     {
     }
+
+    public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } =
+    null!;
 
     public DbSet<User> Users => Set<User>();
 

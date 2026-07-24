@@ -8,11 +8,26 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 
 
 var builder = WebApplication.CreateBuilder(args);
 
 const string frontendCorsPolicy = "FrontendCorsPolicy";
+
+if (builder.Environment.IsProduction())
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders =
+            ForwardedHeaders.XForwardedProto;
+
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+        options.ForwardLimit = 1;
+    });
+}
 
 // Add services to the container.
 
@@ -132,6 +147,16 @@ builder.Services.AddDbContext<AppDbContext>(
             .UseSnakeCaseNamingConvention();
     });
 
+var dataProtectionBuilder = builder.Services
+    .AddDataProtection()
+    .SetApplicationName("HabitTracker.Api");
+
+if (builder.Environment.IsProduction())
+{
+    dataProtectionBuilder
+        .PersistKeysToDbContext<AppDbContext>();
+}
+
 var app = builder.Build();
 
 await using (var scope = app.Services.CreateAsyncScope())
@@ -154,6 +179,11 @@ await using (var scope = app.Services.CreateAsyncScope())
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+}
+
+if (app.Environment.IsProduction())
+{
+    app.UseForwardedHeaders();
 }
 
 app.UseExceptionHandler();
